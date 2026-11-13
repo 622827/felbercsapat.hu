@@ -179,11 +179,34 @@ var JELSZO_HASH = "a0634eb7350919731aef70a89209cb804f55485c8448c83c246df7793c8a1
     lock: function () { try { localStorage.removeItem(K); } catch (e) {} tok = ""; root.classList.add("lock"); build(); }
   };
   if (!tok) root.classList.add("lock");
+  /* SHA-256 saját megvalósítással: HTTP-n (nem biztonságos környezetben) a crypto.subtle nem érhető el. */
+  function sha256(str) {
+    var bytes = unescape(encodeURIComponent(str)), K = [], H = [], i, j;
+    function frac(x) { return ((x - Math.floor(x)) * 4294967296) | 0; }
+    for (var n = 2, c = 0; c < 64; n++) {
+      for (j = 2; j * j <= n && n % j; j++);
+      if (j * j > n) { if (c < 8) H[c] = frac(Math.pow(n, 1 / 2)); K[c++] = frac(Math.pow(n, 1 / 3)); }
+    }
+    var l = bytes.length, words = [];
+    for (i = 0; i < l; i++) words[i >> 2] |= bytes.charCodeAt(i) << (24 - (i % 4) * 8);
+    words[l >> 2] |= 0x80 << (24 - (l % 4) * 8);
+    words[(((l + 8) >> 6) << 4) + 15] = l * 8;
+    function r(x, k) { return (x >>> k) | (x << (32 - k)); }
+    for (i = 0; i < words.length; i += 16) {
+      var w = [], a = H.slice(0);
+      for (j = 0; j < 64; j++) {
+        if (j < 16) w[j] = words[i + j] | 0;
+        else w[j] = (r(w[j - 15], 7) ^ r(w[j - 15], 18) ^ (w[j - 15] >>> 3)) + w[j - 7] + (r(w[j - 2], 17) ^ r(w[j - 2], 19) ^ (w[j - 2] >>> 10)) + w[j - 16] | 0;
+        var t1 = a[7] + (r(a[4], 6) ^ r(a[4], 11) ^ r(a[4], 25)) + ((a[4] & a[5]) ^ (~a[4] & a[6])) + K[j] + w[j] | 0;
+        var t2 = (r(a[0], 2) ^ r(a[0], 13) ^ r(a[0], 22)) + ((a[0] & a[1]) ^ (a[0] & a[2]) ^ (a[1] & a[2])) | 0;
+        a = [t1 + t2 | 0].concat(a); a[4] = a[4] + t1 | 0; a.pop();
+      }
+      for (j = 0; j < 8; j++) H[j] = H[j] + a[j] | 0;
+    }
+    return H.map(function (x) { return ("00000000" + (x >>> 0).toString(16)).slice(-8); }).join("");
+  }
   function helyi(jelszo) {
-    return crypto.subtle.digest("SHA-256", new TextEncoder().encode(jelszo)).then(function (b) {
-      var h = Array.prototype.map.call(new Uint8Array(b), function (x) { return ("0" + x.toString(16)).slice(-2); }).join("");
-      return h === JELSZO_HASH ? { ok: true, token: "helyi" } : { ok: false };
-    });
+    return Promise.resolve(sha256(jelszo) === JELSZO_HASH ? { ok: true, token: "helyi" } : { ok: false });
   }
   function build() {
     if (document.getElementById("gate")) return;
