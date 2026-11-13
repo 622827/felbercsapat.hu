@@ -219,10 +219,10 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyKJWVa3jBRfwRyCPwYhwJWpS
     lock: function () { ["fbr_token", "fbr_nev", "fbr_szb", "szb_token"].forEach(function (k) { ls(k, ""); }); tok = ""; root.classList.add("lock"); build(); }
   };
   if (!tok) root.classList.add("lock");
-  function belep(jelszo) {
+  function belep(email, jelszo) {
     return fetch("hozzaferes.json?_=" + Date.now()).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function (h) {
       return new Promise(function (ok) { setTimeout(ok, 30); }).then(function () { // hadd rajzolja ki az „Ellenőrzés…” feliratot
-        var kulcs = FbrKripto.kulcs(jelszo, h);
+        var kulcs = FbrKripto.kulcs(email + "\n" + jelszo, h);
         for (var i = 0; i < h.felhasznalok.length; i++) {
           var b = h.felhasznalok[i], t = FbrKripto.visszafejt(kulcs, { nonce: b.nonce, adat: b.adat, cimke: b.cimke });
           if (t) return t;
@@ -243,18 +243,19 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyKJWVa3jBRfwRyCPwYhwJWpS
     if (document.getElementById("gate")) return;
     if (!document.body) { document.addEventListener("DOMContentLoaded", build); return; }
     var g = document.createElement("div"); g.id = "gate";
-    g.innerHTML = '<form autocomplete="on"><div class="bolt" aria-hidden="true"><span></span></div><h1>Felber csapat</h1><p>Add meg a jelszavadat a belépéshez.</p>' +
+    g.innerHTML = '<form autocomplete="on"><div class="bolt" aria-hidden="true"><span></span></div><h1>Felber csapat</h1><p>Lépj be az e-mail-címeddel és a jelszavaddal.</p>' +
+      '<input type="email" id="fbr-email" placeholder="E-mail-cím" aria-label="E-mail-cím" autocomplete="username" style="margin-bottom:10px">' +
       '<input type="password" id="fbr-pw" placeholder="Jelszó" aria-label="Jelszó" autocomplete="current-password">' +
       '<button class="btn" type="submit">Belépés</button><p class="err" role="alert"></p></form>';
     document.body.appendChild(g);
-    var f = g.querySelector("form"), pw = g.querySelector("input"), btn = g.querySelector("button"), er = g.querySelector(".err");
-    setTimeout(function () { pw.focus(); }, 50);
+    var f = g.querySelector("form"), em = g.querySelector("#fbr-email"), pw = g.querySelector("#fbr-pw"), btn = g.querySelector("button"), er = g.querySelector(".err");
+    setTimeout(function () { em.focus(); }, 50);
     f.addEventListener("submit", function (ev) {
-      ev.preventDefault(); if (!pw.value) return;
+      ev.preventDefault(); if (!em.value || !pw.value) return;
       btn.disabled = true; er.textContent = ""; btn.textContent = "Ellenőrzés…";
-      belep(pw.value.trim().toLowerCase())
+      belep(em.value.trim().toLowerCase(), pw.value.trim().toLowerCase())
         .then(function (t) {
-          if (!t) { er.textContent = "Hibás jelszó."; btn.disabled = false; btn.textContent = "Belépés"; pw.select(); return; }
+          if (!t) { er.textContent = "Hibás e-mail-cím vagy jelszó."; btn.disabled = false; btn.textContent = "Belépés"; pw.select(); return; }
           ls(K, t.kulcs); ls("fbr_nev", t.nev); ls("fbr_szb", t.szb ? JSON.stringify(t.szb) : ""); ls("szb_token", "");
           return window.FBR.szbBelep().then(function () { location.reload(); });
         })

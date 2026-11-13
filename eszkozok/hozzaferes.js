@@ -6,7 +6,8 @@
  *   FBR_JELSZO=… node eszkozok/hozzaferes.js felhasznalok.json
  *
  * A felhasznalok.json (NE kerüljön a repóba!):
- *   [ { "nev": "Szekér Szilvi", "szb": { "email": "…", "jelszo": "…" } }, … ]
+ *   [ { "nev": "Szekér Szilvi", "email": "…", "szb": { "email": "…", "jelszo": "…" } }, … ]
+ * Belépés az oldalon: e-mail-cím + jelszó (a kulcs a kettőből képződik: „email\njelszó”).
  * A jelszó alapból a vezetéknév (a név első szava) ékezet nélkül, kisbetűvel, egybeírva:
  * „Szekér Szilvi” → „szeker”. Ettől eltérőt a „jelszo” mezővel lehet megadni. A „szb” elhagyható. Kimenet: hozzaferes.json a repó gyökerében.
  *
@@ -38,16 +39,17 @@ function vezeteknev(nev) {
 
 const felhasznalok = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
 felhasznalok.forEach(function (f) { if (!f.jelszo) f.jelszo = vezeteknev(f.nev); });
-const jelszavak = felhasznalok.map(function (f) { return f.jelszo; });
-const dupla = jelszavak.filter(function (j, i) { return jelszavak.indexOf(j) !== i; });
-if (dupla.length) { console.error("HIBA: azonos jelszó több felhasználónál (" + dupla.join(", ") + "). Adj meg nekik eltérő „jelszo”-t."); process.exit(1); }
+const emailek = felhasznalok.map(function (f) { return String(f.email || "").trim().toLowerCase(); });
+const dupla = emailek.filter(function (j, i) { return emailek.indexOf(j) !== i; });
+if (dupla.length) { console.error("HIBA: azonos e-mail-cím több felhasználónál (" + dupla.join(", ") + ")."); process.exit(1); }
 const so = new Uint8Array(crypto.randomBytes(16));
 const bejegyzesek = felhasznalok.map(function (f) {
-  if (!f.nev || !f.jelszo) { console.error("HIBA: minden felhasználónak kell név és jelszó."); process.exit(1); }
-  const t = kripto.titkosit({ nev: f.nev, kulcs: kulcs, szb: f.szb || null }, f.jelszo, so, new Uint8Array(crypto.randomBytes(16)), ITER);
+  if (!f.nev || !f.jelszo || !f.email) { console.error("HIBA: minden felhasználónak kell név, e-mail-cím és jelszó."); process.exit(1); }
+  const email = String(f.email).trim().toLowerCase();
+  const t = kripto.titkosit({ nev: f.nev, email: email, kulcs: kulcs, szb: f.szb || null }, email + "\n" + f.jelszo, so, new Uint8Array(crypto.randomBytes(16)), ITER);
   return { nonce: t.nonce, adat: t.adat, cimke: t.cimke };
 });
 // sorrend keverése, hogy a fájlból ne lehessen kikövetkeztetni, ki melyik
 bejegyzesek.sort(function () { return Math.random() - 0.5; });
 fs.writeFileSync(path.join(GYOKER, "hozzaferes.json"), JSON.stringify({ v: 1, iter: ITER, so: Buffer.from(so).toString("base64"), felhasznalok: bejegyzesek }) + "\n");
-console.log("hozzaferes.json kész: " + felhasznalok.map(function (f) { return f.nev + " → " + f.jelszo + (f.szb ? " (+SZB)" : ""); }).join(", "));
+console.log("hozzaferes.json kész: " + felhasznalok.map(function (f) { return f.nev + " <" + f.email + "> → " + f.jelszo + (f.szb ? " (+SZB)" : ""); }).join(", "));

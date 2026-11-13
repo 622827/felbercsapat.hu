@@ -23,7 +23,7 @@ A frissítést hétköznap esténként egy ütemezett Claude-feladat végzi.
 
 ## Belépés (személyes jelszavak)
 
-Az oldalra mindenki a saját jelszavával lép be. A `hozzaferes.json` minden felhasználónál az adatfájl
+Az oldalra mindenki a saját e-mail-címével és jelszavával lép be. A `hozzaferes.json` minden felhasználónál az adatfájl
 kulcsát (és a Kontroll SZB belépési adatait) a saját jelszavával titkosítva tartalmazza, így a közös
 `FBR_JELSZO`-t senkinek sem kell tudnia. A Kontroll SZB-be a főoldali belépés után nem kell külön jelszó.
 
