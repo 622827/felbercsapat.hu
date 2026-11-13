@@ -73,6 +73,13 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbzfVfmWU1KZp4q7eW9BJIs-uj
   .chip { display: inline-block; font-size: .72rem; font-weight: 700; padding: 1px 8px; border-radius: 99px; background: var(--track); color: var(--muted); margin-right: 4px; }
   .allapot { font-size: .85rem; font-weight: 600; padding: 6px 12px; border-radius: 99px; background: var(--panel); color: var(--muted); }
   .allapot.ok { background: var(--accent-soft); color: var(--ink); }
+  .lap > .fej + .fulek { margin-top: -10px; }
+  .fulek { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .fulek button { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 16px 12px; border-radius: 16px; border: 2px solid var(--line); background: var(--panel); font-weight: 700; font-size: 1.05rem; cursor: pointer; color: var(--muted); }
+  .fulek button span { font-size: 1.3rem; }
+  .fulek button:hover { color: var(--ink); border-color: var(--muted); }
+  .fulek button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .ful { display: flex; flex-direction: column; gap: 28px; }
   section h3 { margin: 0 0 10px; font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
   .szerkeszto { background: var(--panel); border-radius: 16px; padding: 16px; display: grid; gap: 12px; }
   textarea { width: 100%; min-height: 170px; resize: vertical; border: 1px solid var(--line); background: var(--bg); border-radius: 12px; padding: 12px 14px; line-height: 1.55; }
@@ -189,8 +196,9 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbzfVfmWU1KZp4q7eW9BJIs-uj
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
   var TK = "szb_token";
-  var S = { token: "", en: null, mt: [], jegy: [], fel: [], sel: null, nezet: "mt", minden: false, szerk: null, torol: null, kesz: false, betolt: false, fh: null, ujJelszo: null };
+  var S = { token: "", en: null, mt: [], jegy: [], fel: [], sel: null, nezet: "mt", minden: false, szerk: null, torol: null, kesz: false, betolt: false, fh: null, ujJelszo: null , ful: ""};
   try { S.token = localStorage.getItem(TK) || ""; } catch (e) {}
+  try { S.ful = localStorage.getItem("szb_ful") || ""; } catch (e) {}
   /* A főoldalon (eredményjelző) belépett felhasználó SZB-belépési adatai: ezekkel jelszó nélkül belépünk. */
   var AUTO = null;
   try { AUTO = JSON.parse(localStorage.getItem("fbr_szb") || "null"); } catch (e) {}
@@ -334,6 +342,12 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbzfVfmWU1KZp4q7eW9BJIs-uj
       '<div class="fej"><div><h2>' + esc(m.nev) + "</h2><p>" + (m.pozicio ? '<span class="chip">' + esc(m.pozicio) + "</span>" : "") + esc(m.csapat || "") + '</p>' +
         (S.mt.length <= 1 ? '<p class="fiok" style="margin-top:6px">Belépve: <b>' + esc(S.en.nev || S.en.email) + '</b> ' + (AUTO ? "" : '<button class="link" type="button" data-a="jelszo">Jelszócsere</button> ') + '<button class="link" type="button" data-a="kilep">Kilépés</button></p>' : "") +
         '</div><span class="allapot" id="allapot"></span></div>' +
+      '<div class="fulek" role="tablist" aria-label="Munkatárs menü">' +
+        '<button type="button" role="tab" data-ful="pipeline" aria-selected="' + (S.ful === "pipeline") + '"><span aria-hidden="true">📈</span>Pipeline</button>' +
+        '<button type="button" role="tab" data-ful="szb" aria-selected="' + (S.ful === "szb") + '"><span aria-hidden="true">📝</span>Kontroll SZB</button></div>' +
+      '<div id="fulValaszt" class="ures"' + (S.ful ? " hidden" : "") + '>Válaszd ki fent, mit nyitsz meg: <b>Pipeline</b> vagy <b>Kontroll SZB</b>.</div>' +
+      '<div id="fulPipeline" class="ful"' + (S.ful === "pipeline" ? "" : " hidden") + '><section><h3>Pipeline</h3><p class="ures">Hamarosan. Ide kerül ' + esc(m.nev) + ' pipeline-ja.</p></section></div>' +
+      '<div id="fulSzb" class="ful"' + (S.ful === "szb" ? "" : " hidden") + '>' +
       '<section><h3>Új SZB jegyzet</h3><form class="szerkeszto" id="jegyzetForm">' +
         '<textarea id="jegyzetSzoveg" aria-label="SZB jegyzet" placeholder="Milyen volt a múlt hét? Mi a terv a jövő hétre? Bármi, amit meg akarsz jegyezni…">' + esc(vazlat) + "</textarea>" +
         '<div class="sor"><label for="jegyzetDatum">SZB dátuma</label><input type="date" id="jegyzetDatum" value="' + maIso() + '"><span class="hiba" id="jegyzetHiba"></span><button class="gomb jobbra" type="submit" id="jegyzetMent">Mentés</button></div></form></section>' +
@@ -342,7 +356,13 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbzfVfmWU1KZp4q7eW9BJIs-uj
         '<form id="feladatForm"><div class="ujfeladat"><input type="text" class="mezo" id="feladatSzoveg" placeholder="Pl. 5 új ügyfélidőpont jövő péntekig" aria-label="Új feladat" style="border-width:1px;padding:9px 12px">' +
         '<input type="date" id="feladatHatarido" aria-label="Határidő"><button class="gomb" type="submit">Hozzáadás</button></div>' +
         '<div class="gyors" id="gyors"><button type="button" data-g="holnap">Holnap</button><button type="button" data-g="pentek">Péntek</button><button type="button" data-g="jovohet">Jövő hét</button><button type="button" data-g="kovszb">Következő SZB</button><button type="button" data-g="">Nincs határidő</button></div></form>' +
-        '<div id="feladatLista"></div></section></div>';
+        '<div id="feladatLista"></div></section></div></div>';
+    main.querySelector(".fulek").addEventListener("click", function (e) {
+      var b = e.target.closest("[data-ful]"); if (!b) return;
+      S.ful = b.dataset.ful; lsSet("szb_ful", S.ful);
+      this.querySelectorAll("[data-ful]").forEach(function (x) { x.setAttribute("aria-selected", String(x === b)); });
+      $("fulValaszt").hidden = true; $("fulPipeline").hidden = S.ful !== "pipeline"; $("fulSzb").hidden = S.ful !== "szb";
+    });
     var v = $("vissza"); if (v) v.onclick = function () { $("app").classList.remove("reszletben"); S.sel = null; try { history.replaceState(null, "", "#"); } catch (e) {} rajzolLista(); };
     $("jegyzetSzoveg").addEventListener("input", function () { lsSet("szb_vazlat_" + m.id, this.value); });
     $("jegyzetForm").addEventListener("submit", function (e) { e.preventDefault(); mentJegyzet(m.id); });
