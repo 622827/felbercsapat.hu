@@ -62,6 +62,8 @@ var API = "";
   select.q { background: var(--card); border: 0; border-radius: 999px; padding: 10px 14px; font-weight: 600; cursor: pointer; }
   .kilep { background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 9px 14px; cursor: pointer; color: var(--muted); font-weight: 600; }
   .kilep:hover { color: var(--ink); border-color: var(--muted); }
+  a.kilep { text-decoration: none; display: inline-flex; align-items: center; }
+  a.kilep.szb { color: var(--accent); border-color: var(--accent); }
   .status { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: .85rem; margin: -8px 0 20px; flex-wrap: wrap; }
   .status button { background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; cursor: pointer; color: var(--muted); }
   .status button:hover { color: var(--ink); border-color: var(--muted); }
@@ -257,7 +259,7 @@ var API = "";
       <p class="eyebrow">Felber BL</p>
       <h1 class="title">Eredményjelző</h1>
     </div>
-    <div class="controls"><div class="controls" id="controls"></div><button class="kilep" id="kilep" type="button">Kilépés</button></div>
+    <div class="controls"><div class="controls" id="controls"></div><a class="kilep szb" href="https://claude.ai/artifact/TuqNnUuPA5yN3DSrGVokbg" target="_blank" rel="noopener">SZB jegyzetek ↗</a><button class="kilep" id="kilep" type="button">Kilépés</button></div>
   </header>
   <main id="app" aria-live="polite">
     <div class="grid kpis"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
