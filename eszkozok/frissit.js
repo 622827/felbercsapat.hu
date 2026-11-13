@@ -72,6 +72,11 @@ try {
   const regi = JSON.parse(fs.readFileSync(KIMENET, "utf8"));
   if (regi.so && regi.iter === ITER) so = Buffer.from(regi.so, "base64");
   const regiAdat = kripto.visszafejt(kripto.kulcs(jelszo, regi), regi);
+  if (!regiAdat && fs.existsSync(path.join(GYOKER, "hozzaferes.json"))) {
+    // Rossz jelszóval új kulcs keletkezne, és senki sem tudna belépni (a hozzaferes.json a régi kulcsot tartalmazza).
+    console.error("HIBA: az FBR_JELSZO nem nyitja a meglévő adat.enc.json-t. Nem írom felül. (Jelszócsere: lásd eszkozok/README.md.)");
+    process.exit(1);
+  }
   if (regiAdat && regiAdat.jutalmak) jutalmak = regiAdat.jutalmak;
 } catch (e) { /* nincs még fájl */ }
 if (jutalmakFajl) jutalmak = JSON.parse(fs.readFileSync(jutalmakFajl, "utf8"));
