@@ -13,6 +13,7 @@
    A jelszó NEM itt van, hanem az Apps Scriptben. */
 var API = "";
 </script>
+<script src="kripto.js"></script>
 <style>
   :root { --hatter: url(data:image/png;base64,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); --bg: #0b2e5a; --ink: #ffffff; --muted: #b9dcff; --accent: #3ddc84; --blue: #5cb8ff; --card: #143d72; --card2: #18467f; --track: #1d4c86; --line: #2a5a96; --warn: #ffc857; color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -100,7 +101,29 @@ var API = "";
   .rekord .r-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 16px; }
   .rekord .r-num { font-size: clamp(2.6rem, 9vw, 4.6rem); font-weight: 700; letter-spacing: -.04em; line-height: 1; font-variant-numeric: tabular-nums; }
   .rekord .r-num small { font-size: .35em; color: var(--muted); font-weight: 600; letter-spacing: 0; }
-  .r-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
+  .r-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 30px; }
+  .bar .tick.j { background: #ffd34d; width: 3px; }
+  .bar .tick.j.ok { background: var(--accent); }
+  .bar .tick-l.j { color: var(--muted); font-weight: 600; }
+  .bar .tick-l.j.ok { color: var(--accent); }
+
+  /* Jutalmak */
+  .jut { grid-template-columns: repeat(3, 1fr); margin-bottom: 8px; }
+  h2.elso { margin-top: 26px; }
+  .jut-szint { position: relative; border: 2px solid transparent; }
+  .jut-szint.ok { border-color: var(--accent); }
+  .jut-szint.kov { border-color: #ffd34d; }
+  .jut-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .jut-h b { font-size: 1.5rem; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .jut-h b small { font-size: .55em; color: var(--muted); font-weight: 600; letter-spacing: 0; }
+  .allapot { font-size: .75rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--track); color: var(--muted); white-space: nowrap; }
+  .ok .allapot { background: var(--accent); color: var(--bg); }
+  .kov .allapot { background: #ffd34d; color: #3b2a00; }
+  .jut-szint .bar { height: 8px; margin-bottom: 14px; }
+  .jut-tetel { display: grid; grid-template-columns: 40px 1fr; gap: 10px; align-items: start; padding: 10px 0; border-top: 1px solid var(--line); }
+  .jut-ikon { width: 40px; height: 40px; border-radius: 12px; background: rgba(0,0,0,.18); display: grid; place-items: center; font-size: 1.3rem; }
+  .jut-tetel b { display: block; line-height: 1.25; }
+  .jut-tetel span { display: block; color: var(--muted); font-size: .85rem; margin-top: 3px; line-height: 1.3; }
   .r-facts div { background: rgba(0,0,0,.15); border-radius: 14px; padding: 10px 14px; }
   .r-facts b { display: block; font-size: 1.35rem; font-variant-numeric: tabular-nums; }
   .r-facts span { color: var(--muted); font-size: .8rem; }
@@ -139,7 +162,7 @@ var API = "";
   .top .t-val { text-align: right; font-variant-numeric: tabular-nums; }
   .top .t-val b { font-size: 1.15rem; }
   .top .t-val span { display: block; font-size: .8rem; color: var(--muted); }
-  .lower { grid-template-columns: 1fr 1fr; }
+  .lower { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); margin-top: 16px; }
 
   .notice { max-width: 560px; margin: 8vh auto 0; text-align: center; background: var(--card); border: 3px solid var(--accent); border-radius: 24px; padding: 32px 26px; }
   .notice h1 { margin: 0 0 10px; font-size: 1.6rem; }
@@ -152,7 +175,7 @@ var API = "";
   @media (max-width: 900px) {
     .kpis { grid-template-columns: 1fr 1fr; }
     .kpis .card:first-child { grid-column: 1 / -1; }
-    .teams, .lower { grid-template-columns: 1fr; }
+    .teams, .jut { grid-template-columns: 1fr; }
   }
   @media (max-width: 560px) {
     body { padding-top: 70px; }
@@ -167,9 +190,10 @@ var API = "";
   @media (prefers-reduced-motion: reduce) { .bar .fill, .reveal, .skeleton { transition: none; animation: none; } }
 </style>
 <script>
-/* Belépés. Ha az API be van állítva, a jelszót az Apps Script ellenőrzi és tokent ad;
-   amíg nincs, az oldal a jelszó SHA-256 lenyomatával ellenőriz (a számokat így is csak az Apps Script adja ki). */
-var JELSZO_HASH = "a0634eb7350919731aef70a89209cb804f55485c8448c83c246df7793c8a10d8";
+/* Belépés.
+   - Ha az API (Apps Script) be van állítva, a jelszót az ellenőrzi, és tokent ad.
+   - Ha nincs, az adatok az adat.enc.json fájlban vannak, a jelszóval titkosítva: a jelszóból képzett
+     kulccsal az oldal visszafejti őket. A böngésző a kulcsot tárolja, a jelszót nem. */
 (function () {
   var K = "fbr_token", root = document.documentElement;
   var tok = "";
@@ -179,34 +203,13 @@ var JELSZO_HASH = "a0634eb7350919731aef70a89209cb804f55485c8448c83c246df7793c8a1
     lock: function () { try { localStorage.removeItem(K); } catch (e) {} tok = ""; root.classList.add("lock"); build(); }
   };
   if (!tok) root.classList.add("lock");
-  /* SHA-256 saját megvalósítással: HTTP-n (nem biztonságos környezetben) a crypto.subtle nem érhető el. */
-  function sha256(str) {
-    var bytes = unescape(encodeURIComponent(str)), K = [], H = [], i, j;
-    function frac(x) { return ((x - Math.floor(x)) * 4294967296) | 0; }
-    for (var n = 2, c = 0; c < 64; n++) {
-      for (j = 2; j * j <= n && n % j; j++);
-      if (j * j > n) { if (c < 8) H[c] = frac(Math.pow(n, 1 / 2)); K[c++] = frac(Math.pow(n, 1 / 3)); }
-    }
-    var l = bytes.length, words = [];
-    for (i = 0; i < l; i++) words[i >> 2] |= bytes.charCodeAt(i) << (24 - (i % 4) * 8);
-    words[l >> 2] |= 0x80 << (24 - (l % 4) * 8);
-    words[(((l + 8) >> 6) << 4) + 15] = l * 8;
-    function r(x, k) { return (x >>> k) | (x << (32 - k)); }
-    for (i = 0; i < words.length; i += 16) {
-      var w = [], a = H.slice(0);
-      for (j = 0; j < 64; j++) {
-        if (j < 16) w[j] = words[i + j] | 0;
-        else w[j] = (r(w[j - 15], 7) ^ r(w[j - 15], 18) ^ (w[j - 15] >>> 3)) + w[j - 7] + (r(w[j - 2], 17) ^ r(w[j - 2], 19) ^ (w[j - 2] >>> 10)) + w[j - 16] | 0;
-        var t1 = a[7] + (r(a[4], 6) ^ r(a[4], 11) ^ r(a[4], 25)) + ((a[4] & a[5]) ^ (~a[4] & a[6])) + K[j] + w[j] | 0;
-        var t2 = (r(a[0], 2) ^ r(a[0], 13) ^ r(a[0], 22)) + ((a[0] & a[1]) ^ (a[0] & a[2]) ^ (a[1] & a[2])) | 0;
-        a = [t1 + t2 | 0].concat(a); a[4] = a[4] + t1 | 0; a.pop();
-      }
-      for (j = 0; j < 8; j++) H[j] = H[j] + a[j] | 0;
-    }
-    return H.map(function (x) { return ("00000000" + (x >>> 0).toString(16)).slice(-8); }).join("");
-  }
   function helyi(jelszo) {
-    return Promise.resolve(sha256(jelszo) === JELSZO_HASH ? { ok: true, token: "helyi" } : { ok: false });
+    return fetch("adat.enc.json?_=" + Date.now()).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function (f) {
+      return new Promise(function (ok) { setTimeout(ok, 30); }).then(function () { // hadd rajzolja ki az „Ellenőrzés…” feliratot
+        var kulcs = FbrKripto.kulcs(jelszo, f);
+        return FbrKripto.visszafejt(kulcs, f) ? { ok: true, token: kulcs } : { ok: false };
+      });
+    });
   }
   function build() {
     if (document.getElementById("gate")) return;
@@ -220,13 +223,13 @@ var JELSZO_HASH = "a0634eb7350919731aef70a89209cb804f55485c8448c83c246df7793c8a1
     setTimeout(function () { pw.focus(); }, 50);
     f.addEventListener("submit", function (ev) {
       ev.preventDefault(); if (!pw.value) return;
-      btn.disabled = true; er.textContent = "";
+      btn.disabled = true; er.textContent = ""; btn.textContent = "Ellenőrzés…";
       (API ? fetch(API + "?login=" + encodeURIComponent(pw.value) + "&_=" + Date.now()).then(function (r) { return r.json(); }) : helyi(pw.value))
         .then(function (d) {
           if (d && d.ok && d.token) { try { localStorage.setItem(K, d.token); } catch (e) {} location.reload(); }
-          else { er.textContent = d && d.error === "setup" ? "A jelszó még nincs beállítva az Apps Scriptben." : "Hibás jelszó."; btn.disabled = false; pw.select(); }
+          else { er.textContent = d && d.error === "setup" ? "A jelszó még nincs beállítva az Apps Scriptben." : "Hibás jelszó."; btn.disabled = false; btn.textContent = "Belépés"; pw.select(); }
         })
-        .catch(function () { er.textContent = "Nem sikerült csatlakozni, próbáld újra."; btn.disabled = false; });
+        .catch(function () { er.textContent = "Nem sikerült csatlakozni, próbáld újra."; btn.disabled = false; btn.textContent = "Belépés"; });
     });
   }
   if (!tok) build();
@@ -295,6 +298,11 @@ var JELSZO_HASH = "a0634eb7350919731aef70a89209cb804f55485c8448c83c246df7793c8a1
       h += '<div class="tick v" style="left:' + v.toFixed(1) + '%" title="Vállalás: ' + szam(o.vallalas) + '"></div>';
       if (o.vCimke) h += '<div class="tick-l" style="left:' + v.toFixed(1) + '%">vállalás ' + szam(o.vallalas) + "</div>";
     }
+    (o.jelek || []).forEach(function (j) {
+      if (!cel || j.ertek >= cel) return;
+      var x = (clamp(j.ertek / cel) * 100).toFixed(1), ok = ertek != null && ertek >= j.ertek ? " ok" : "";
+      h += '<div class="tick j' + ok + '" style="left:' + x + '%"></div><div class="tick-l j' + ok + '" style="left:' + x + '%">' + szam(j.ertek) + "</div>";
+    });
     if (o.ido != null && o.ido > 0 && o.ido < 1) h += '<div class="tick" style="left:' + (o.ido * 100).toFixed(1) + '%" title="Időarányos: ' + szazalek(o.ido) + '"></div>';
     return h + "</div>";
   }
@@ -302,9 +310,8 @@ var JELSZO_HASH = "a0634eb7350919731aef70a89209cb804f55485c8448c83c246df7793c8a1
   /* ---------- adatbetöltés ---------- */
   function betolt(lap) {
     if (S.betolt) return; S.betolt = true;
-    var u = API + "?adat=1&lap=" + encodeURIComponent(lap || "") + "&t=" + encodeURIComponent(FBR.token()) + "&_=" + Date.now();
     var gomb = document.getElementById("frissit"); if (gomb) gomb.disabled = true;
-    fetch(u).then(function (r) { return r.json(); }).then(function (d) {
+    (API ? apiAdat(lap) : fajlAdat(lap)).then(function (d) {
       S.betolt = false;
       if (d && d.error === "auth") { FBR.lock(); return; }
       if (!d || d.error || !d.honapok) throw new Error((d && d.message) || "Hibás válasz");
@@ -317,6 +324,19 @@ var JELSZO_HASH = "a0634eb7350919731aef70a89209cb804f55485c8448c83c246df7793c8a1
       if (S.data) { var st = document.getElementById("allapot"); if (st) st.textContent = "Nem sikerült frissíteni – a legutóbbi adatok látszanak."; return; }
       app.innerHTML = '<div class="notice"><h1>Nem sikerült betölteni</h1><p>' + esc(e.message || e) + '</p><p><button class="btn" id="ujra">Újrapróbálom</button></p></div>';
       document.getElementById("ujra").onclick = function () { betolt(S.lap); };
+    });
+  }
+
+  function apiAdat(lap) {
+    return fetch(API + "?adat=1&lap=" + encodeURIComponent(lap || "") + "&t=" + encodeURIComponent(FBR.token()) + "&_=" + Date.now()).then(function (r) { return r.json(); });
+  }
+  /** Titkosított fájlból: { lap, lapok, negyedevek: { lap: honapok }, frissitve } */
+  function fajlAdat(lap) {
+    return fetch("adat.enc.json?_=" + Date.now()).then(function (r) { if (!r.ok) throw new Error("Az adatfájl nem érhető el (" + r.status + ")."); return r.json(); }).then(function (f) {
+      var t = FbrKripto.visszafejt(FBR.token(), f);
+      if (!t) return { error: "auth" };
+      var l = t.negyedevek[lap] ? lap : t.lap;
+      return { lap: l, lapok: t.lapok, honapok: t.negyedevek[l], jutalmak: t.jutalmak, frissitve: t.frissitve };
     });
   }
 
@@ -341,16 +361,18 @@ var JELSZO_HASH = "a0634eb7350919731aef70a89209cb804f55485c8448c83c246df7793c8a1
     if (!h) { app.innerHTML = '<div class="notice"><h1>Nincs adat</h1><p>Ezen a lapon nem találtam havi blokkot.</p></div>'; return; }
     var ido = idoArany(h.nev), o = h.osszes;
     var frissitve = new Date(d.frissitve);
-    var html = '<div class="status"><span id="allapot">Frissítve: ' + frissitve.toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" }) + "</span>" +
+    var html = '<div class="status"><span id="allapot">Adatok: ' + frissitve.toLocaleString("hu-HU", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) + "</span>" +
       '<button id="frissit" type="button">↻ Frissítés</button>' +
       (ido != null && ido > 0 && ido < 1 ? '<span class="legend"><i></i> időarányos (' + szazalek(ido) + ")</span>" : "") +
       '<span class="legend"><i class="v"></i> vállalás</span></div>';
 
-    if (o.rekord && o.rekord.cel) html += rekordKartya(h);
+    var rh = d.honapok.filter(function (x) { return x.osszes.rekord && x.osszes.rekord.cel; })[0];
+    if (rh) html += rekordKartya(rh, d.jutalmak);
+    if (rh && d.jutalmak && d.jutalmak.szintek) html += jutalmakSzekcio(rh, d.jutalmak) + '<h2>Havi állás – ' + esc(h.nev) + "</h2>";
     html += '<div class="grid kpis">' + egysegKartya(o.egyseg, ido) + kicsiKartya("Ügyfélidőpontok", o.ugyfel, ido, "db") + kicsiKartya("Prezentációk", o.prezi, ido, "db") + "</div>";
 
     html += '<h2>Csapatok</h2><div class="grid teams">' + h.csapatok.map(function (c) { return csapatKartya(c, ido, !!(o.rekord && o.rekord.cel)); }).join("") + "</div>";
-    html += '<div class="grid lower">' + toplista(h, "egyseg", "Egység toplista", "ES") + toplista(h, "ugyfel", "Ügyfélidőpont toplista", "db") + "</div>";
+    html += '<div class="grid lower">' + (rh ? rekordToplista(rh) : "") + toplista(h, "egyseg", "Egység toplista – " + esc(h.nev), "ES") + toplista(h, "ugyfel", "Ügyfélidőpont toplista – " + esc(h.nev), "db") + "</div>";
 
     app.innerHTML = html;
     document.getElementById("frissit").onclick = function () { betolt(S.lap); };
@@ -382,7 +404,7 @@ var JELSZO_HASH = "a0634eb7350919731aef70a89209cb804f55485c8448c83c246df7793c8a1
       bar(x.ossz, x.cel, { big: true, ido: ido }) + "</section>";
   }
 
-  function rekordKartya(h) {
+  function rekordKartya(h, jut) {
     var r = h.osszes.rekord, t = rekordIdo(h.rekordCimke), p = arany(r.eddig, r.cel);
     var ido = null, hatra = null;
     if (t) {
@@ -393,10 +415,36 @@ var JELSZO_HASH = "a0634eb7350919731aef70a89209cb804f55485c8448c83c246df7793c8a1
     var napi = hatra ? Math.ceil(hiany / hatra) : null;
     return '<section class="card rekord reveal"><div class="r-head"><p class="k-label">🏆 Rekordcél' + (t ? " · " + esc(t.szoveg) : "") + "</p>" + pctHtml(p) + "</div>" +
       '<div class="r-num">' + szam(r.eddig) + "<small> / " + szam(r.cel) + " ES</small></div>" +
-      '<div style="margin-top:16px">' + bar(r.eddig, r.cel, { big: true, ido: ido }) + "</div>" +
+      '<div style="margin-top:16px">' + bar(r.eddig, r.cel, { big: true, ido: ido, jelek: jut && jut.szintek ? jut.szintek.map(function (x) { return { ertek: x.es }; }) : [] }) + "</div>" +
       '<div class="r-facts"><div><b>' + szam(hiany) + " ES</b><span>még hiányzik</span></div>" +
       "<div><b>" + (hatra == null ? "–" : hatra + " nap") + "</b><span>van hátra</span></div>" +
       "<div><b>" + (napi == null ? "–" : (hiany ? "~" + szam(napi) + " ES" : "Megvan! 🎉")) + "</b><span>" + (hiany ? "kell naponta" : "rekord teljesítve") + "</span></div></div></section>";
+  }
+
+  function jutalmakSzekcio(h, jut) {
+    var eddig = h.osszes.rekord.eddig || 0, kovetkezo = null;
+    jut.szintek.forEach(function (x) { if (kovetkezo == null && eddig < x.es) kovetkezo = x.es; });
+    return '<h2>🎁 Jutalmak' + (jut.cim ? " – " + esc(jut.cim) : "") + '</h2><div class="grid jut">' + jut.szintek.map(function (x) {
+      var ok = eddig >= x.es, kov = x.es === kovetkezo;
+      return '<section class="card jut-szint reveal' + (ok ? " ok" : kov ? " kov" : "") + '"><div class="jut-h"><b>' + szam(x.es) + "<small> ES felett</small></b>" +
+        '<span class="allapot">' + (ok ? "✓ Elérve" : "még " + szam(x.es - eddig) + " ES") + "</span></div>" +
+        bar(eddig, x.es) +
+        (x.tetelek || []).map(function (t) {
+          return '<div class="jut-tetel"><div class="jut-ikon" aria-hidden="true">' + esc(t.ikon || "🎁") + "</div><div><b>" + esc(t.mit) + "</b><span>" + esc(t.ki) + "</span></div></div>";
+        }).join("") + "</section>";
+    }).join("") + "</div>";
+  }
+
+  function rekordToplista(h) {
+    var lista = [];
+    h.csapatok.forEach(function (c) { c.tagok.forEach(function (t) { if (t.nev && t.rekord && t.rekord.eddig) lista.push({ t: t, csapat: c.nev, ossz: t.rekord.eddig, cel: t.rekord.cel }); }); });
+    lista.sort(function (a, b) { return b.ossz - a.ossz; });
+    lista = lista.slice(0, 5);
+    return '<section class="card reveal"><h2 style="margin-top:0">🏆 Rekord-időszak toplista</h2>' +
+      (lista.length ? '<ol class="top">' + lista.map(function (x, i) {
+        return '<li><div class="medal">' + (i + 1) + '</div><div class="t-name"><b>' + esc(x.t.nev) + "</b><span>" + esc(x.csapat) + "</span></div>" +
+          '<div class="t-val"><b>' + szam(x.ossz) + " ES</b><span>" + szazalek(arany(x.ossz, x.cel)) + " a rekordcélból</span></div></li>";
+      }).join("") + "</ol>" : '<p class="k-sub">Még nincs eredmény.</p>') + "</section>";
   }
 
   function csapatKartya(c, ido, rekord) {
@@ -438,14 +486,11 @@ var JELSZO_HASH = "a0634eb7350919731aef70a89209cb804f55485c8448c83c246df7793c8a1
   /* ---------- indítás ---------- */
   if (!FBR.token()) return; // belépésre vár
   document.getElementById("kilep").onclick = function () { FBR.lock(); };
-  if (!API) {
-    app.innerHTML = '<div class="notice"><h1>Hamarosan</h1><p>Az eredményjelző még nincs összekötve a „Felber BL - CÉLOK” táblázattal.</p></div>';
-    return;
-  }
   betolt("");
   // 5 percenként frissít, ha az oldal látható
   setInterval(function () { if (!document.hidden) betolt(S.lap); }, 5 * 60 * 1000);
-  document.addEventListener("visibilitychange", function () { if (!document.hidden && S.data && Date.now() - new Date(S.data.frissitve) > 2 * 60 * 1000) betolt(S.lap); });
+  var utolso = Date.now();
+  document.addEventListener("visibilitychange", function () { if (!document.hidden && Date.now() - utolso > 2 * 60 * 1000) { utolso = Date.now(); betolt(S.lap); } });
 })();
 </script>
 </body>
