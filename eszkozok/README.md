@@ -31,7 +31,8 @@ Felhasználók módosítása: írd meg a listát egy repón kívüli JSON-ba, é
 ```bash
 FBR_JELSZO='…' node eszkozok/hozzaferes.js /tmp/felhasznalok.json
 ```
-(formátum a szkript elején). Csak a `hozzaferes.json` változik; a kiesett felhasználók következő belépése
+(formátum a szkript elején). Az új felhasználó jelszava automatikusan a vezetékneve ékezet nélkül,
+kisbetűvel, egybeírva (Szekér Szilvi → `szeker`). Csak a `hozzaferes.json` változik; a kiesett felhasználók következő belépése
 már nem sikerül, a már belépett böngészők viszont a közös jelszó cseréjéig bent maradnak.
 
 ## Közös jelszó cseréje

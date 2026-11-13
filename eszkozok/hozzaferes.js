@@ -6,8 +6,9 @@
  *   FBR_JELSZO=… node eszkozok/hozzaferes.js felhasznalok.json
  *
  * A felhasznalok.json (NE kerüljön a repóba!):
- *   [ { "nev": "Szekér Szilvi", "jelszo": "szeker", "szb": { "email": "…", "jelszo": "…" } }, … ]
- * A „szb” elhagyható. Kimenet: hozzaferes.json a repó gyökerében.
+ *   [ { "nev": "Szekér Szilvi", "szb": { "email": "…", "jelszo": "…" } }, … ]
+ * A jelszó alapból a vezetéknév (a név első szava) ékezet nélkül, kisbetűvel, egybeírva:
+ * „Szekér Szilvi” → „szeker”. Ettől eltérőt a „jelszo” mezővel lehet megadni. A „szb” elhagyható. Kimenet: hozzaferes.json a repó gyökerében.
  *
  * Minden felhasználónál az adatfájl kulcsa (az FBR_JELSZO-ból képzett kulcs) és a Kontroll SZB belépési
  * adatai a felhasználó saját jelszavával titkosítva szerepelnek. Az oldal a beírt jelszóval próbálja
@@ -29,7 +30,17 @@ const adatFajl = JSON.parse(fs.readFileSync(path.join(GYOKER, "adat.enc.json"), 
 const kulcs = kripto.kulcs(jelszo, adatFajl);
 if (!kripto.visszafejt(kulcs, adatFajl)) { console.error("HIBA: az FBR_JELSZO nem nyitja az adat.enc.json-t."); process.exit(1); }
 
+/** „Szekér Szilvi” → „szeker” (a ponttal végződő címek, pl. „Dr.”, kimaradnak). */
+function vezeteknev(nev) {
+  const szo = String(nev || "").trim().split(/\s+/).filter(function (w) { return w && !/\.$/.test(w); })[0] || "";
+  return szo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
 const felhasznalok = JSON.parse(fs.readFileSync(process.argv[2], "utf8"));
+felhasznalok.forEach(function (f) { if (!f.jelszo) f.jelszo = vezeteknev(f.nev); });
+const jelszavak = felhasznalok.map(function (f) { return f.jelszo; });
+const dupla = jelszavak.filter(function (j, i) { return jelszavak.indexOf(j) !== i; });
+if (dupla.length) { console.error("HIBA: azonos jelszó több felhasználónál (" + dupla.join(", ") + "). Adj meg nekik eltérő „jelszo”-t."); process.exit(1); }
 const so = new Uint8Array(crypto.randomBytes(16));
 const bejegyzesek = felhasznalok.map(function (f) {
   if (!f.nev || !f.jelszo) { console.error("HIBA: minden felhasználónak kell név és jelszó."); process.exit(1); }
@@ -39,4 +50,4 @@ const bejegyzesek = felhasznalok.map(function (f) {
 // sorrend keverése, hogy a fájlból ne lehessen kikövetkeztetni, ki melyik
 bejegyzesek.sort(function () { return Math.random() - 0.5; });
 fs.writeFileSync(path.join(GYOKER, "hozzaferes.json"), JSON.stringify({ v: 1, iter: ITER, so: Buffer.from(so).toString("base64"), felhasznalok: bejegyzesek }) + "\n");
-console.log("hozzaferes.json kész: " + felhasznalok.map(function (f) { return f.nev + (f.szb ? " (+SZB)" : ""); }).join(", "));
+console.log("hozzaferes.json kész: " + felhasznalok.map(function (f) { return f.nev + " → " + f.jelszo + (f.szb ? " (+SZB)" : ""); }).join(", "));
