@@ -158,13 +158,21 @@ function admin_(en) { if (en.szerep !== 'admin') hiba_('Ehhez nincs jogosultság
 function lathatoMunkatarsak_(en) {
   const mt = sorok_('Munkatársak').filter(function (m) { return m.aktiv !== 'nem'; });
   if (en.szerep === 'admin') return mt;
-  if (en.szerep === 'vezeto') return mt.filter(function (m) { return m.csapat && m.csapat === en.csapat || m.id === en.munkatars_id; });
+  // A vezető a csapattagjait látja, a saját lapját nem (a róla írt SZB jegyzetek miatt). A saját Pipeline-ját külön kapja (sajatId_).
+  if (en.szerep === 'vezeto') { const sajat = sajatId_(en, mt); return mt.filter(function (m) { return m.csapat && m.csapat === en.csapat && m.id !== sajat; }); }
   return mt.filter(function (m) { return m.id === en.munkatars_id; });
 }
 function lathatoIdk_(en) {
   const o = {};
   lathatoMunkatarsak_(en).forEach(function (m) { o[m.id] = true; });
   return o;
+}
+/** A felhasználó saját munkatárs-lapja: munkatársnál a hozzárendelt, vezetőnél a név szerint egyező lap. */
+function sajatId_(en, mt) {
+  if (en.munkatars_id) return en.munkatars_id;
+  const n = nevNorm_(en.nev);
+  const m = (mt || sorok_('Munkatársak').filter(function (x) { return x.aktiv !== 'nem'; })).filter(function (x) { return n && nevNorm_(x.nev) === n; })[0];
+  return m ? m.id : '';
 }
 function kell_(en, mtId) { if (!lathatoIdk_(en)[mtId]) hiba_('Ehhez a munkatárshoz nincs hozzáférésed.'); }
 
@@ -176,7 +184,7 @@ function kell_(en, mtId) { if (!lathatoIdk_(en)[mtId]) hiba_('Ehhez a munkatárs
  * Csak az kapja meg, aki a munkatársat láthatja (kell_).
  */
 function pipeline_(en, mtId) {
-  kell_(en, mtId);
+  if (!(en.szerep === 'vezeto' && mtId && mtId === sajatId_(en))) kell_(en, mtId);
   const m = sorok_('Munkatársak').filter(function (x) { return x.id === mtId; })[0];
   if (!m) hiba_('A munkatárs nem található.');
   const ss = SpreadsheetApp.openById(ELEMZES_TABLAZAT_ID), cel = nevNorm_(m.nev);
@@ -209,7 +217,9 @@ function adatok_(en) {
   const kell = {}, nevek = {};
   jegyzetek.concat(feladatok).forEach(function (x) { if (x.szerzo) kell[x.szerzo] = true; });
   sorok_('Felhasználók').forEach(function (f) { if (kell[f.email]) nevek[f.email] = f.nev || ''; });
-  return { en: enAdat_(en), munkatarsak: lathatoMunkatarsak_(en).map(tisztit), jegyzetek: jegyzetek, feladatok: feladatok, nevek: nevek, ido: most_() };
+  let sajat = null;
+  if (en.szerep === 'vezeto') { const sid = sajatId_(en); sajat = sorok_('Munkatársak').filter(function (x) { return x.id === sid && x.aktiv !== 'nem'; }).map(tisztit)[0] || null; }
+  return { en: enAdat_(en), sajat: sajat, munkatarsak: lathatoMunkatarsak_(en).map(tisztit), jegyzetek: jegyzetek, feladatok: feladatok, nevek: nevek, ido: most_() };
 }
 
 function jegyzetMent_(en, k) {
