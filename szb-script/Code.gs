@@ -20,6 +20,7 @@ const MUNKAMENET_NAP = 60;
 
 /* Google-csoport szinkron: a csoport tagjai automatikusan felhasználók lesznek (óránként). */
 const CSOPORT_EMAIL = 'felber-csapat@googlegroups.com';
+const ELEMZES_TABLAZAT_ID = '1zHKPw1AfyDcGJ47TjvjzGOTFfaruDY72oJzD5s4iI1U'; // „Elemzés összegző”: a Pipeline forrása
 const CELOK_TABLAZAT_ID = '1O0ujAN7klANbmvpnF_FuFJ-KdDyf6lChshpWTziMZSk'; // „Felber BL - CÉLOK”: ki vezető, ki munkatárs
 
 const LAPOK = {
@@ -52,6 +53,7 @@ function kezel_(k) {
   switch (k.muvelet) {
     case 'kilepes': PropertiesService.getScriptProperties().deleteProperty('m_' + k.token); return { ok: true };
     case 'adatok': return adatok_(en);
+    case 'pipeline': return pipeline_(en, k.munkatars_id);
     case 'jegyzetMent': return zarral_(function () { return jegyzetMent_(en, k); });
     case 'jegyzetTorol': return zarral_(function () { return jegyzetTorol_(en, k.id); });
     case 'feladatMent': return zarral_(function () { return feladatMent_(en, k); });
@@ -165,6 +167,37 @@ function lathatoIdk_(en) {
   return o;
 }
 function kell_(en, mtId) { if (!lathatoIdk_(en)[mtId]) hiba_('Ehhez a munkatárshoz nincs hozzáférésed.'); }
+
+/* ================= pipeline ================= */
+
+/**
+ * Egy munkatárs elemzései az „Elemzés összegző” táblázatból: a saját nevű lapja minden oszlopával
+ * (űrlap-adatok + pipeline-oszlopok). Ha nincs saját lapja, az „Összes” lap rá vonatkozó sorai.
+ * Csak az kapja meg, aki a munkatársat láthatja (kell_).
+ */
+function pipeline_(en, mtId) {
+  kell_(en, mtId);
+  const m = sorok_('Munkatársak').filter(function (x) { return x.id === mtId; })[0];
+  if (!m) hiba_('A munkatárs nem található.');
+  const ss = SpreadsheetApp.openById(ELEMZES_TABLAZAT_ID), cel = nevNorm_(m.nev);
+  const lap = ss.getSheets().filter(function (s) { return nevNorm_(s.getName()) === cel; })[0];
+  let ertek, forras;
+  if (lap) {
+    ertek = lap.getDataRange().getDisplayValues(); forras = lap.getName().trim();
+  } else {
+    const osszes = ss.getSheetByName('Összes');
+    ertek = osszes ? osszes.getDataRange().getDisplayValues() : [[]];
+    const mi = (ertek[0] || []).map(function (h) { return String(h).trim(); }).findIndex(function (h) { return /^munkatárs/i.test(h); });
+    ertek = [ertek[0] || []].concat(ertek.slice(1).filter(function (r) { return mi > -1 && nevNorm_(r[mi]) === cel; }));
+    forras = 'Összes';
+  }
+  const fej = (ertek[0] || []).map(function (h) { return String(h).replace(/\s+/g, ' ').trim(); });
+  let utolso = fej.length; while (utolso > 0 && !fej[utolso - 1]) utolso--;
+  const sorok = ertek.slice(1)
+    .map(function (r) { return r.slice(0, utolso).map(function (c) { return String(c).trim(); }); })
+    .filter(function (r) { return (r[0] || r[3] || '') !== ''; });
+  return { forras: forras, fejlec: fej.slice(0, utolso), sorok: sorok.slice(-2000), ido: most_() };
+}
 
 /* ================= adatok ================= */
 
