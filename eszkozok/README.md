@@ -21,10 +21,23 @@ A nyilvános repóban így nincs olvasható adat. Az oldal belépéskor a jelsz�
 
 A frissítést hétköznap esténként egy ütemezett Claude-feladat végzi.
 
-## Jelszócsere
+## Belépés (személyes jelszavak)
 
-Töröld az `adat.enc.json`-t, és futtasd újra a szkriptet az új jelszóval (`FBR_JELSZO`). Az ütemezett
-feladat leírásában is cseréld le a jelszót. Mindenkinek újra be kell majd lépnie.
+Az oldalra mindenki a saját jelszavával lép be. A `hozzaferes.json` minden felhasználónál az adatfájl
+kulcsát (és a Kontroll SZB belépési adatait) a saját jelszavával titkosítva tartalmazza, így a közös
+`FBR_JELSZO`-t senkinek sem kell tudnia. A Kontroll SZB-be a főoldali belépés után nem kell külön jelszó.
+
+Felhasználók módosítása: írd meg a listát egy repón kívüli JSON-ba, és futtasd:
+```bash
+FBR_JELSZO='…' node eszkozok/hozzaferes.js /tmp/felhasznalok.json
+```
+(formátum a szkript elején). Csak a `hozzaferes.json` változik; a kiesett felhasználók következő belépése
+már nem sikerül, a már belépett böngészők viszont a közös jelszó cseréjéig bent maradnak.
+
+## Közös jelszó cseréje
+
+Töröld az `adat.enc.json`-t, futtasd újra a `frissit.js`-t az új `FBR_JELSZO`-val, majd a `hozzaferes.js`-t is.
+Az ütemezett feladat leírásában is cseréld le a jelszót. Mindenkinek újra be kell majd lépnie.
 
 ## Élő mód (opcionális)
 

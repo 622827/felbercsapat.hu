@@ -191,6 +191,15 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyKJWVa3jBRfwRyCPwYhwJWpS
   var TK = "szb_token";
   var S = { token: "", en: null, mt: [], jegy: [], fel: [], sel: null, nezet: "mt", minden: false, szerk: null, torol: null, kesz: false, betolt: false, fh: null, ujJelszo: null };
   try { S.token = localStorage.getItem(TK) || ""; } catch (e) {}
+  /* A főoldalon (eredményjelző) belépett felhasználó SZB-belépési adatai: ezekkel jelszó nélkül belépünk. */
+  var AUTO = null;
+  try { AUTO = JSON.parse(localStorage.getItem("fbr_szb") || "null"); } catch (e) {}
+  function autoBelep() {
+    if (!AUTO) return Promise.resolve(false);
+    return fetch(SZB_API, { method: "POST", body: JSON.stringify({ muvelet: "belepes", email: AUTO.email, jelszo: AUTO.jelszo }) })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { if (d && d.token) { S.token = d.token; lsSet(TK, d.token); return true; } return false; }, function () { return false; });
+  }
 
   /* ---------- segédek ---------- */
   function pad(n) { return (n < 10 ? "0" : "") + n; }
@@ -212,12 +221,15 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyKJWVa3jBRfwRyCPwYhwJWpS
   function szerzoNev(email) { return !email ? "" : (S.en && email === S.en.email ? "te" : (S.nevek && S.nevek[email]) || email.split("@")[0]); }
 
   /* ---------- API ---------- */
-  function api(muvelet, adat) {
+  function api(muvelet, adat, ujra) {
     var body = Object.assign({ muvelet: muvelet, token: S.token }, adat || {});
     return fetch(SZB_API, { method: "POST", body: JSON.stringify(body) })
       .then(function (r) { return r.json(); }, function () { throw new Error("Nincs kapcsolat a szerverrel. Próbáld újra."); })
       .then(function (d) {
-        if (d && d.kod === "auth") { kilep(true); throw new Error(d.hiba || "Lépj be újra."); }
+        if (d && d.kod === "auth") {
+          if (AUTO && !ujra && muvelet !== "kilepes") return autoBelep().then(function (ok) { if (ok) return api(muvelet, adat, true); kilep(true); throw new Error(d.hiba || "Lépj be újra."); });
+          kilep(true); throw new Error(d.hiba || "Lépj be újra.");
+        }
         if (!d || d.hiba) throw new Error((d && d.hiba) || "Ismeretlen hiba.");
         return d;
       });
@@ -236,6 +248,10 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyKJWVa3jBRfwRyCPwYhwJWpS
   });
   function kilep(csendes) {
     if (!csendes && S.token) api("kilepes").catch(function () {});
+    if (AUTO && !csendes) { // a főoldali belépésből is kilépünk
+      ["fbr_token", "fbr_nev", "fbr_szb", "szb_token"].forEach(function (k) { lsSet(k, ""); });
+      location.href = "./"; return;
+    }
     S.token = ""; S.en = null; lsSet(TK, ""); mutat("belepes"); setTimeout(function () { $("bEmail").focus(); }, 50);
   }
   $("kilepGomb").onclick = function () { kilep(false); };
@@ -311,7 +327,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyKJWVa3jBRfwRyCPwYhwJWpS
     main.innerHTML = '<div class="lap">' +
       (S.mt.length > 1 ? '<button class="vissza" id="vissza" type="button">← Munkatársak</button>' : "") +
       '<div class="fej"><div><h2>' + esc(m.nev) + "</h2><p>" + (m.pozicio ? '<span class="chip">' + esc(m.pozicio) + "</span>" : "") + esc(m.csapat || "") + '</p>' +
-        (S.mt.length <= 1 ? '<p class="fiok" style="margin-top:6px">Belépve: <b>' + esc(S.en.nev || S.en.email) + '</b> <button class="link" type="button" data-a="jelszo">Jelszócsere</button> <button class="link" type="button" data-a="kilep">Kilépés</button></p>' : "") +
+        (S.mt.length <= 1 ? '<p class="fiok" style="margin-top:6px">Belépve: <b>' + esc(S.en.nev || S.en.email) + '</b> ' + (AUTO ? "" : '<button class="link" type="button" data-a="jelszo">Jelszócsere</button> ') + '<button class="link" type="button" data-a="kilep">Kilépés</button></p>' : "") +
         '</div><span class="allapot" id="allapot"></span></div>' +
       '<section><h3>Új SZB jegyzet</h3><form class="szerkeszto" id="jegyzetForm">' +
         '<textarea id="jegyzetSzoveg" aria-label="SZB jegyzet" placeholder="Milyen volt a múlt hét? Mi a terv a jövő hétre? Bármi, amit meg akarsz jegyezni…">' + esc(vazlat) + "</textarea>" +
@@ -516,8 +532,10 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyKJWVa3jBRfwRyCPwYhwJWpS
 
   /* ---------- indítás ---------- */
   if (!SZB_API) { mutat("nincsApi"); return; }
-  if (!S.token) { mutat("belepes"); return; }
-  indul();
+  if (AUTO) $("jelszoGomb").hidden = true; // a jelszót a főoldali belépés kezeli
+  if (!S.token && AUTO) { autoBelep().then(function (ok) { if (ok) indul(); else mutat("belepes"); }); }
+  else if (!S.token) { mutat("belepes"); return; }
+  else indul();
   setInterval(function () { if (!document.hidden && S.token && S.nezet === "mt" && !S.szerk) betolt(); }, 60000);
 })();
 </script>
