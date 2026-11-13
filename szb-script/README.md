@@ -35,9 +35,6 @@ jelszóval történik, Claude-fiók nem kell hozzá. A jelszavakat csak sózott 
 - Belépés: felbercsapat.hu → **Kontroll SZB** gomb (vagy közvetlenül: felbercsapat.hu/szb.html).
 - **Felhasználók kezelése** (csak admin): új felhasználó e-mail-címmel, szereppel és azzal, hogy kinek a
   lapját látja. A jelszót a rendszer generálja, és egyszer mutatja meg: add át az illetőnek.
-  **Csapatvezetőnél** a jelszó a vezetékneve ékezet nélkül, kisbetűvel, egybeírva
-  (pl. Szekér Szilvi → `szeker`), ezért a nevét vezetéknévvel kezdve kell megadni.
-  Belépés után a „Jelszócsere” linkkel ő maga lecserélheti.
   Itt lehet új jelszót adni, letiltani és törölni is.
 - **Munkatársak tömeges felvétele**: soronként `Név; Csapat; Pozíció`.
 - A táblázatot ne szerkeszd kézzel, amíg mások használják az oldalt (a sorrend fontos az azonosításhoz).

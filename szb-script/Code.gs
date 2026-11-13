@@ -244,13 +244,11 @@ function felhasznaloMent_(k) {
   const szerep = ['admin', 'vezeto', 'munkatars'].indexOf(k.szerep) > -1 ? k.szerep : 'munkatars';
   if (szerep === 'munkatars' && !k.munkatars_id) hiba_('Válaszd ki, melyik munkatárs lapját látja.');
   if (szerep === 'vezeto' && !k.csapat) hiba_('Add meg a vezető csapatát.');
-  if (szerep === 'vezeto' && !vezeteknevJelszo_(k.nev)) hiba_('Add meg a vezető teljes nevét (vezetéknévvel kezdve).');
   const adat = { nev: String(k.nev || '').trim(), szerep: szerep, munkatars_id: k.munkatars_id || '', csapat: k.csapat || '', aktiv: k.aktiv === false ? 'nem' : 'igen' };
   const meglevo = sorok_('Felhasználók').filter(function (x) { return x.email.toLowerCase() === email; })[0];
   let jelszo = null;
   if (!meglevo || k.ujJelszo) {
-    // Vezetőnél a jelszó a vezetékneve ékezet nélkül, kisbetűvel, egybeírva (pl. Szekér Szilvi → szeker).
-    jelszo = szerep === 'vezeto' ? vezeteknevJelszo_(adat.nev) : ujJelszo_();
+    jelszo = ujJelszo_();
     adat.so = ujSo_();
     adat.jelszo_hash = lenyomat_(jelszo, adat.so);
   }
@@ -258,13 +256,6 @@ function felhasznaloMent_(k) {
   else { adat.email = email; adat.letrehozva = most_(); hozzaad_('Felhasználók', adat); }
   if (k.ujJelszo || adat.aktiv === 'nem') munkamenetekTorlese_(email);
   return { ok: true, jelszo: jelszo };
-}
-
-/** A név első szava (vezetéknév, címek nélkül) ékezet nélkül, kisbetűvel, csak betűk és számok: „Szekér Szilvi” → „szeker”. */
-function vezeteknevJelszo_(nev) {
-  const szavak = String(nev || '').trim().split(/\s+/).filter(function (w) { return w && !/\.$/.test(w); }); // „Dr.”, „ifj.” kihagyva
-  const elso = szavak[0] || '';
-  return elso.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
 function felhasznaloTorol_(en, email) {
