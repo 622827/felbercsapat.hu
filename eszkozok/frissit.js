@@ -67,7 +67,7 @@ function ellenoriz(lap, honapok) {
   }
 }
 
-let so = crypto.randomBytes(16), jutalmak = null;
+let so = crypto.randomBytes(16), jutalmak = null, rekordCelok = null;
 try {
   const regi = JSON.parse(fs.readFileSync(KIMENET, "utf8"));
   if (regi.so && regi.iter === ITER) so = Buffer.from(regi.so, "base64");
@@ -78,10 +78,56 @@ try {
     process.exit(1);
   }
   if (regiAdat && regiAdat.jutalmak) jutalmak = regiAdat.jutalmak;
+  if (regiAdat) rekordCelok = regiAdat.rekordCelok || rekordCelokBol(regiAdat.negyedevek);
 } catch (e) { /* nincs még fájl */ }
 if (jutalmakFajl) jutalmak = JSON.parse(fs.readFileSync(jutalmakFajl, "utf8"));
 
-const adat = { lap: lapok[0], lapok, negyedevek, jutalmak, frissitve: new Date().toISOString() };
+/*
+ * Rekordcél: ha a táblázatban vannak „Rekordcél”/„Eddig” oszlopok, onnan jön (és a célokat megjegyezzük).
+ * Ha nincsenek (kikerültek a táblázatból), a megjegyzett célokkal dolgozunk, az „eddig” pedig a rekordidőszak
+ * hónapjaiban (a rekord hónapjától a negyedév végéig) elért egységek összege, a táblázat aktuális számaiból.
+ */
+const ujCelok = rekordCelokBol(negyedevek);
+if (ujCelok) rekordCelok = ujCelok;
+else if (rekordCelok && negyedevek[rekordCelok.lap]) rekordSzamol(negyedevek[rekordCelok.lap], rekordCelok);
+
+function rekordCelokBol(nev) {
+  for (const lap of Object.keys(nev || {})) {
+    for (const h of nev[lap]) {
+      if (!h.osszes.rekord || !h.osszes.rekord.cel) continue;
+      const c = { lap, honap: h.nev, cimke: h.rekordCimke, osszes: h.osszes.rekord.cel, csapatok: {}, tagok: {} };
+      for (const cs of h.csapatok) {
+        c.csapatok[cs.nev.trim()] = cs.osszes.rekord ? cs.osszes.rekord.cel : null;
+        for (const t of cs.tagok) c.tagok[t.nev.trim()] = t.rekord ? t.rekord.cel : null;
+      }
+      return c;
+    }
+  }
+  return null;
+}
+
+function rekordSzamol(honapok, c) {
+  const i = honapok.findIndex((h) => h.nev === c.honap);
+  if (i < 0) return;
+  const idoszak = honapok.slice(i);
+  const egyseg = (x) => (x && x.egyseg && x.egyseg.ossz) || 0;
+  const h = honapok[i];
+  h.rekordCimke = c.cimke;
+  h.osszes.rekord = { cel: c.osszes, eddig: idoszak.reduce((n, x) => n + egyseg(x.osszes), 0) };
+  for (const cs of h.csapatok) {
+    const cel = c.csapatok[cs.nev.trim()];
+    const eddig = idoszak.reduce((n, x) => n + egyseg((x.csapatok.find((y) => y.nev.trim() === cs.nev.trim()) || {}).osszes), 0);
+    cs.osszes.rekord = { cel: cel == null ? null : cel, eddig };
+    for (const t of cs.tagok) {
+      const tcel = c.tagok[t.nev.trim()];
+      let tEddig = 0;
+      for (const x of idoszak) for (const y of x.csapatok) for (const z of y.tagok) if (z.nev.trim() === t.nev.trim()) tEddig += egyseg(z);
+      t.rekord = tcel == null ? { cel: null, eddig: null } : { cel: tcel, eddig: tEddig };
+    }
+  }
+}
+
+const adat = { lap: lapok[0], lapok, negyedevek, jutalmak, rekordCelok, frissitve: new Date().toISOString() };
 const fajl = kripto.titkosit(adat, jelszo, new Uint8Array(so), new Uint8Array(crypto.randomBytes(16)), ITER);
 
 // önellenőrzés: visszafejthető-e
