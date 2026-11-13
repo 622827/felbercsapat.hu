@@ -32,10 +32,12 @@ var API = "";
   .on-logos img { width: 32px; height: 32px; display: block; }
 
   /* Belépés */
-  html.lock body > *:not(#gate) { visibility: hidden !important; }
+  html.lock body > *:not(#gate):not(.on-logos) { visibility: hidden !important; }
+  html.lock .on-logos { z-index: 10000; }
   html.lock body { overflow: hidden; }
   #gate { position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; padding: 24px 16px; background: var(--bg); visibility: visible; }
-  #gate form { width: 100%; max-width: 380px; background: var(--card); border: 3px solid var(--accent); border-radius: 24px; padding: 32px 26px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
+  #gate::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: var(--accent); opacity: .07; -webkit-mask: var(--hatter) 0 0 / 240px 240px; mask: var(--hatter) 0 0 / 240px 240px; }
+  #gate form { position: relative; width: 100%; max-width: 380px; background: var(--card); border: 3px solid var(--accent); border-radius: 24px; padding: 32px 26px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
   .bolt { width: 72px; height: 72px; margin: 0 auto 16px; border-radius: 50%; background: #fff; display: grid; place-items: center; }
   .bolt span { width: 46px; height: 46px; background: linear-gradient(160deg, var(--blue), var(--accent)); -webkit-mask: url(ikon/villam-96.png) center/contain no-repeat; mask: url(ikon/villam-96.png) center/contain no-repeat; }
   #gate h1 { font-size: 2rem; letter-spacing: -.03em; margin: 0 0 6px; }
@@ -57,6 +59,8 @@ var API = "";
   .tabs button { border: 0; background: transparent; padding: 8px 16px; border-radius: 999px; cursor: pointer; font-weight: 600; color: var(--muted); }
   .tabs button[aria-selected="true"] { background: var(--accent); color: var(--bg); }
   select.q { background: var(--card); border: 0; border-radius: 999px; padding: 10px 14px; font-weight: 600; cursor: pointer; }
+  .kilep { background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 9px 14px; cursor: pointer; color: var(--muted); font-weight: 600; }
+  .kilep:hover { color: var(--ink); border-color: var(--muted); }
   .status { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: .85rem; margin: -8px 0 20px; flex-wrap: wrap; }
   .status button { background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; cursor: pointer; color: var(--muted); }
   .status button:hover { color: var(--ink); border-color: var(--muted); }
@@ -163,7 +167,9 @@ var API = "";
   @media (prefers-reduced-motion: reduce) { .bar .fill, .reveal, .skeleton { transition: none; animation: none; } }
 </style>
 <script>
-/* Belépés: a jelszót az Apps Script ellenőrzi, az oldal csak a kapott tokent tárolja. */
+/* Belépés. Ha az API be van állítva, a jelszót az Apps Script ellenőrzi és tokent ad;
+   amíg nincs, az oldal a jelszó SHA-256 lenyomatával ellenőriz (a számokat így is csak az Apps Script adja ki). */
+var JELSZO_HASH = "a0634eb7350919731aef70a89209cb804f55485c8448c83c246df7793c8a10d8";
 (function () {
   var K = "fbr_token", root = document.documentElement;
   var tok = "";
@@ -172,7 +178,13 @@ var API = "";
     token: function () { return tok; },
     lock: function () { try { localStorage.removeItem(K); } catch (e) {} tok = ""; root.classList.add("lock"); build(); }
   };
-  if (API && !tok) root.classList.add("lock");
+  if (!tok) root.classList.add("lock");
+  function helyi(jelszo) {
+    return crypto.subtle.digest("SHA-256", new TextEncoder().encode(jelszo)).then(function (b) {
+      var h = Array.prototype.map.call(new Uint8Array(b), function (x) { return ("0" + x.toString(16)).slice(-2); }).join("");
+      return h === JELSZO_HASH ? { ok: true, token: "helyi" } : { ok: false };
+    });
+  }
   function build() {
     if (document.getElementById("gate")) return;
     if (!document.body) { document.addEventListener("DOMContentLoaded", build); return; }
@@ -186,8 +198,7 @@ var API = "";
     f.addEventListener("submit", function (ev) {
       ev.preventDefault(); if (!pw.value) return;
       btn.disabled = true; er.textContent = "";
-      fetch(API + "?login=" + encodeURIComponent(pw.value) + "&_=" + Date.now())
-        .then(function (r) { return r.json(); })
+      (API ? fetch(API + "?login=" + encodeURIComponent(pw.value) + "&_=" + Date.now()).then(function (r) { return r.json(); }) : helyi(pw.value))
         .then(function (d) {
           if (d && d.ok && d.token) { try { localStorage.setItem(K, d.token); } catch (e) {} location.reload(); }
           else { er.textContent = d && d.error === "setup" ? "A jelszó még nincs beállítva az Apps Scriptben." : "Hibás jelszó."; btn.disabled = false; pw.select(); }
@@ -195,7 +206,7 @@ var API = "";
         .catch(function () { er.textContent = "Nem sikerült csatlakozni, próbáld újra."; btn.disabled = false; });
     });
   }
-  if (API && !tok) build();
+  if (!tok) build();
 })();
 </script>
 </head>
@@ -208,7 +219,7 @@ var API = "";
       <p class="eyebrow">Felber BL</p>
       <h1 class="title">Eredményjelző</h1>
     </div>
-    <div class="controls" id="controls"></div>
+    <div class="controls"><div class="controls" id="controls"></div><button class="kilep" id="kilep" type="button">Kilépés</button></div>
   </header>
   <main id="app" aria-live="polite">
     <div class="grid kpis"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
@@ -402,11 +413,12 @@ var API = "";
   }
 
   /* ---------- indítás ---------- */
+  if (!FBR.token()) return; // belépésre vár
+  document.getElementById("kilep").onclick = function () { FBR.lock(); };
   if (!API) {
     app.innerHTML = '<div class="notice"><h1>Hamarosan</h1><p>Az eredményjelző még nincs összekötve a „Felber BL - CÉLOK” táblázattal.</p></div>';
     return;
   }
-  if (!FBR.token()) return; // belépésre vár
   betolt("");
   // 5 percenként frissít, ha az oldal látható
   setInterval(function () { if (!document.hidden) betolt(S.lap); }, 5 * 60 * 1000);

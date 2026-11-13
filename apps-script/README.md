@@ -13,9 +13,10 @@ kezeli, a nyilvános weboldalon nincs belőlük semmi.
    teljes tartalmát.
 3. Az elején írd át a jelszót:
    ```js
-   const JELSZO = 'ide-a-csapat-jelszava';
+   const JELSZO = 'domcsi';
    ```
-   (Ezt **csak** az Apps Scriptben írd be, a GitHubra ne!)
+   Ugyanaz legyen, mint a főoldal jelszava. Ha megváltoztatod, az `index.html`-ben
+   a `JELSZO_HASH` értékét is cserélni kell (az új jelszó SHA-256 lenyomata).
 4. Mentsd el (💾), majd kattints a **Telepítés → Új telepítés** gombra.
    - Típus (fogaskerék): **Webalkalmazás**
    - Végrehajtás mint: **Én**
@@ -27,7 +28,8 @@ kezeli, a nyilvános weboldalon nincs belőlük semmi.
    var API = "https://script.google.com/macros/s/…/exec";
    ```
 
-Ezután a felbercsapat.hu jelszót kér, belépés után pedig megjelenik az eredményjelző.
+A főoldal már most is jelszót kér. Az URL beírása után a belépést az Apps Script ellenőrzi,
+és utána megjelenik az élő eredményjelző.
 
 ## Jó tudni
 
