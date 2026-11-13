@@ -1,4 +1,8 @@
-# Eredményjelző – Apps Script beállítása
+# Eredményjelző – Apps Script beállítása (opcionális élő mód)
+
+> Jelenleg az oldal az `adat.enc.json` titkosított fájlból dolgozik, amit egy ütemezett feladat
+> hétköznap esténként frissít (lásd `eszkozok/README.md`). Az Apps Scriptre csak akkor van szükség,
+> ha percre pontos, élő adatot szeretnél.
 
 A felbercsapat.hu eredményjelzője élőben a **„Felber BL - CÉLOK”** Google-táblázatból
 olvas, mindig a legfrissebb negyedéves lapról („2026 Q4”, „2027 Q1” …). A számokat
@@ -15,8 +19,7 @@ kezeli, a nyilvános weboldalon nincs belőlük semmi.
    ```js
    const JELSZO = 'domcsi';
    ```
-   Ugyanaz legyen, mint a főoldal jelszava. Ha megváltoztatod, az `index.html`-ben
-   a `JELSZO_HASH` értékét is cserélni kell (az új jelszó SHA-256 lenyomata).
+   Ugyanaz legyen, mint a főoldal jelszava.
 4. Mentsd el (💾), majd kattints a **Telepítés → Új telepítés** gombra.
    - Típus (fogaskerék): **Webalkalmazás**
    - Végrehajtás mint: **Én**
@@ -28,8 +31,7 @@ kezeli, a nyilvános weboldalon nincs belőlük semmi.
    var API = "https://script.google.com/macros/s/…/exec";
    ```
 
-A főoldal már most is jelszót kér. Az URL beírása után a belépést az Apps Script ellenőrzi,
-és utána megjelenik az élő eredményjelző.
+Az URL beírása után a belépést az Apps Script ellenőrzi, és az oldal élő adatokat mutat.
 
 ## Jó tudni
 
