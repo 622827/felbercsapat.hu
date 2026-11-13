@@ -248,7 +248,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyKJWVa3jBRfwRyCPwYhwJWpS
   });
   function kilep(csendes) {
     if (!csendes && S.token) api("kilepes").catch(function () {});
-    if (AUTO && !csendes) { // a főoldali belépésből is kilépünk
+    if ((AUTO || lsGet("fbr_token")) && !csendes) { // a főoldali belépésből is kilépünk
       ["fbr_token", "fbr_nev", "fbr_szb", "szb_token"].forEach(function (k) { lsSet(k, ""); });
       location.href = "./"; return;
     }

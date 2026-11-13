@@ -18,6 +18,10 @@ const ADMIN_NEV = 'Felber BL';
 const TABLAZAT_ID = '1B2O2rRRkYUL2wUVTjNCba5mtNP_ZcOTHf8dQ4lZh9yM';
 const MUNKAMENET_NAP = 60;
 
+/* Google-csoport szinkron: a csoport tagjai automatikusan felhasználók lesznek (óránként). */
+const CSOPORT_EMAIL = 'felber-csapat@googlegroups.com';
+const CELOK_TABLAZAT_ID = '1O0ujAN7klANbmvpnF_FuFJ-KdDyf6lChshpWTziMZSk'; // „Felber BL - CÉLOK”: ki vezető, ki munkatárs
+
 const LAPOK = {
   'Felhasználók': ['email', 'nev', 'szerep', 'munkatars_id', 'csapat', 'jelszo_hash', 'so', 'aktiv', 'letrehozva'],
   'Munkatársak': ['id', 'nev', 'csapat', 'pozicio', 'sorrend', 'aktiv'],
@@ -54,6 +58,11 @@ function kezel_(k) {
     case 'feladatAllit': return zarral_(function () { return feladatAllit_(en, k.id, !!k.kesz); });
     case 'feladatTorol': return zarral_(function () { return feladatTorol_(en, k.id); });
     case 'jelszoCsere': return zarral_(function () { return jelszoCsere_(en, k.regi, k.uj); });
+    case 'adatKulcsBeallit': admin_(en);
+      if (!/^[0-9a-f]{128}$/.test(String(k.kulcs || ''))) hiba_('Hibás kulcs.');
+      PropertiesService.getScriptProperties().setProperty('fbr_adatkulcs', k.kulcs); return { ok: true };
+    case 'szinkron': admin_(en); return zarral_(csoportSzinkron_);
+    case 'szinkronAllapot': admin_(en); return JSON.parse(PropertiesService.getScriptProperties().getProperty('szinkron_utolso') || '{}');
     case 'felhasznalok': admin_(en); return { felhasznalok: felhasznalokLista_() };
     case 'felhasznaloMent': admin_(en); return zarral_(function () { return felhasznaloMent_(k); });
     case 'felhasznaloTorol': admin_(en); return zarral_(function () { return felhasznaloTorol_(en, k.email); });
@@ -88,7 +97,8 @@ function belepes_(email, jelszo) {
   const token = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
   PropertiesService.getScriptProperties().setProperty('m_' + token, JSON.stringify({ email: email, lejar: Date.now() + MUNKAMENET_NAP * 864e5 }));
   takarit_();
-  return { token: token, en: enAdat_(f) };
+  // Az eredményjelző adatkulcsa: a főoldal ezzel fejti vissza az adat.enc.json-t (egy belépés mindkettőhöz).
+  return { token: token, en: enAdat_(f), adatKulcs: PropertiesService.getScriptProperties().getProperty('fbr_adatkulcs') || '' };
 }
 
 function munkamenet_(token) {
@@ -359,9 +369,238 @@ function most_() { return new Date().toISOString(); }
 function hiba_(uzenet, kod) { const e = new Error(uzenet); e.felhasznaloi = true; e.kod = kod; throw e; }
 function json_(obj) { return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON); }
 
-/** Kézi futtatásra: létrehozza a lapokat és az admin felhasználót (a szerkesztőben a ▶ Futtatás gombbal). */
+/**
+ * Kézi futtatásra (a szerkesztőben a ▶ Futtatás gombbal): létrehozza a lapokat és az admin felhasználót,
+ * beállítja az óránkénti csoport-szinkront, és egyszer le is futtatja.
+ */
 function beallitas() {
   Object.keys(LAPOK).forEach(lap_);
   adminLetrehoz_();
-  Logger.log('Kész: a lapok és az admin felhasználó létrejöttek (ha az ADMIN_* értékek ki vannak töltve).');
+  const van = ScriptApp.getProjectTriggers().some(function (t) { return t.getHandlerFunction() === 'csoportSzinkron'; });
+  if (!van) ScriptApp.newTrigger('csoportSzinkron').timeBased().everyHours(1).create();
+  Logger.log('Kész: lapok, admin, óránkénti szinkron.');
+  csoportSzinkron();
 }
+
+/* ================= Google-csoport szinkron ================= */
+
+/** Időzített futtatás (óránként). */
+function csoportSzinkron() {
+  Logger.log(JSON.stringify(zarral_(csoportSzinkron_), null, 1));
+}
+
+/**
+ * A csoport minden olyan tagját, aki még nem felhasználó, felveszi:
+ *  - a „Felber BL - CÉLOK” legfrissebb negyedéves lapja alapján csapatvezetőként (a csapatához) vagy munkatársként
+ *    (a saját lapjához; ha még nincs munkatársi lapja, létrehozza),
+ *  - jelszava a vezetékneve ékezet nélkül, kisbetűvel, egybeírva (Szekér Szilvia → szeker).
+ * A meglévő felhasználókhoz nem nyúl. Akit a szinkron vett fel, és kikerül a csoportból, azt letiltja
+ * (ha visszakerül, újra engedélyezi). Akit nem tud a táblázatbeli névhez párosítani, azt kihagyja és jelzi.
+ */
+function csoportSzinkron_() {
+  const props = PropertiesService.getScriptProperties();
+  const jelentes = { ido: most_(), felvett: [], letiltott: [], visszaengedett: [], kimaradt: [], hiba: '' };
+  let tagok;
+  try {
+    tagok = GroupsApp.getGroupByEmail(CSOPORT_EMAIL).getUsers().map(function (u) { return String(u.getEmail() || '').trim().toLowerCase(); }).filter(String);
+  } catch (e) {
+    jelentes.hiba = 'A csoport nem olvasható: ' + (e && e.message || e);
+    props.setProperty('szinkron_utolso', JSON.stringify(jelentes));
+    return jelentes;
+  }
+  const emberek = struktura_();
+  const felh = {};
+  sorok_('Felhasználók').forEach(function (f) { felh[f.email.toLowerCase()] = f; });
+  const sajat = JSON.parse(props.getProperty('szinkron_emailek') || '[]');
+  const tagE = {};
+  tagok.forEach(function (e) { tagE[e] = true; });
+
+  tagok.forEach(function (email) {
+    const f = felh[email];
+    if (f) {
+      if (f.aktiv === 'nem' && sajat.indexOf(email) > -1) { frissit_('Felhasználók', f._sor, { aktiv: 'igen' }); jelentes.visszaengedett.push(email); }
+      return;
+    }
+    const ember = parosit_(email, emberek);
+    if (!ember) { jelentes.kimaradt.push(email); return; }
+    const adat = { email: email, nev: ember.nev, szerep: ember.vezeto ? 'vezeto' : 'munkatars', munkatars_id: '', csapat: ember.csapat, aktiv: 'igen', letrehozva: most_() };
+    if (!ember.vezeto) adat.munkatars_id = munkatarsLap_(ember);
+    const jelszo = vezeteknevJelszo_(ember.nev);
+    adat.so = ujSo_();
+    adat.jelszo_hash = lenyomat_(jelszo, adat.so);
+    hozzaad_('Felhasználók', adat);
+    if (sajat.indexOf(email) < 0) sajat.push(email);
+    jelentes.felvett.push(email + ' → ' + ember.nev + ' (' + (ember.vezeto ? 'vezető' : 'munkatárs') + ', ' + ember.csapat + ', jelszó: ' + jelszo + ')');
+  });
+
+  sorok_('Felhasználók').forEach(function (f) {
+    const e = f.email.toLowerCase();
+    if (sajat.indexOf(e) > -1 && !tagE[e] && f.aktiv !== 'nem') {
+      frissit_('Felhasználók', f._sor, { aktiv: 'nem' }); munkamenetekTorlese_(e); jelentes.letiltott.push(e);
+    }
+  });
+  props.setProperty('szinkron_emailek', JSON.stringify(sajat));
+  props.setProperty('szinkron_utolso', JSON.stringify(jelentes));
+  return jelentes;
+}
+
+/** A munkatárs SZB-lapja (név szerint); ha nincs, létrehozza a csapatával. */
+function munkatarsLap_(ember) {
+  const n = nevNorm_(ember.nev);
+  const m = sorok_('Munkatársak').filter(function (x) { return x.aktiv !== 'nem' && nevNorm_(x.nev) === n; })[0];
+  if (m) return m.id;
+  return munkatarsMent_({ nev: ember.nev, csapat: ember.csapat, pozicio: ember.poz || '' }).id;
+}
+
+/** A „Felber BL - CÉLOK” legfrissebb „ÉÉÉÉ Qn” lapjáról: [{ nev, csapat, vezeto, poz }] (a negyedév összes hónapjából). */
+function struktura_() {
+  const ss = SpreadsheetApp.openById(CELOK_TABLAZAT_ID);
+  const lapok = ss.getSheets().map(function (l) { return l.getName(); }).filter(function (n) { return /^\d{4} Q[1-4]$/.test(n); }).sort().reverse();
+  if (!lapok.length) return [];
+  const honapok = feldolgoz(ss.getSheetByName(lapok[0]).getRange('A1:AE120').getDisplayValues());
+  const o = {};
+  honapok.forEach(function (h) {
+    h.csapatok.forEach(function (cs) {
+      cs.tagok.forEach(function (t) { o[nevNorm_(t.nev)] = { nev: t.nev, csapat: cs.nev, vezeto: !!t.vezeto, poz: t.poz }; });
+    });
+  });
+  return Object.keys(o).map(function (k) { return o[k]; });
+}
+
+function ekezetNelkul_(s) { return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase(); }
+function nevNorm_(nev) { return nevSzavak_(nev).join(' '); }
+/** „Dr. Horváth-Varga Péter” → ['horvathvarga', 'peter'] */
+function nevSzavak_(nev) {
+  return String(nev || '').trim().replace(/\s*-\s*/g, '-').split(/\s+/).filter(function (w) { return w && !/\.$/.test(w); })
+    .map(function (w) { return ekezetNelkul_(w).replace(/[^a-z0-9]/g, ''); }).filter(String);
+}
+/** „Szekér Szilvia” → „szeker” */
+function vezeteknevJelszo_(nev) { return nevSzavak_(nev)[0] || ''; }
+
+/**
+ * E-mail-cím → ember a táblázatból. Pl. szeker.szilvy.ovb@ → Szekér Szilvia, m.andrea.ovb@ → Molnár Andrea,
+ * horvathvarga.peter@ / horvath.varga.peter@ → Horváth-Varga Péter. Ha nem egyértelmű, null.
+ */
+function parosit_(email, emberek) {
+  const resz = ekezetNelkul_(email.split('@')[0]).split(/[._+\-]+/).filter(function (t) { return t && t !== 'ovb' && !/^\d+$/.test(t); });
+  if (!resz.length) return null;
+  function hasonlo(a, b) { return a === b || (a.length >= 4 && b.length >= 4 && a.slice(0, 4) === b.slice(0, 4)); }
+  function pont(ember) {
+    const sz = nevSzavak_(ember.nev);
+    if (!sz.length) return 0;
+    const vez = sz[0], ker = sz.slice(1);
+    let legjobb = 0;
+    [resz, resz.slice().reverse()].forEach(function (r) {
+      for (let k = 1; k <= Math.min(2, r.length); k++) {
+        const e0 = r.slice(0, k).join(''), tobbi = r.slice(k);
+        const kerOk = tobbi.some(function (t) { return ker.some(function (g) { return hasonlo(t, g); }); });
+        if (e0 === vez || (e0.length >= 4 && vez.indexOf(e0) === 0)) legjobb = Math.max(legjobb, kerOk ? 3 : 1);
+        else if (e0.length === 1 && vez[0] === e0 && kerOk) legjobb = Math.max(legjobb, 2);
+      }
+    });
+    return legjobb;
+  }
+  const p = emberek.map(function (e) { return { e: e, p: pont(e) }; }).filter(function (x) { return x.p > 0; })
+    .sort(function (a, b) { return b.p - a.p; });
+  if (!p.length || (p[1] && p[1].p === p[0].p)) return null;
+  return p[0].e;
+}
+
+/* ================= „Felber BL - CÉLOK” feldolgozó (az apps-script/Code.gs-ből) ================= */
+
+function feldolgoz(ertekek) {
+  const honapok = [];
+  let oszl = null, honap = null, csapat = null;
+
+  for (let i = 0; i < ertekek.length; i++) {
+    const sor = ertekek[i] || [];
+    const c = sor.map(szoveg_);
+    const fejIdx = c.indexOf('Ügyfélidőpontok');
+    if (fejIdx > -1) { oszl = oszlopok_(c, fejIdx); honap = null; csapat = null; continue; }
+    if (!oszl) continue;
+
+    const a = c[0] || '', b = c[1] || '', nev = c[2] || '';
+    if (!honap) {
+      const m = /^Felber BL\s*[-–]\s*(.+)$/i.exec(a);
+      if (m) {
+        honap = { nev: m[1].trim(), osszes: szamok_(sor, oszl), rekordCimke: oszl.rekord ? oszl.rekord.cimke : null, csapatok: [] };
+        honapok.push(honap);
+      }
+      continue;
+    }
+    if (/össz/i.test(a)) { oszl = null; honap = null; csapat = null; continue; }
+    if (!a && !nev) { csapat = null; continue; }
+    if (/csapat$/i.test(a) && !nev) {
+      csapat = { nev: a, osszes: szamok_(sor, oszl), tagok: [] };
+      honap.csapatok.push(csapat);
+      continue;
+    }
+    if (!csapat) continue;
+
+    let tag;
+    if (nev) {
+      tag = { nev: nev, poz: a, szint: b, vezeto: false };
+    } else {
+      const v = /^(\S{1,5})\s+(.+)$/.exec(a);
+      tag = v ? { nev: v[2].trim(), poz: v[1], szint: '', vezeto: true } : { nev: a, poz: '', szint: '', vezeto: true };
+    }
+    const sz = szamok_(sor, oszl);
+    for (const k in sz) tag[k] = sz[k];
+    csapat.tagok.push(tag);
+  }
+  return honapok;
+}
+
+function oszlopok_(c, fejIdx) {
+  function utana(cimke, honnan) {
+    for (let i = honnan; i < c.length; i++) if (c[i] === cimke) return i;
+    return -1;
+  }
+  function tartomany(tol, ig) { const t = []; for (let i = tol; i <= ig; i++) t.push(i); return t; }
+
+  const o = {};
+  const ucel = utana('Cél', fejIdx + 1);
+  o.ugyfel = { hetek: tartomany(fejIdx, ucel - 2), ossz: ucel - 1, cel: ucel };
+
+  const eIdx = utana('Egység', ucel + 1);
+  if (eIdx > -1) {
+    const teljes = utana('Teljes', eIdx + 1), vall = utana('Vállalás', eIdx + 1);
+    o.egyseg = { hetek: tartomany(eIdx, teljes - 1), ossz: teljes, vallalas: vall, cel: utana('Cél', vall + 1) };
+  }
+  const pIdx = utana('Prezi', fejIdx + 1);
+  if (pIdx > -1) {
+    const pcel = utana('Cél', pIdx + 1);
+    o.prezi = { hetek: tartomany(pIdx, pcel - 2), ossz: pcel - 1, cel: pcel };
+  }
+  let rIdx = -1, eddig = -1;
+  c.forEach(function (s, i) {
+    if (rIdx < 0 && /^Rekordcél\b/i.test(s) && !/%/.test(s)) rIdx = i;
+    if (eddig < 0 && /^Eddig/i.test(s)) eddig = i;
+  });
+  if (rIdx > -1 && eddig > -1) o.rekord = { cel: rIdx, eddig: eddig, cimke: c[rIdx] };
+  return o;
+}
+
+function szamok_(sor, o) {
+  function n(i) { return i > -1 ? szam_(sor[i]) : null; }
+  const r = {
+    ugyfel: { hetek: o.ugyfel.hetek.map(n), ossz: n(o.ugyfel.ossz), cel: n(o.ugyfel.cel) }
+  };
+  if (o.egyseg) r.egyseg = { hetek: o.egyseg.hetek.map(n), ossz: n(o.egyseg.ossz), vallalas: n(o.egyseg.vallalas), cel: n(o.egyseg.cel) };
+  if (o.prezi) r.prezi = { hetek: o.prezi.hetek.map(n), ossz: n(o.prezi.ossz), cel: n(o.prezi.cel) };
+  if (o.rekord) r.rekord = { cel: n(o.rekord.cel), eddig: n(o.rekord.eddig) };
+  return r;
+}
+
+function szoveg_(v) {
+  return v === null || v === undefined ? '' : String(v).replace(/ /g, ' ').trim();
+}
+
+function szam_(v) {
+  if (typeof v === 'number') return isFinite(v) ? v : null;
+  const s = szoveg_(v).replace(/[\s ]/g, '').replace(',', '.');
+  return /^-?\d+(\.\d+)?$/.test(s) ? Number(s) : null;
+}
+
+
+if (typeof module !== 'undefined') module.exports = { parosit_: parosit_, vezeteknevJelszo_: vezeteknevJelszo_, nevNorm_: nevNorm_ };
