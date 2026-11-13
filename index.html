@@ -218,6 +218,8 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbzfVfmWU1KZp4q7eW9BJIs-uj
     token: function () { return tok; },
     lock: function () { ["fbr_token", "fbr_nev", "fbr_szb", "szb_token"].forEach(function (k) { ls(k, ""); }); tok = ""; root.classList.add("lock"); build(); }
   };
+  // Régebbi belépés, amelyhez még nem tartozik Kontroll SZB-belépés: egyszer újra be kell lépni.
+  if (tok) { var vanSzb = false; try { vanSzb = !!(localStorage.getItem("szb_token") || localStorage.getItem("fbr_szb")); } catch (e) {} if (!vanSzb) { ls(K, ""); tok = ""; } }
   if (!tok) root.classList.add("lock");
   function belep(email, jelszo) {
     return fetch("hozzaferes.json?_=" + Date.now()).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function (h) {

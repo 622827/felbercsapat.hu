@@ -246,13 +246,18 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbzfVfmWU1KZp4q7eW9BJIs-uj
     }).catch(function (err) { $("bHiba").textContent = err.message; })
       .then(function () { b.disabled = false; b.textContent = "Belépés"; });
   });
+  /** Belépni csak a főoldalon (eredményjelző) kell: onnan jön a Kontroll SZB-be is a belépés. */
+  function fooldalra() {
+    ["fbr_token", "fbr_nev", "fbr_szb", "szb_token"].forEach(function (k) { lsSet(k, ""); });
+    location.replace("./");
+  }
   function kilep(csendes) {
     if (!csendes && S.token) api("kilepes").catch(function () {});
     if ((AUTO || lsGet("fbr_token")) && !csendes) { // a főoldali belépésből is kilépünk
       ["fbr_token", "fbr_nev", "fbr_szb", "szb_token"].forEach(function (k) { lsSet(k, ""); });
       location.href = "./"; return;
     }
-    S.token = ""; S.en = null; lsSet(TK, ""); mutat("belepes"); setTimeout(function () { $("bEmail").focus(); }, 50);
+    S.token = ""; S.en = null; lsSet(TK, ""); fooldalra();
   }
   $("kilepGomb").onclick = function () { kilep(false); };
 
@@ -533,8 +538,8 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbzfVfmWU1KZp4q7eW9BJIs-uj
   /* ---------- indítás ---------- */
   if (!SZB_API) { mutat("nincsApi"); return; }
   if (AUTO) $("jelszoGomb").hidden = true; // a jelszót a főoldali belépés kezeli
-  if (!S.token && AUTO) { autoBelep().then(function (ok) { if (ok) indul(); else mutat("belepes"); }); }
-  else if (!S.token) { mutat("belepes"); return; }
+  if (!S.token && AUTO) { autoBelep().then(function (ok) { if (ok) indul(); else fooldalra(); }); }
+  else if (!S.token) { fooldalra(); return; }
   else indul();
   setInterval(function () { if (!document.hidden && S.token && S.nezet === "mt" && !S.szerk) betolt(); }, 60000);
 })();
