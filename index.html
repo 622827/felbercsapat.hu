@@ -36,7 +36,10 @@ var API = "";
   html.lock body > *:not(#gate):not(.on-logos) { visibility: hidden !important; }
   html.lock .on-logos { z-index: 10000; }
   html.lock body { overflow: hidden; }
-  #gate { position: fixed; inset: 0; z-index: 9999; display: grid; place-items: center; padding: 24px 16px; background: var(--bg); visibility: visible; }
+  #gate { position: fixed; inset: 0; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: safe center; gap: 20px; padding: 72px 16px 24px; overflow-y: auto; background: var(--bg); visibility: visible; }
+  #gate .csapatkep { position: relative; width: 100%; max-width: 720px; margin: 0; flex: none; }
+  #gate .csapatkep img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 20px; border: 3px solid var(--accent); box-shadow: 0 10px 40px rgba(0,0,0,.3); background: var(--card); }
+  #gate form { flex: none; }
   #gate::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: var(--accent); opacity: .07; -webkit-mask: var(--hatter) 0 0 / 240px 240px; mask: var(--hatter) 0 0 / 240px 240px; }
   #gate form { position: relative; width: 100%; max-width: 380px; background: var(--card); border: 3px solid var(--accent); border-radius: 24px; padding: 32px 26px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,.3); }
   .bolt { width: 72px; height: 72px; margin: 0 auto 16px; border-radius: 50%; background: #fff; display: grid; place-items: center; }
@@ -248,7 +251,8 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbzfVfmWU1KZp4q7eW9BJIs-uj
     if (document.getElementById("gate")) return;
     if (!document.body) { document.addEventListener("DOMContentLoaded", build); return; }
     var g = document.createElement("div"); g.id = "gate";
-    g.innerHTML = '<form autocomplete="on"><div class="bolt" aria-hidden="true"><span></span></div><h1>Felber csapat</h1><p>Lépj be az e-mail-címeddel és a jelszavaddal.</p>' +
+    g.innerHTML = '<figure class="csapatkep"><img src="ikon/csapat-1600.jpg" srcset="ikon/csapat-800.jpg 800w, ikon/csapat-1600.jpg 1600w" sizes="(max-width: 752px) calc(100vw - 32px), 720px" width="1600" height="1200" alt="A Felber csapat"></figure>' +
+      '<form autocomplete="on"><div class="bolt" aria-hidden="true"><span></span></div><h1>Felber csapat</h1><p>Lépj be az e-mail-címeddel és a jelszavaddal.</p>' +
       '<input type="email" id="fbr-email" placeholder="E-mail-cím" aria-label="E-mail-cím" autocomplete="username" style="margin-bottom:10px">' +
       '<input type="password" id="fbr-pw" placeholder="Jelszó" aria-label="Jelszó" autocomplete="current-password">' +
       '<button class="btn" type="submit">Belépés</button><p class="err" role="alert"></p></form>';
