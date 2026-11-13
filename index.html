@@ -204,32 +204,46 @@ var API = "";
   @media (prefers-reduced-motion: reduce) { .bar .fill, .reveal, .skeleton { transition: none; animation: none; } }
 </style>
 <script>
-/* Belépés.
-   - Ha az API (Apps Script) be van állítva, a jelszót az ellenőrzi, és tokent ad.
-   - Ha nincs, az adatok az adat.enc.json fájlban vannak, a jelszóval titkosítva: a jelszóból képzett
-     kulccsal az oldal visszafejti őket. A böngésző a kulcsot tárolja, a jelszót nem. */
+/* Belépés személyes jelszóval.
+   A hozzaferes.json-ban minden felhasználónál az adatfájl kulcsa (és a Kontroll SZB belépési adatai)
+   a saját jelszavával titkosítva szerepel. Amelyik bejegyzést a beírt jelszó megnyitja, azzal lép be.
+   A böngésző az adatkulcsot tárolja, a jelszót nem. A Kontroll SZB-be ugyanezzel automatikusan belép. */
+var SZB_API = "https://script.google.com/macros/s/AKfycbyKJWVa3jBRfwRyCPwYhwJWpSEUVVm0oz4vKyiU027Gv6l95S24LxWOjLX30J9cxeyXYw/exec";
 (function () {
   var K = "fbr_token", root = document.documentElement;
   var tok = "";
   try { tok = localStorage.getItem(K) || ""; } catch (e) {}
+  function ls(k, v) { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) {} }
   window.FBR = {
     token: function () { return tok; },
-    lock: function () { try { localStorage.removeItem(K); } catch (e) {} tok = ""; root.classList.add("lock"); build(); }
+    lock: function () { ["fbr_token", "fbr_nev", "fbr_szb", "szb_token"].forEach(function (k) { ls(k, ""); }); tok = ""; root.classList.add("lock"); build(); }
   };
   if (!tok) root.classList.add("lock");
-  function helyi(jelszo) {
-    return fetch("adat.enc.json?_=" + Date.now()).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function (f) {
+  function belep(jelszo) {
+    return fetch("hozzaferes.json?_=" + Date.now()).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function (h) {
       return new Promise(function (ok) { setTimeout(ok, 30); }).then(function () { // hadd rajzolja ki az „Ellenőrzés…” feliratot
-        var kulcs = FbrKripto.kulcs(jelszo, f);
-        return FbrKripto.visszafejt(kulcs, f) ? { ok: true, token: kulcs } : { ok: false };
+        var kulcs = FbrKripto.kulcs(jelszo, h);
+        for (var i = 0; i < h.felhasznalok.length; i++) {
+          var b = h.felhasznalok[i], t = FbrKripto.visszafejt(kulcs, { nonce: b.nonce, adat: b.adat, cimke: b.cimke });
+          if (t) return t;
+        }
+        return null;
       });
     });
   }
+  /** Kontroll SZB munkamenet a tárolt belépési adatokkal (a szb.html is ezt hívja, ha lejár). */
+  window.FBR.szbBelep = function () {
+    var sz = null; try { sz = JSON.parse(localStorage.getItem("fbr_szb") || "null"); } catch (e) {}
+    if (!sz || !SZB_API) return Promise.resolve(false);
+    return fetch(SZB_API, { method: "POST", body: JSON.stringify({ muvelet: "belepes", email: sz.email, jelszo: sz.jelszo }) })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { if (d && d.token) { ls("szb_token", d.token); return true; } return false; }, function () { return false; });
+  };
   function build() {
     if (document.getElementById("gate")) return;
     if (!document.body) { document.addEventListener("DOMContentLoaded", build); return; }
     var g = document.createElement("div"); g.id = "gate";
-    g.innerHTML = '<form autocomplete="on"><div class="bolt" aria-hidden="true"><span></span></div><h1>Felber csapat</h1><p>Add meg a jelszót a belépéshez.</p>' +
+    g.innerHTML = '<form autocomplete="on"><div class="bolt" aria-hidden="true"><span></span></div><h1>Felber csapat</h1><p>Add meg a jelszavadat a belépéshez.</p>' +
       '<input type="password" id="fbr-pw" placeholder="Jelszó" aria-label="Jelszó" autocomplete="current-password">' +
       '<button class="btn" type="submit">Belépés</button><p class="err" role="alert"></p></form>';
     document.body.appendChild(g);
@@ -238,10 +252,11 @@ var API = "";
     f.addEventListener("submit", function (ev) {
       ev.preventDefault(); if (!pw.value) return;
       btn.disabled = true; er.textContent = ""; btn.textContent = "Ellenőrzés…";
-      (API ? fetch(API + "?login=" + encodeURIComponent(pw.value) + "&_=" + Date.now()).then(function (r) { return r.json(); }) : helyi(pw.value))
-        .then(function (d) {
-          if (d && d.ok && d.token) { try { localStorage.setItem(K, d.token); } catch (e) {} location.reload(); }
-          else { er.textContent = d && d.error === "setup" ? "A jelszó még nincs beállítva az Apps Scriptben." : "Hibás jelszó."; btn.disabled = false; btn.textContent = "Belépés"; pw.select(); }
+      belep(pw.value.trim().toLowerCase())
+        .then(function (t) {
+          if (!t) { er.textContent = "Hibás jelszó."; btn.disabled = false; btn.textContent = "Belépés"; pw.select(); return; }
+          ls(K, t.kulcs); ls("fbr_nev", t.nev); ls("fbr_szb", t.szb ? JSON.stringify(t.szb) : ""); ls("szb_token", "");
+          return window.FBR.szbBelep().then(function () { location.reload(); });
         })
         .catch(function () { er.textContent = "Nem sikerült csatlakozni, próbáld újra."; btn.disabled = false; btn.textContent = "Belépés"; });
     });
