@@ -101,6 +101,16 @@ var API = "";
   .rekord .r-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 16px; }
   .rekord .r-num { font-size: clamp(2.6rem, 9vw, 4.6rem); font-weight: 700; letter-spacing: -.04em; line-height: 1; font-variant-numeric: tabular-nums; }
   .rekord .r-num small { font-size: .35em; color: var(--muted); font-weight: 600; letter-spacing: 0; }
+  .kpis2 { grid-template-columns: 1fr 1fr; margin-bottom: 16px; }
+  .q-sor { display: grid; grid-template-columns: 70px 1fr auto; gap: 12px; align-items: center; margin: 10px 0; font-size: .85rem; color: var(--muted); }
+  .q-sor > span:last-child { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .team-h > span { color: var(--muted); font-weight: 700; font-variant-numeric: tabular-nums; }
+  table.hb { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: .9rem; }
+  table.hb th, table.hb td { text-align: right; padding: 7px 4px; border-bottom: 1px solid var(--line); }
+  table.hb thead th { color: var(--muted); font-size: .75rem; font-weight: 600; }
+  table.hb tbody th { text-align: left; font-weight: 600; }
+  table.hb tr:last-child th, table.hb tr:last-child td { border-bottom: 0; }
+  table.hb td span { color: var(--muted); font-size: .78rem; display: block; }
   .r-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 30px; }
   .bar .tick.j { background: #ffd34d; width: 3px; }
   .bar .tick.j.ok { background: var(--accent); }
@@ -180,7 +190,7 @@ var API = "";
   }
   @media (max-width: 560px) {
     body { padding-top: 70px; }
-    .kpis { grid-template-columns: 1fr; }
+    .kpis, .kpis2 { grid-template-columns: 1fr; }
     .card { padding: 18px 16px; }
     .r-facts { grid-template-columns: 1fr 1fr; }
     .r-facts div:last-child { grid-column: 1 / -1; }
@@ -360,10 +370,12 @@ var API = "";
 
   function rajzol() {
     var d = S.data, rh = rekordHonap(d);
-    var nezet = rh && S.nezet !== "havi" ? "rekord" : "havi";
+    var nezet = S.nezet === "havi" || S.nezet === "negyedev" ? S.nezet : (rh ? "rekord" : "negyedev");
     controls.innerHTML =
-      (rh ? '<div class="tabs" role="tablist" aria-label="Nézet"><button role="tab" data-n="rekord" aria-selected="' + (nezet === "rekord") + '">🏆 Év végi rekord</button>' +
-        '<button role="tab" data-n="havi" aria-selected="' + (nezet === "havi") + '">Havi eredmények</button></div>' : "") +
+      '<div class="tabs" role="tablist" aria-label="Nézet">' +
+        (rh ? '<button role="tab" data-n="rekord" aria-selected="' + (nezet === "rekord") + '">🏆 Év végi rekord</button>' : "") +
+        '<button role="tab" data-n="negyedev" aria-selected="' + (nezet === "negyedev") + '">Negyedév</button>' +
+        '<button role="tab" data-n="havi" aria-selected="' + (nezet === "havi") + '">Havi</button></div>' +
       (d.lapok && d.lapok.length > 1 ? '<select class="q" id="lap" aria-label="Negyedév">' + d.lapok.map(function (l) { return '<option' + (l === d.lap ? " selected" : "") + ">" + esc(l) + "</option>"; }).join("") + "</select>" : "") +
       (nezet === "havi" ? '<div class="tabs" role="tablist" aria-label="Hónap">' + d.honapok.map(function (m, i) {
         return '<button role="tab" data-i="' + i + '" aria-selected="' + (i === S.honap) + '">' + esc(m.nev) + "</button>";
@@ -389,6 +401,14 @@ var API = "";
       if (d.jutalmak && d.jutalmak.szintek) html += jutalmakSzekcio(rh, d.jutalmak);
       html += '<h2>Csapatok az év végi rekordban</h2><div class="grid teams">' + rh.csapatok.map(function (c) { return rekordCsapatKartya(c, rido); }).join("") + "</div>";
       html += '<div class="grid lower">' + rekordToplista(rh) + "</div>";
+    } else if (nezet === "negyedev") {
+      var q = negyedevAdat(d), qi = negyedevIdo(), qo = q.osszes;
+      html = statusz(qi, true) + '<h2 class="elso">Negyedéves állás – ' + esc(d.lap) + "</h2>";
+      html += '<div class="grid kpis2">' + kicsiKartya("Egység – vállaláshoz képest", { ossz: qo.egyseg.ossz, cel: qo.egyseg.vallalas }, qi, "ES", "ES") +
+        kicsiKartya("Egység – célhoz képest", { ossz: qo.egyseg.ossz, cel: qo.egyseg.cel }, qi, "ES", "ES") + "</div>";
+      html += '<div class="grid kpis">' + honapBontas(d) + kicsiKartya("Ügyfélidőpontok", qo.ugyfel, qi, "db") + kicsiKartya("Prezentációk", qo.prezi, qi, "db") + "</div>";
+      html += '<h2>Csapatok a negyedévben</h2><div class="grid teams">' + q.csapatok.map(function (c) { return negyedevCsapatKartya(c, qi); }).join("") + "</div>";
+      html += '<div class="grid lower">' + toplista(q, "egyseg", "Egység toplista – negyedév", "ES") + "</div>";
     } else {
       var h = d.honapok[S.honap];
       if (!h) { app.innerHTML = '<div class="notice"><h1>Nincs adat</h1><p>Ezen a lapon nem találtam havi blokkot.</p></div>'; return; }
@@ -404,6 +424,61 @@ var API = "";
     requestAnimationFrame(function () { requestAnimationFrame(function () {
       app.querySelectorAll(".fill").forEach(function (f) { f.style.width = f.dataset.w + "%"; });
     }); });
+  }
+
+  /* ---------- negyedév ---------- */
+  function plusz(a, b) { return a == null ? b : b == null ? a : a + b; }
+  function ures() { return { egyseg: { ossz: null, vallalas: null, cel: null }, ugyfel: { ossz: null, cel: null }, prezi: { ossz: null, cel: null } }; }
+  function hozzaad(acc, x) {
+    ["egyseg", "ugyfel", "prezi"].forEach(function (m) {
+      if (!x[m]) return;
+      Object.keys(acc[m]).forEach(function (k) { acc[m][k] = plusz(acc[m][k], x[m][k]); });
+    });
+  }
+  /** A negyedév összesítése: a havi blokkok összege, csapatonként és személyenként (név szerint). */
+  function negyedevAdat(d) {
+    var osszes = ures(), csapatok = {}, sorrend = [];
+    d.honapok.forEach(function (h) { hozzaad(osszes, h.osszes); });
+    d.honapok.slice().reverse().forEach(function (h) {
+      h.csapatok.forEach(function (c) {
+        if (!csapatok[c.nev]) { csapatok[c.nev] = { nev: c.nev, osszes: ures(), tagok: [], tagIdx: {} }; sorrend.push(c.nev); }
+        var cs = csapatok[c.nev];
+        hozzaad(cs.osszes, c.osszes);
+        c.tagok.forEach(function (t) {
+          if (!t.nev) return;
+          var k = t.nev.trim();
+          if (!(k in cs.tagIdx)) { cs.tagIdx[k] = cs.tagok.length; var u = ures(); u.nev = t.nev; u.poz = t.poz; u.szint = t.szint; u.vezeto = t.vezeto; cs.tagok.push(u); }
+          hozzaad(cs.tagok[cs.tagIdx[k]], t);
+        });
+      });
+    });
+    return { osszes: osszes, csapatok: sorrend.map(function (n) { return csapatok[n]; }) };
+  }
+  function negyedevIdo() {
+    var m = /(\d{4})\s*Q([1-4])/i.exec(S.lap || ""); if (!m) return null;
+    var tol = new Date(+m[1], (+m[2] - 1) * 3, 1), ig = new Date(+m[1], (+m[2]) * 3, 1);
+    return clamp((Date.now() - tol) / (ig - tol));
+  }
+  function honapBontas(d) {
+    return '<section class="card reveal"><p class="k-label">Egység havonta</p><table class="hb"><thead><tr><th></th><th>Teljesítve</th><th>Vállalás</th><th>Cél</th></tr></thead><tbody>' +
+      d.honapok.map(function (h) {
+        var e = h.osszes.egyseg || {};
+        return "<tr><th>" + esc(h.nev) + "</th><td><b>" + szam(e.ossz) + "</b></td><td>" + szam(e.vallalas) + " <span>" + szazalek(arany(e.ossz, e.vallalas)) + "</span></td><td>" + szam(e.cel) + " <span>" + szazalek(arany(e.ossz, e.cel)) + "</span></td></tr>";
+      }).join("") + "</tbody></table></section>";
+  }
+  function negyedevCsapatKartya(c, ido) {
+    var e = c.osszes.egyseg, pv = arany(e.ossz, e.vallalas), pc = arany(e.ossz, e.cel);
+    var tagok = c.tagok.slice().sort(function (a, b) { return (b.egyseg.ossz || 0) - (a.egyseg.ossz || 0); });
+    return '<section class="card reveal"><div class="team-h"><h3>' + esc(c.nev) + "</h3><span>" + szam(e.ossz) + " ES</span></div>" +
+      '<div class="q-sor"><span>Vállalás</span>' + bar(e.ossz, e.vallalas, { ido: ido }) + "<span>" + szam(e.vallalas) + " · " + pctHtml(pv) + "</span></div>" +
+      '<div class="q-sor"><span>Cél</span>' + bar(e.ossz, e.cel, { ido: ido }) + "<span>" + szam(e.cel) + " · " + pctHtml(pc) + "</span></div>" +
+      '<ul class="members">' + tagok.map(function (t) {
+        var te = t.egyseg, cel = te.cel || te.vallalas;
+        var chips = (t.poz ? '<span class="chip' + (t.vezeto ? " lead" : "") + '">' + esc(t.poz) + "</span>" : "") + (t.szint ? '<span class="chip">' + esc(t.szint) + "</span>" : "");
+        return '<li><div class="m-name"><b title="' + esc(t.nev) + '">' + esc(t.nev) + "</b>" + chips + "</div>" +
+          '<div class="m-units">' + bar(te.ossz, cel, { vallalas: te.vallalas, ido: ido }) + '<div class="bar-row"><span>' + szam(te.ossz) + " / " + szam(te.cel) + " ES</span>" + pctHtml(arany(te.ossz, te.cel)) + "</div></div>" +
+          '<div class="m-side"><div><b>' + szazalek(arany(te.ossz, te.vallalas)) + "</b>vállalás</div><div><b>" + szazalek(arany(te.ossz, te.cel)) + "</b>cél</div></div></li>";
+      }).join("") + "</ul></section>";
   }
 
   function rekordCsapatKartya(c, ido) {
@@ -435,11 +510,11 @@ var API = "";
       "</section>";
   }
 
-  function kicsiKartya(cim, x, ido, egys) {
+  function kicsiKartya(cim, x, ido, egys, numEgys) {
     if (!x) return "";
     var p = arany(x.ossz, x.cel);
     return '<section class="card reveal"><p class="k-label">' + cim + "</p>" +
-      '<div class="k-num">' + szam(x.ossz) + "<small>/ " + szam(x.cel) + "</small></div>" +
+      '<div class="k-num">' + szam(x.ossz) + "<small>/ " + szam(x.cel) + (numEgys ? " " + numEgys : "") + "</small></div>" +
       '<p class="k-sub">' + pctHtml(p) + (x.cel && x.ossz != null && x.ossz < x.cel ? " · még <b>" + szam(x.cel - x.ossz) + " " + egys + "</b>" : (p != null && p >= 1 ? " · cél teljesítve 🎉" : "")) + "</p>" +
       bar(x.ossz, x.cel, { big: true, ido: ido }) + "</section>";
   }
