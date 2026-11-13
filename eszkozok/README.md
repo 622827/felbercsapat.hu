@@ -15,6 +15,8 @@ A nyilvános repóban így nincs olvasható adat. Az oldal belépéskor a jelsz�
    ```
    A szkript összefoglalót ír ki (havi BL egység, ügyfél, prezi, létszám): ezt érdemes összevetni a táblázattal.
    „FIGYELEM” sor akkor jelenik meg, ha valahol a heti értékek összege nem egyezik az összesennel.
+   A rekordcél jutalmai is a titkosított fájlban vannak. A szkript a meglévő fájlból viszi tovább őket,
+   módosításkor pedig `--jutalmak jutalmak.json` kapcsolóval adhatók meg (a JSON ne kerüljön a repóba).
 3. Csak az `adat.enc.json` változik. Ezt kell commitolni és a `main`-re juttatni.
 
 A frissítést hétköznap esténként egy ütemezett Claude-feladat végzi.

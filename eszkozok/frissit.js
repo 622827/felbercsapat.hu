@@ -3,11 +3,14 @@
  * A „Felber BL - CÉLOK” táblázat egy vagy több negyedéves lapjából elkészíti a titkosított adat.enc.json fájlt.
  *
  * Használat:
- *   FBR_JELSZO=… node eszkozok/frissit.js "2026 Q4" ertekek-q4.json ["2026 Q3" ertekek-q3.json …]
+ *   FBR_JELSZO=… node eszkozok/frissit.js [--jutalmak jutalmak.json] "2026 Q4" ertekek-q4.json ["2026 Q3" ertekek-q3.json …]
  *
  * Az ertekek-*.json a lap A1:AE120 tartománya (a Google Sheets „values” tömbje: sorok tömbje, cellánként szöveg/szám).
  * Az első megadott lap lesz az alapértelmezett. A só megmarad a meglévő fájlból, így a bejelentkezett
  * böngészők tárolt kulcsa érvényes marad; jelszócserénél töröld az adat.enc.json-t és futtasd újra.
+ *
+ * A rekordcél jutalmai (--jutalmak) szintén a titkosított fájlba kerülnek. Ha nem adod meg,
+ * a szkript a meglévő adat.enc.json-ból viszi tovább őket (így a repóban sehol sincsenek olvashatóan).
  */
 "use strict";
 const fs = require("fs");
@@ -22,6 +25,9 @@ const ITER = 100000;
 
 const jelszo = process.env.FBR_JELSZO;
 const args = process.argv.slice(2);
+let jutalmakFajl = null;
+const ji = args.indexOf("--jutalmak");
+if (ji > -1) { jutalmakFajl = args[ji + 1]; args.splice(ji, 2); }
 if (!jelszo || args.length < 2 || args.length % 2) {
   console.error('Használat: FBR_JELSZO=… node eszkozok/frissit.js "2026 Q4" ertekek.json [...]');
   process.exit(2);
@@ -61,13 +67,16 @@ function ellenoriz(lap, honapok) {
   }
 }
 
-let so = crypto.randomBytes(16);
+let so = crypto.randomBytes(16), jutalmak = null;
 try {
   const regi = JSON.parse(fs.readFileSync(KIMENET, "utf8"));
   if (regi.so && regi.iter === ITER) so = Buffer.from(regi.so, "base64");
+  const regiAdat = kripto.visszafejt(kripto.kulcs(jelszo, regi), regi);
+  if (regiAdat && regiAdat.jutalmak) jutalmak = regiAdat.jutalmak;
 } catch (e) { /* nincs még fájl */ }
+if (jutalmakFajl) jutalmak = JSON.parse(fs.readFileSync(jutalmakFajl, "utf8"));
 
-const adat = { lap: lapok[0], lapok, negyedevek, frissitve: new Date().toISOString() };
+const adat = { lap: lapok[0], lapok, negyedevek, jutalmak, frissitve: new Date().toISOString() };
 const fajl = kripto.titkosit(adat, jelszo, new Uint8Array(so), new Uint8Array(crypto.randomBytes(16)), ITER);
 
 // önellenőrzés: visszafejthető-e
@@ -85,6 +94,7 @@ for (const lap of lapok) {
       (o.rekord ? `, rekord ${o.rekord.eddig} / ${o.rekord.cel}` : "") + ` – ${h.csapatok.length} csapat, ${tagok} fő`);
   }
 }
+console.log(jutalmak ? `\nJutalmak: ${jutalmak.szintek.map((x) => x.es + " ES").join(", ")}` : "\nJutalmak: nincsenek");
 if (figyelmeztetes.length) {
   console.log("\nFIGYELEM – nézd meg ezeket a táblázatban (lehet másolási hiba, vagy a táblázatban is így van):");
   figyelmeztetes.forEach((f) => console.log("  - " + f));

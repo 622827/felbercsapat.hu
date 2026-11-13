@@ -101,7 +101,29 @@ var API = "";
   .rekord .r-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 16px; }
   .rekord .r-num { font-size: clamp(2.6rem, 9vw, 4.6rem); font-weight: 700; letter-spacing: -.04em; line-height: 1; font-variant-numeric: tabular-nums; }
   .rekord .r-num small { font-size: .35em; color: var(--muted); font-weight: 600; letter-spacing: 0; }
-  .r-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
+  .r-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 30px; }
+  .bar .tick.j { background: #ffd34d; width: 3px; }
+  .bar .tick.j.ok { background: var(--accent); }
+  .bar .tick-l.j { color: var(--muted); font-weight: 600; }
+  .bar .tick-l.j.ok { color: var(--accent); }
+
+  /* Jutalmak */
+  .jut { grid-template-columns: repeat(3, 1fr); margin-bottom: 8px; }
+  h2.elso { margin-top: 26px; }
+  .jut-szint { position: relative; border: 2px solid transparent; }
+  .jut-szint.ok { border-color: var(--accent); }
+  .jut-szint.kov { border-color: #ffd34d; }
+  .jut-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .jut-h b { font-size: 1.5rem; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+  .jut-h b small { font-size: .55em; color: var(--muted); font-weight: 600; letter-spacing: 0; }
+  .allapot { font-size: .75rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--track); color: var(--muted); white-space: nowrap; }
+  .ok .allapot { background: var(--accent); color: var(--bg); }
+  .kov .allapot { background: #ffd34d; color: #3b2a00; }
+  .jut-szint .bar { height: 8px; margin-bottom: 14px; }
+  .jut-tetel { display: grid; grid-template-columns: 40px 1fr; gap: 10px; align-items: start; padding: 10px 0; border-top: 1px solid var(--line); }
+  .jut-ikon { width: 40px; height: 40px; border-radius: 12px; background: rgba(0,0,0,.18); display: grid; place-items: center; font-size: 1.3rem; }
+  .jut-tetel b { display: block; line-height: 1.25; }
+  .jut-tetel span { display: block; color: var(--muted); font-size: .85rem; margin-top: 3px; line-height: 1.3; }
   .r-facts div { background: rgba(0,0,0,.15); border-radius: 14px; padding: 10px 14px; }
   .r-facts b { display: block; font-size: 1.35rem; font-variant-numeric: tabular-nums; }
   .r-facts span { color: var(--muted); font-size: .8rem; }
@@ -140,7 +162,7 @@ var API = "";
   .top .t-val { text-align: right; font-variant-numeric: tabular-nums; }
   .top .t-val b { font-size: 1.15rem; }
   .top .t-val span { display: block; font-size: .8rem; color: var(--muted); }
-  .lower { grid-template-columns: 1fr 1fr; }
+  .lower { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); margin-top: 16px; }
 
   .notice { max-width: 560px; margin: 8vh auto 0; text-align: center; background: var(--card); border: 3px solid var(--accent); border-radius: 24px; padding: 32px 26px; }
   .notice h1 { margin: 0 0 10px; font-size: 1.6rem; }
@@ -153,7 +175,7 @@ var API = "";
   @media (max-width: 900px) {
     .kpis { grid-template-columns: 1fr 1fr; }
     .kpis .card:first-child { grid-column: 1 / -1; }
-    .teams, .lower { grid-template-columns: 1fr; }
+    .teams, .jut { grid-template-columns: 1fr; }
   }
   @media (max-width: 560px) {
     body { padding-top: 70px; }
@@ -276,6 +298,11 @@ var API = "";
       h += '<div class="tick v" style="left:' + v.toFixed(1) + '%" title="Vállalás: ' + szam(o.vallalas) + '"></div>';
       if (o.vCimke) h += '<div class="tick-l" style="left:' + v.toFixed(1) + '%">vállalás ' + szam(o.vallalas) + "</div>";
     }
+    (o.jelek || []).forEach(function (j) {
+      if (!cel || j.ertek >= cel) return;
+      var x = (clamp(j.ertek / cel) * 100).toFixed(1), ok = ertek != null && ertek >= j.ertek ? " ok" : "";
+      h += '<div class="tick j' + ok + '" style="left:' + x + '%"></div><div class="tick-l j' + ok + '" style="left:' + x + '%">' + szam(j.ertek) + "</div>";
+    });
     if (o.ido != null && o.ido > 0 && o.ido < 1) h += '<div class="tick" style="left:' + (o.ido * 100).toFixed(1) + '%" title="Időarányos: ' + szazalek(o.ido) + '"></div>';
     return h + "</div>";
   }
@@ -309,7 +336,7 @@ var API = "";
       var t = FbrKripto.visszafejt(FBR.token(), f);
       if (!t) return { error: "auth" };
       var l = t.negyedevek[lap] ? lap : t.lap;
-      return { lap: l, lapok: t.lapok, honapok: t.negyedevek[l], frissitve: t.frissitve };
+      return { lap: l, lapok: t.lapok, honapok: t.negyedevek[l], jutalmak: t.jutalmak, frissitve: t.frissitve };
     });
   }
 
@@ -339,11 +366,13 @@ var API = "";
       (ido != null && ido > 0 && ido < 1 ? '<span class="legend"><i></i> időarányos (' + szazalek(ido) + ")</span>" : "") +
       '<span class="legend"><i class="v"></i> vállalás</span></div>';
 
-    if (o.rekord && o.rekord.cel) html += rekordKartya(h);
+    var rh = d.honapok.filter(function (x) { return x.osszes.rekord && x.osszes.rekord.cel; })[0];
+    if (rh) html += rekordKartya(rh, d.jutalmak);
+    if (rh && d.jutalmak && d.jutalmak.szintek) html += jutalmakSzekcio(rh, d.jutalmak) + '<h2>Havi állás – ' + esc(h.nev) + "</h2>";
     html += '<div class="grid kpis">' + egysegKartya(o.egyseg, ido) + kicsiKartya("Ügyfélidőpontok", o.ugyfel, ido, "db") + kicsiKartya("Prezentációk", o.prezi, ido, "db") + "</div>";
 
     html += '<h2>Csapatok</h2><div class="grid teams">' + h.csapatok.map(function (c) { return csapatKartya(c, ido, !!(o.rekord && o.rekord.cel)); }).join("") + "</div>";
-    html += '<div class="grid lower">' + toplista(h, "egyseg", "Egység toplista", "ES") + toplista(h, "ugyfel", "Ügyfélidőpont toplista", "db") + "</div>";
+    html += '<div class="grid lower">' + (rh ? rekordToplista(rh) : "") + toplista(h, "egyseg", "Egység toplista – " + esc(h.nev), "ES") + toplista(h, "ugyfel", "Ügyfélidőpont toplista – " + esc(h.nev), "db") + "</div>";
 
     app.innerHTML = html;
     document.getElementById("frissit").onclick = function () { betolt(S.lap); };
@@ -375,7 +404,7 @@ var API = "";
       bar(x.ossz, x.cel, { big: true, ido: ido }) + "</section>";
   }
 
-  function rekordKartya(h) {
+  function rekordKartya(h, jut) {
     var r = h.osszes.rekord, t = rekordIdo(h.rekordCimke), p = arany(r.eddig, r.cel);
     var ido = null, hatra = null;
     if (t) {
@@ -386,10 +415,36 @@ var API = "";
     var napi = hatra ? Math.ceil(hiany / hatra) : null;
     return '<section class="card rekord reveal"><div class="r-head"><p class="k-label">🏆 Rekordcél' + (t ? " · " + esc(t.szoveg) : "") + "</p>" + pctHtml(p) + "</div>" +
       '<div class="r-num">' + szam(r.eddig) + "<small> / " + szam(r.cel) + " ES</small></div>" +
-      '<div style="margin-top:16px">' + bar(r.eddig, r.cel, { big: true, ido: ido }) + "</div>" +
+      '<div style="margin-top:16px">' + bar(r.eddig, r.cel, { big: true, ido: ido, jelek: jut && jut.szintek ? jut.szintek.map(function (x) { return { ertek: x.es }; }) : [] }) + "</div>" +
       '<div class="r-facts"><div><b>' + szam(hiany) + " ES</b><span>még hiányzik</span></div>" +
       "<div><b>" + (hatra == null ? "–" : hatra + " nap") + "</b><span>van hátra</span></div>" +
       "<div><b>" + (napi == null ? "–" : (hiany ? "~" + szam(napi) + " ES" : "Megvan! 🎉")) + "</b><span>" + (hiany ? "kell naponta" : "rekord teljesítve") + "</span></div></div></section>";
+  }
+
+  function jutalmakSzekcio(h, jut) {
+    var eddig = h.osszes.rekord.eddig || 0, kovetkezo = null;
+    jut.szintek.forEach(function (x) { if (kovetkezo == null && eddig < x.es) kovetkezo = x.es; });
+    return '<h2>🎁 Jutalmak' + (jut.cim ? " – " + esc(jut.cim) : "") + '</h2><div class="grid jut">' + jut.szintek.map(function (x) {
+      var ok = eddig >= x.es, kov = x.es === kovetkezo;
+      return '<section class="card jut-szint reveal' + (ok ? " ok" : kov ? " kov" : "") + '"><div class="jut-h"><b>' + szam(x.es) + "<small> ES felett</small></b>" +
+        '<span class="allapot">' + (ok ? "✓ Elérve" : "még " + szam(x.es - eddig) + " ES") + "</span></div>" +
+        bar(eddig, x.es) +
+        (x.tetelek || []).map(function (t) {
+          return '<div class="jut-tetel"><div class="jut-ikon" aria-hidden="true">' + esc(t.ikon || "🎁") + "</div><div><b>" + esc(t.mit) + "</b><span>" + esc(t.ki) + "</span></div></div>";
+        }).join("") + "</section>";
+    }).join("") + "</div>";
+  }
+
+  function rekordToplista(h) {
+    var lista = [];
+    h.csapatok.forEach(function (c) { c.tagok.forEach(function (t) { if (t.nev && t.rekord && t.rekord.eddig) lista.push({ t: t, csapat: c.nev, ossz: t.rekord.eddig, cel: t.rekord.cel }); }); });
+    lista.sort(function (a, b) { return b.ossz - a.ossz; });
+    lista = lista.slice(0, 5);
+    return '<section class="card reveal"><h2 style="margin-top:0">🏆 Rekord-időszak toplista</h2>' +
+      (lista.length ? '<ol class="top">' + lista.map(function (x, i) {
+        return '<li><div class="medal">' + (i + 1) + '</div><div class="t-name"><b>' + esc(x.t.nev) + "</b><span>" + esc(x.csapat) + "</span></div>" +
+          '<div class="t-val"><b>' + szam(x.ossz) + " ES</b><span>" + szazalek(arany(x.ossz, x.cel)) + " a rekordcélból</span></div></li>";
+      }).join("") + "</ol>" : '<p class="k-sub">Még nincs eredmény.</p>') + "</section>";
   }
 
   function csapatKartya(c, ido, rekord) {
