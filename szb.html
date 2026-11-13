@@ -301,7 +301,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbzY-qy-61ObY7clGUBNGMqKvi
   function betolt() {
     if (S.betolt) return Promise.resolve(); S.betolt = true;
     return api("adatok").then(function (d) {
-      S.en = d.en; S.mt = d.munkatarsak; S.jegy = d.jegyzetek; S.fel = d.feladatok; S.nevek = d.nevek || {};
+      S.en = d.en; S.sajat = d.sajat || null; S.mt = d.munkatarsak; S.jegy = d.jegyzetek; S.fel = d.feladatok; S.nevek = d.nevek || {};
       if (S.en.szerep === "munkatars" && !S.sel && S.mt[0]) S.sel = S.mt[0].id;
       rajzolMinden();
     }).catch(function (e) { $("heti").textContent = e.message; }).then(function () { S.betolt = false; });
@@ -316,7 +316,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbzY-qy-61ObY7clGUBNGMqKvi
   function jegyzetei(id) { return S.jegy.filter(function (j) { return j.munkatars_id === id; }).sort(function (a, b) { return a.datum === b.datum ? String(b.mentve).localeCompare(String(a.mentve)) : String(b.datum).localeCompare(String(a.datum)); }); }
   function feladatai(id) { return S.fel.filter(function (f) { return f.munkatars_id === id; }); }
   function utolsoSZB(id) { var j = jegyzetei(id); return j.length ? j[0].datum : null; }
-  function aktualis() { return S.mt.filter(function (m) { return m.id === S.sel; })[0] || null; }
+  function aktualis() { if (S.sajatMod) return S.sajat && S.sajat.id === S.sel ? S.sajat : null; return S.mt.filter(function (m) { return m.id === S.sel; })[0] || null; }
 
   function rajzolMinden() {
     $("enNev").textContent = S.en.nev || S.en.email;
@@ -340,8 +340,10 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbzY-qy-61ObY7clGUBNGMqKvi
       var c = m.csapat || "Egyéb"; if (!csop[c]) { csop[c] = []; sor.push(c); } csop[c].push(m);
     });
     $("csapatok").innerHTML = Object.keys(S.mt.reduce(function (o, m) { if (m.csapat) o[m.csapat] = 1; return o; }, {})).map(function (c) { return '<option value="' + esc(c) + '">'; }).join("");
+    var sajatGomb = S.sajat ? '<div class="csapat"><h2>Saját</h2><button class="mt" data-sajat="1" data-id="' + esc(S.sajat.id) + '" aria-current="' + (S.sajatMod && S.nezet === "mt") + '"><span class="pont ok" aria-hidden="true">📈</span><span><b>' + esc(S.sajat.nev) + '</b><small>Saját pipeline</small></span><span></span></button></div>' : "";
+    if (!S.mt.length && sajatGomb) { $("lista").innerHTML = sajatGomb; return; }
     if (!S.mt.length) { $("lista").innerHTML = '<p class="ures">' + (admin() ? "Vedd fel a munkatársakat lent a „+ Munkatárs hozzáadása” vagy a „Felhasználók kezelése” résznél." : "A vezetőd még nem rendelt hozzád munkatársi lapot.") + "</p>"; return; }
-    $("lista").innerHTML = sor.map(function (c) {
+    $("lista").innerHTML = sajatGomb + sor.map(function (c) {
       return '<div class="csapat"><h2>' + esc(c) + "</h2>" + csop[c].map(function (m) {
         var u = utolsoSZB(m.id), ok = eHeten(u), ny = feladatai(m.id).filter(function (f) { return f.kesz !== "igen"; }).length;
         return '<button class="mt" data-id="' + esc(m.id) + '" aria-current="' + (m.id === S.sel && S.nezet === "mt") + '"><span class="pont' + (ok ? " ok" : "") + '" aria-label="' + (ok ? "E heti SZB megvolt" : "E heti SZB még nincs meg") + '">' + (ok ? "✓" : "") + "</span>" +
@@ -349,11 +351,13 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbzY-qy-61ObY7clGUBNGMqKvi
       }).join("") + "</div>";
     }).join("");
   }
-  $("lista").addEventListener("click", function (e) { var b = e.target.closest(".mt"); if (b) valaszt(b.dataset.id); });
+  $("lista").addEventListener("click", function (e) { var b = e.target.closest(".mt"); if (b) valaszt(b.dataset.id, !!b.dataset.sajat); });
   $("kereso").addEventListener("input", rajzolLista);
 
-  function valaszt(id) {
+  function valaszt(id, sajat) {
     S.nezet = "mt";
+    if (S.sajatMod !== !!sajat) S.sel = null;
+    S.sajatMod = !!sajat;
     if (S.sel !== id) { S.sel = id; S.minden = false; S.szerk = null; S.torol = null; }
     try { history.replaceState(null, "", "#m-" + id); } catch (e) {}
     $("app").classList.add("reszletben");
@@ -364,6 +368,13 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbzY-qy-61ObY7clGUBNGMqKvi
   function rajzolReszletVaz() {
     var m = aktualis(), main = $("reszlet");
     if (!m) { main.innerHTML = '<div class="kezdo"><div><h2>Válassz munkatársat</h2><p>Bal oldalt kattints egy névre: ott írhatod az SZB jegyzetet és a megbeszélt feladatokat.</p></div></div>'; return; }
+    if (S.sajatMod) {
+      main.innerHTML = '<div class="lap"><button class="vissza" id="vissza" type="button">← Munkatársak</button>' +
+        '<div class="fej"><div><h2>' + esc(m.nev) + '</h2><p>Saját pipeline – a saját elemzéseid az Elemzés összegzőből</p></div></div>' +
+        '<section><div id="pipe" class="pipe"><p class="ures">Pipeline betöltése…</p></div></section></div>';
+      $("vissza").onclick = function () { $("app").classList.remove("reszletben"); S.sel = null; S.sajatMod = false; rajzolLista(); };
+      pipeBetolt(m.id); return;
+    }
     var vazlat = lsGet("szb_vazlat_" + m.id);
     main.innerHTML = '<div class="lap">' +
       (S.mt.length > 1 ? '<button class="vissza" id="vissza" type="button">← Munkatársak</button>' : "") +
