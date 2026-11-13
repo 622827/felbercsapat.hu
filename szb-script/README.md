@@ -30,6 +30,23 @@ jelszóval történik, Claude-fiók nem kell hozzá. A jelszavakat csak sózott 
 6. Másold ki a **webalkalmazás URL-t** (`https://script.google.com/macros/s/…/exec`), és küldd el
    Claude-nak, vagy írd be a `szb.html` elején: `var SZB_API = "…";`
 
+## Google-csoport szinkron (automatikus felvétel)
+
+A `felber-csapat@googlegroups.com` csoport tagjait a script **óránként** automatikusan felveszi:
+
+- A „Felber BL - CÉLOK” táblázat legfrissebb negyedéves lapja alapján dől el, ki **csapatvezető** (a csapatát
+  látja) és ki **munkatárs** (a saját lapját látja; ha még nincs munkatársi lapja, létrejön).
+- Az e-mail-címet a táblázatbeli névhez párosítja (pl. `szeker.szilvy.ovb@…` → Szekér Szilvia,
+  `m.andrea.ovb@…` → Molnár Andrea). Akit nem tud egyértelműen párosítani, azt kihagyja.
+- A jelszó a **vezetéknév** ékezet nélkül, kisbetűvel, egybeírva (Szekér Szilvia → `szeker`).
+- Ugyanezzel az e-mail-címmel és jelszóval lehet belépni a felbercsapat.hu-ra (eredményjelző), és onnan
+  a Kontroll SZB-be már nem kell külön belépni.
+- A meglévő felhasználókhoz nem nyúl. Akit a szinkron vett fel, és kikerül a csoportból, azt letiltja.
+
+Beállítás (egyszer): a kód bemásolása után a `beallitas` függvényt kell lefuttatni (▶ Futtatás), és engedélyezni
+a Google-csoport és a táblázatok olvasását, majd **új verziót** telepíteni (lásd lent). A futás naplójában
+látszik, kit vett fel.
+
 ## Használat
 
 - Belépés: felbercsapat.hu → **Kontroll SZB** gomb (vagy közvetlenül: felbercsapat.hu/szb.html).

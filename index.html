@@ -231,6 +231,9 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyKJWVa3jBRfwRyCPwYhwJWpS
       });
     });
   }
+  function szerverBelep(email, jelszo) {
+    return fetch(SZB_API, { method: "POST", body: JSON.stringify({ muvelet: "belepes", email: email, jelszo: jelszo }) }).then(function (r) { return r.json(); });
+  }
   /** Kontroll SZB munkamenet a tárolt belépési adatokkal (a szb.html is ezt hívja, ha lejár). */
   window.FBR.szbBelep = function () {
     var sz = null; try { sz = JSON.parse(localStorage.getItem("fbr_szb") || "null"); } catch (e) {}
@@ -253,11 +256,24 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyKJWVa3jBRfwRyCPwYhwJWpS
     f.addEventListener("submit", function (ev) {
       ev.preventDefault(); if (!em.value || !pw.value) return;
       btn.disabled = true; er.textContent = ""; btn.textContent = "Ellenőrzés…";
-      belep(em.value.trim().toLowerCase(), pw.value.trim().toLowerCase())
+      var email = em.value.trim().toLowerCase(), jelszo = pw.value.trim();
+      function hibas(uz) { er.textContent = uz || "Hibás e-mail-cím vagy jelszó."; btn.disabled = false; btn.textContent = "Belépés"; pw.select(); }
+      belep(email, jelszo.toLowerCase())
         .then(function (t) {
-          if (!t) { er.textContent = "Hibás e-mail-cím vagy jelszó."; btn.disabled = false; btn.textContent = "Belépés"; pw.select(); return; }
-          ls(K, t.kulcs); ls("fbr_nev", t.nev); ls("fbr_szb", t.szb ? JSON.stringify(t.szb) : ""); ls("szb_token", "");
-          return window.FBR.szbBelep().then(function () { location.reload(); });
+          if (t) {
+            ls(K, t.kulcs); ls("fbr_nev", t.nev); ls("fbr_szb", t.szb ? JSON.stringify(t.szb) : ""); ls("szb_token", "");
+            return window.FBR.szbBelep().then(function () { location.reload(); });
+          }
+          // Kontroll SZB-szerver: ugyanazzal az e-mail-címmel és jelszóval az eredményjelző kulcsát is visszaadja.
+          return szerverBelep(email, jelszo).then(function (d) {
+            if ((!d || !d.token) && jelszo !== jelszo.toLowerCase()) return szerverBelep(email, jelszo.toLowerCase());
+            return d;
+          }).then(function (d) {
+            if (!d || !d.token) return hibas(d && d.hiba);
+            ls("szb_token", d.token); ls("fbr_szb", ""); ls("fbr_nev", (d.en && d.en.nev) || "");
+            if (!d.adatKulcs) { location.href = "szb.html"; return; }
+            ls(K, d.adatKulcs); location.reload();
+          });
         })
         .catch(function () { er.textContent = "Nem sikerült csatlakozni, próbáld újra."; btn.disabled = false; btn.textContent = "Belépés"; });
     });
