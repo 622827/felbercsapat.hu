@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="hu">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Felber csapat – Telefonparty</title>
+<link rel="icon" type="image/png" href="ikon/villam-96.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+/* ===== BEÁLLÍTÁS =====
+   Ugyanaz az Apps Script, mint a Kontroll SZB-é (szb-script/Code.gs, lásd szb-script/README.md). */
+var SZB_API = "https://script.google.com/macros/s/AKfycbzY-qy-61ObY7clGUBNGMqKviZnL-Gdn-4_LHGCdnsBc7JjSKnwCH6fHynUDm-k4nk/exec";
+</script>
+<style>
+  :root {
+    --bg: #0b2e5a; --panel: #143d72; --panel2: #18467f; --ink: #ffffff; --muted: #b9dcff; --line: #2a5a96; --track: #1d4c86;
+    --accent: #3ddc84; --accent-ink: #0b2e5a; --accent-soft: #1d5a4a; --blue: #5cb8ff; --warn: #ffc857; --danger: #ff8a7a;
+    --sans: "Stag Sans", "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 var(--sans); }
+  button, input, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  a { color: var(--blue); }
+
+  .wrap { max-width: 980px; margin: 0 auto; padding: 24px 16px 70px; display: flex; flex-direction: column; gap: 22px; }
+  .top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 16px; }
+  .eyebrow { margin: 0; color: var(--accent); font-weight: 700; font-size: .75rem; letter-spacing: .09em; text-transform: uppercase; }
+  h1 { margin: 2px 0 0; font-size: clamp(2rem, 6vw, 2.8rem); line-height: 1.05; letter-spacing: -.03em; }
+  .alcim { margin: 4px 0 0; color: var(--muted); }
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .pill { background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 9px 14px; cursor: pointer; color: var(--muted); font-weight: 600; text-decoration: none; display: inline-flex; align-items: center; }
+  .pill:hover { color: var(--ink); border-color: var(--muted); }
+  select.pill { appearance: auto; background: var(--panel); color: var(--ink); }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+  .kpi { background: var(--panel); border-radius: 18px; padding: 16px 18px; display: flex; flex-direction: column; gap: 2px; }
+  .kpi span { color: var(--muted); font-size: .72rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+  .kpi b { font-size: 2.2rem; letter-spacing: -.03em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .kpi small { color: var(--muted); font-size: .82rem; }
+  .kpi.fo { background: var(--accent); color: var(--accent-ink); }
+  .kpi.fo span, .kpi.fo small { color: var(--accent-ink); opacity: .8; }
+
+  .csapat { background: var(--panel); border-radius: 18px; padding: 6px 0 4px; }
+  .csapat header { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 10px 18px 8px; border-bottom: 1px solid var(--line); }
+  .csapat h2 { margin: 0; font-size: 1.05rem; letter-spacing: -.01em; }
+  .csapat header span { color: var(--muted); font-size: .9rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .csapat header span b { color: var(--ink); font-size: 1.1rem; }
+  .sor { display: grid; grid-template-columns: minmax(150px, 220px) minmax(0, 1fr) 48px; gap: 8px 14px; align-items: center; padding: 10px 18px; border-bottom: 1px solid var(--line); }
+  .sor:last-child { border-bottom: 0; }
+  .sor.en { background: var(--accent-soft); }
+  .nev b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .nev small { display: block; color: var(--muted); font-size: .75rem; }
+  .pipak { display: flex; flex-wrap: wrap; gap: 6px; }
+  .pipa { width: 30px; height: 30px; border-radius: 9px; border: 2px solid var(--line); background: var(--bg); display: grid; place-items: center; padding: 0; cursor: pointer; font-weight: 800; font-size: .95rem; color: var(--accent-ink); transition: background .12s, border-color .12s, transform .08s; }
+  .pipa:hover:not([disabled]) { border-color: var(--accent); }
+  .pipa:active:not([disabled]) { transform: scale(.92); }
+  .pipa[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); }
+  .pipa[disabled] { cursor: default; }
+  .pipa[disabled]:not([aria-pressed="true"]) { opacity: .45; }
+  .szam { text-align: right; font-size: 1.4rem; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+  .szam.nulla { color: var(--muted); opacity: .6; }
+
+  .doboz { background: var(--panel); border-radius: 18px; padding: 16px 18px; }
+  .doboz summary { cursor: pointer; color: var(--muted); font-weight: 600; }
+  .urlap { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-top: 12px; }
+  .urlap label { display: grid; gap: 4px; color: var(--muted); font-size: .82rem; }
+  .mezo { border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 8px 10px; }
+  .gomb { border: 0; border-radius: 10px; padding: 10px 18px; font-weight: 700; cursor: pointer; background: var(--accent); color: var(--accent-ink); }
+  .gomb[disabled] { opacity: .55; cursor: default; }
+  .hiba { color: var(--warn); font-size: .9rem; margin: 8px 0 0; min-height: 1.2em; }
+  .ures { color: var(--muted); background: var(--panel); border: 1px dashed var(--line); border-radius: 16px; padding: 22px 18px; text-align: center; margin: 0; }
+  .ures h2 { color: var(--ink); margin: 0 0 6px; font-size: 1.4rem; }
+  .skeleton { height: 90px; border-radius: 18px; background: var(--panel); opacity: .6; }
+  .lab { color: var(--muted); font-size: .8rem; text-align: center; }
+  #toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%) translateY(20px); opacity: 0; background: var(--ink); color: var(--bg); padding: 10px 18px; border-radius: 99px; font-weight: 600; transition: .25s; pointer-events: none; z-index: 20; }
+  #toast.lat { opacity: 1; transform: translateX(-50%); }
+
+  @media (max-width: 640px) {
+    .sor { grid-template-columns: minmax(0, 1fr) 44px; padding: 10px 14px; }
+    .pipak { grid-column: 1 / -1; grid-row: 2; }
+    .csapat header { padding: 10px 14px 8px; }
+    .pipa { width: 28px; height: 28px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <p class="eyebrow">Felber BL</p>
+      <h1>📞 Telefonparty</h1>
+      <p class="alcim" id="alcim">Pipáld ki, hány ügyfélidőpontot tettél be.</p>
+    </div>
+    <div class="controls">
+      <select class="pill" id="partyValaszto" aria-label="Telefonparty kiválasztása" hidden></select>
+      <button class="pill" id="frissit" type="button">↻ Frissítés</button>
+      <a class="pill" href="./">← Eredményjelző</a>
+    </div>
+  </header>
+  <main id="app" aria-live="polite">
+    <div class="skeleton"></div>
+  </main>
+  <p class="lab" id="lab"></p>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var TK = "szb_token";
+  var S = { token: "", d: null, partyId: "", fuggo: {}, idozito: {}, betolt: false };
+  function lsGet(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
+  function lsSet(k, v) { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) {} }
+  S.token = lsGet(TK);
+  S.partyId = lsGet("tp_party");
+  /* A főoldalon belépett felhasználó adataival jelszó nélkül belépünk (mint a Kontroll SZB). */
+  var AUTO = null;
+  try { AUTO = JSON.parse(lsGet("fbr_szb") || "null"); } catch (e) {}
+
+  function esc(s) { return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+  function toast(t) { var el = $("toast"); el.textContent = t; el.classList.add("lat"); clearTimeout(toast.t); toast.t = setTimeout(function () { el.classList.remove("lat"); }, 2400); }
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function maIso() { var d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function hosszu(s) { var p = String(s || "").split("-"); return new Date(+p[0], +p[1] - 1, +p[2]).toLocaleDateString("hu-HU", { year: "numeric", month: "long", day: "numeric", weekday: "long" }); }
+  function ido(ts) { try { return ts ? new Date(ts).toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" }) : ""; } catch (e) { return ""; } }
+
+  function fooldalra() { ["fbr_token", "fbr_nev", "fbr_szb", "szb_token"].forEach(function (k) { lsSet(k, ""); }); location.replace("./"); }
+  function autoBelep() {
+    if (!AUTO) return Promise.resolve(false);
+    return fetch(SZB_API, { method: "POST", body: JSON.stringify({ muvelet: "belepes", email: AUTO.email, jelszo: AUTO.jelszo }) })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { if (d && d.token) { S.token = d.token; lsSet(TK, d.token); return true; } return false; }, function () { return false; });
+  }
+  function api(muvelet, adat, ujra) {
+    var body = Object.assign({ muvelet: muvelet, token: S.token }, adat || {});
+    return fetch(SZB_API, { method: "POST", body: JSON.stringify(body) })
+      .then(function (r) { return r.json(); }, function () { throw new Error("Nincs kapcsolat a szerverrel. Próbáld újra."); })
+      .then(function (d) {
+        if (d && d.kod === "auth") {
+          if (AUTO && !ujra) return autoBelep().then(function (ok) { if (ok) return api(muvelet, adat, true); fooldalra(); throw new Error("Lépj be újra."); });
+          fooldalra(); throw new Error("Lépj be újra.");
+        }
+        if (!d || d.hiba) throw new Error((d && d.hiba) || "Ismeretlen hiba.");
+        return d;
+      });
+  }
+
+  /* ---------- betöltés ---------- */
+  function betolt() {
+    if (S.betolt) return Promise.resolve(); S.betolt = true;
+    $("frissit").disabled = true;
+    return api("telefonparty", { party_id: S.partyId }).then(function (d) {
+      // a még el nem küldött pipálások maradjanak meg
+      d.sorok.forEach(function (r) { if (r.kulcs in S.fuggo) r.db = S.fuggo[r.kulcs]; });
+      S.d = d; if (d.party) S.partyId = d.party.id;
+      rajzol();
+      $("lab").textContent = "Frissítve: " + ido(d.ido) + " · percenként magától frissül";
+    }).catch(function (e) {
+      if (!S.d) $("app").innerHTML = '<p class="ures"><b>Nem sikerült betölteni.</b><br>' + esc(e.message) + "</p>";
+      else toast(e.message);
+    }).then(function () { S.betolt = false; $("frissit").disabled = false; });
+  }
+
+  /* ---------- rajzolás ---------- */
+  function rajzol() {
+    var d = S.d, app = $("app"), h = "";
+    var val = $("partyValaszto");
+    val.hidden = d.partyk.length < 2;
+    val.innerHTML = d.partyk.map(function (p) { return '<option value="' + esc(p.id) + '"' + (d.party && p.id === d.party.id ? " selected" : "") + ">" + esc(p.nev + " – " + p.datum) + "</option>"; }).join("");
+
+    if (!d.party) {
+      $("alcim").textContent = "Pipáld ki, hány ügyfélidőpontot tettél be.";
+      app.innerHTML = '<div class="ures"><h2>Még nincs telefonparty</h2>' + (d.letrehozhat ? "Indíts egyet lent." : "Amint a vezetőd elindítja, itt tudod pipálni az időpontjaidat.") + "</div>" + ujUrlap(true);
+      kotUrlap(); return;
+    }
+    var p = d.party;
+    $("alcim").textContent = p.nev + " · " + hosszu(p.datum);
+
+    var ossz = 0, aktiv = 0, sajat = null, csapatok = [], cs = {};
+    d.sorok.forEach(function (r) {
+      ossz += r.db; if (r.db > 0) aktiv++;
+      if (r.kulcs === d.sajat) sajat = r;
+      if (!cs[r.csapat]) { cs[r.csapat] = { nev: r.csapat, sorok: [], ossz: 0 }; csapatok.push(cs[r.csapat]); }
+      cs[r.csapat].sorok.push(r); cs[r.csapat].ossz += r.db;
+    });
+
+    h += '<div class="kpis">' +
+      '<div class="kpi fo"><span>Összes időpont</span><b id="kOssz">' + ossz + "</b><small>a mai partyn</small></div>" +
+      '<div class="kpi"><span>Már pipált</span><b id="kAktiv">' + aktiv + '</b><small>' + d.sorok.length + " munkatársból</small></div>" +
+      (sajat ? '<div class="kpi"><span>Te</span><b id="kSajat">' + sajat.db + "</b><small>időpont</small></div>" : "") +
+      "</div>";
+
+    csapatok.forEach(function (c) {
+      h += '<section class="csapat"><header><h2>' + esc(c.nev) + '</h2><span><b data-cs="' + esc(c.nev) + '">' + c.ossz + "</b> időpont</span></header>";
+      c.sorok.forEach(function (r) { h += sorHtml(r, p.helyek); });
+      h += "</section>";
+    });
+    if (!d.sorok.length) h += '<p class="ures">A „Felber BL - CÉLOK” táblázatban nem találtam munkatársakat.</p>';
+    if (d.letrehozhat) h += ujUrlap(false);
+    app.innerHTML = h;
+    kotUrlap();
+  }
+
+  function sorHtml(r, helyek) {
+    var b = "";
+    for (var i = 1; i <= helyek; i++) {
+      b += '<button class="pipa" type="button" data-k="' + esc(r.kulcs) + '" data-i="' + i + '" aria-pressed="' + (i <= r.db) + '" aria-label="' + esc(r.nev) + ": " + i + ' időpont"' + (r.szerk ? "" : " disabled") + ">" + (i <= r.db ? "✓" : "") + "</button>";
+    }
+    return '<div class="sor' + (r.kulcs === S.d.sajat ? " en" : "") + '" data-sor="' + esc(r.kulcs) + '">' +
+      '<div class="nev"><b>' + esc(r.nev) + "</b><small>" + esc([r.poz, r.vezeto ? "csapatvezető" : ""].filter(Boolean).join(" · ")) + (r.kulcs === S.d.sajat ? " · te" : "") + "</small></div>" +
+      '<div class="pipak">' + b + "</div>" +
+      '<div class="szam' + (r.db ? "" : " nulla") + '">' + r.db + "</div></div>";
+  }
+
+  function ujUrlap(nyitva) {
+    if (!S.d.letrehozhat) return "";
+    var p = S.d.party;
+    return '<details class="doboz"' + (nyitva ? " open" : "") + "><summary>+ Új telefonparty" + (p ? " / a mostani beállításai" : "") + "</summary>" +
+      '<form class="urlap" id="ujForm">' +
+      '<label>Név<input class="mezo" id="uNev" value="Telefonparty" maxlength="80" required></label>' +
+      '<label>Dátum<input class="mezo" type="date" id="uDatum" value="' + maIso() + '" required></label>' +
+      '<label>Pipák száma<input class="mezo" type="number" id="uHelyek" min="1" max="40" value="' + (p ? p.helyek : 10) + '" style="width:90px"></label>' +
+      '<button class="gomb" type="submit">Új indítása</button>' +
+      (p ? '<button class="gomb" type="button" id="mentMost" style="background:var(--panel2);color:var(--ink)">Pipák száma a mostanin</button>' : "") +
+      '</form><p class="hiba" id="uHiba"></p></details>';
+  }
+  function kotUrlap() {
+    var f = $("ujForm"); if (!f) return;
+    f.addEventListener("submit", function (e) {
+      e.preventDefault(); $("uHiba").textContent = "";
+      api("telefonpartyUj", { nev: $("uNev").value, datum: $("uDatum").value, helyek: $("uHelyek").value }).then(function (d) {
+        S.partyId = d.id; lsSet("tp_party", ""); toast("Telefonparty elindítva"); return betolt();
+      }).catch(function (err) { $("uHiba").textContent = err.message; });
+    });
+    var m = $("mentMost");
+    if (m) m.onclick = function () {
+      var p = S.d.party;
+      api("telefonpartyUj", { id: p.id, nev: p.nev, datum: p.datum, helyek: $("uHelyek").value }).then(function () { toast("Mentve"); return betolt(); })
+        .catch(function (err) { $("uHiba").textContent = err.message; });
+    };
+  }
+
+  /* ---------- pipálás ---------- */
+  $("app").addEventListener("click", function (e) {
+    var b = e.target.closest(".pipa"); if (!b || b.disabled) return;
+    var k = b.dataset.k, i = +b.dataset.i;
+    var r = S.d.sorok.filter(function (x) { return x.kulcs === k; })[0]; if (!r) return;
+    r.db = r.db === i ? i - 1 : i;   // ugyanarra kattintva visszavonja az utolsót
+    frissitSor(r);
+    S.fuggo[k] = r.db;
+    clearTimeout(S.idozito[k]);
+    S.idozito[k] = setTimeout(function () { kuld(k); }, 500);
+  });
+  function kuld(k) {
+    var db = S.fuggo[k], partyId = S.d.party.id;
+    api("telefonpartyPipal", { party_id: partyId, kulcs: k, db: db }).then(function () {
+      if (S.fuggo[k] === db) delete S.fuggo[k];
+    }).catch(function (err) { delete S.fuggo[k]; toast(err.message); betolt(); });
+  }
+  function frissitSor(r) {
+    var el = document.querySelector('[data-sor="' + CSS.escape(r.kulcs) + '"]'); if (!el) return;
+    el.querySelectorAll(".pipa").forEach(function (b) { var on = +b.dataset.i <= r.db; b.setAttribute("aria-pressed", on); b.textContent = on ? "✓" : ""; });
+    var sz = el.querySelector(".szam"); sz.textContent = r.db; sz.classList.toggle("nulla", !r.db);
+    var ossz = 0, aktiv = 0, cs = 0;
+    S.d.sorok.forEach(function (x) { ossz += x.db; if (x.db > 0) aktiv++; if (x.csapat === r.csapat) cs += x.db; });
+    $("kOssz").textContent = ossz; $("kAktiv").textContent = aktiv;
+    if ($("kSajat") && r.kulcs === S.d.sajat) $("kSajat").textContent = r.db;
+    var c = document.querySelector('[data-cs="' + CSS.escape(r.csapat) + '"]'); if (c) c.textContent = cs;
+  }
+
+  $("partyValaszto").addEventListener("change", function () { S.partyId = this.value; lsSet("tp_party", this.value); betolt(); });
+  $("frissit").onclick = function () { betolt(); };
+
+  /* ---------- indítás ---------- */
+  if (!S.token && !AUTO) { fooldalra(); return; }
+  (S.token ? Promise.resolve(true) : autoBelep()).then(function (ok) { if (!ok) { fooldalra(); return; } betolt(); });
+  setInterval(function () { if (!document.hidden && S.token && !Object.keys(S.fuggo).length) betolt(); }, 60000);
+})();
+</script>
+</body>
+</html>
