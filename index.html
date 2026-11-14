@@ -115,20 +115,10 @@ var API = "";
   table.hb thead th { color: var(--muted); font-size: .75rem; font-weight: 600; }
   table.hb tbody th { text-align: left; font-weight: 600; }
   table.hb tr:last-child th, table.hb tr:last-child td { border-bottom: 0; }
-  .pkpis { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom: 16px; }
-  .pkpis .k-num { font-size: clamp(1.8rem, 5vw, 2.6rem); }
-  .pl-sor { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 18px; }
   #plIdo { max-width: 100%; text-overflow: ellipsis; }
   .pl-dat { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: .9rem; }
   .pl-dat input { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; font: inherit; color-scheme: dark; }
-  .pl-top { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
-  .pl-tabla { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  .pl-tabla table.hb { min-width: 640px; }
-  .pl-tabla tbody th span { color: var(--muted); font-size: .75rem; font-weight: 500; display: block; }
-  .pl-ossz th, .pl-ossz td { font-weight: 700; border-top: 2px solid var(--line); }
   .pl-nulla { opacity: .5; }
-  .pl-rend { background: none; border: 0; color: inherit; font: inherit; cursor: pointer; padding: 0; text-align: right; }
-  .pl-rend.on { color: var(--accent); font-weight: 700; }
   table.hb td span { color: var(--muted); font-size: .78rem; display: block; }
   .r-facts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 30px; }
   .bar .tick.j { background: #ffd34d; width: 3px; }
@@ -451,7 +441,11 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
 
     var html;
     if (nezet === "pipeline") {
-      app.innerHTML = pipelineNezet(); pipelineEsemenyek(); return;
+      var pn = pipelineNezet();
+      if (pn.vezerlo) controls.insertAdjacentHTML("beforeend", pn.vezerlo);
+      app.innerHTML = pn.html; pipelineEsemenyek();
+      requestAnimationFrame(function () { requestAnimationFrame(function () { app.querySelectorAll(".fill").forEach(function (f) { f.style.width = f.dataset.w + "%"; }); }); });
+      return;
     } else if (nezet === "rekord") {
       var t = rekordIdo(rh.rekordCimke), rido = t ? clamp((Date.now() - t.tol) / (t.ig - t.tol)) : null;
       html = statusz(rido, false) + rekordKartya(rh, d.jutalmak);
@@ -662,10 +656,11 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     { k: "kilatas", cim: "Egység kilátás", egys: "ES" }, { k: "taMeg", cim: "TA megvalósult", egys: "db" }, { k: "megkotott", cim: "Megkötött ES", egys: "ES" }
   ];
   function elsoKedd(y, m) { var x = new Date(y, m, 1); x.setDate(1 + ((2 - x.getDay() + 7) % 7)); return x; }
-  function termHo(dt) { if (!dt) return null; var y = dt.getFullYear(), m = dt.getMonth(); if (dt < elsoKedd(y, m)) { m--; if (m < 0) { m = 11; y--; } } return y * 12 + m; }
+  /* A termelési hónap zárása a következő hónap első keddje (az még ide tartozik); a következő hónap az utána lévő nappal indul. */
+  function hoKezd(y, m) { var x = elsoKedd(y, m); x.setDate(x.getDate() + 1); return x; }
+  function termHo(dt) { if (!dt) return null; var y = dt.getFullYear(), m = dt.getMonth(); dt = new Date(y, m, dt.getDate()); if (dt < hoKezd(y, m)) { m--; if (m < 0) { m = 11; y--; } } return y * 12 + m; }
   function termHoAdat(k) {
-    var y = Math.floor(k / 12), m = k % 12, tol = elsoKedd(y, m), ig = elsoKedd(m === 11 ? y + 1 : y, (m + 1) % 12), utolso = new Date(ig);
-    utolso.setDate(utolso.getDate() - 1);
+    var y = Math.floor(k / 12), m = k % 12, tol = hoKezd(y, m), utolso = elsoKedd(m === 11 ? y + 1 : y, (m + 1) % 12);
     function r(x) { return x.toLocaleDateString("hu-HU", { month: "short", day: "numeric" }); }
     return { nev: y + ". " + HONAPOK[m], idoszak: r(tol) + " – " + r(utolso) };
   }
@@ -684,79 +679,104 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   }
   function pipelineNezet() {
     if (!PL.adat) {
-      if (PL.hiba) return '<div class="notice"><h1>Pipeline</h1><p>' + esc(PL.hiba) + '</p><p><button class="btn" id="plUjra" type="button">Újrapróbálom</button></p></div>';
-      plLetolt(); return '<div class="grid kpis"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>';
+      if (PL.hiba) return { html: '<div class="notice"><h1>Pipeline</h1><p>' + esc(PL.hiba) + '</p><p><button class="btn" id="plUjra" type="button">Újrapróbálom</button></p></div>' };
+      plLetolt(); return { html: '<div class="grid kpis"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>' };
     }
     var mt = PL.adat.munkatarsak, aktTk = termHo(new Date()), tkLista = [aktTk];
     mt.forEach(function (m) { m.sorok.forEach(function (r) { var k = termHo(pDatum(r[0])); if (k !== null && tkLista.indexOf(k) < 0) tkLista.push(k); }); });
     tkLista.sort(function (a, b) { return b - a; });
     if (PL.idoszak === "aktualis" || (PL.idoszak !== "egyedi" && tkLista.indexOf(+PL.idoszak.slice(1)) < 0)) PL.idoszak = "t" + aktTk;
-    var egyedi = PL.idoszak === "egyedi", valTk = egyedi ? null : +PL.idoszak.slice(1), cimke;
-    if (egyedi && PL.tol === undefined) { PL.tol = ymd(elsoKedd(Math.floor(aktTk / 12), aktTk % 12)); PL.ig = ymd(new Date()); }
+    var egyedi = PL.idoszak === "egyedi", valTk = egyedi ? null : +PL.idoszak.slice(1), cimke, kezd, veg;
+    if (egyedi && PL.tol === undefined) { PL.tol = ymd(hoKezd(Math.floor(aktTk / 12), aktTk % 12)); PL.ig = ymd(new Date()); }
     var tolD = egyedi ? pDatum(PL.tol) : null, igD = egyedi ? pDatum(PL.ig) : null;
     if (igD) igD.setDate(igD.getDate() + 1);
-    if (egyedi) cimke = (PL.tol ? pDatum(PL.tol).toLocaleDateString("hu-HU") : "kezdettől") + " – " + (PL.ig ? pDatum(PL.ig).toLocaleDateString("hu-HU") : "máig");
-    else { var ta = termHoAdat(valTk); cimke = ta.nev + " (" + ta.idoszak + ")"; }
+    if (egyedi) {
+      cimke = (PL.tol ? pDatum(PL.tol).toLocaleDateString("hu-HU") : "kezdettől") + " – " + (PL.ig ? pDatum(PL.ig).toLocaleDateString("hu-HU") : "máig");
+      kezd = tolD; veg = igD;
+    } else {
+      var ta = termHoAdat(valTk); cimke = ta.nev + " (" + ta.idoszak + ")";
+      kezd = hoKezd(Math.floor(valTk / 12), valTk % 12); veg = elsoKedd(Math.floor((valTk + 1) / 12), (valTk + 1) % 12); veg.setDate(veg.getDate() + 1);
+    }
     function bent(r) {
       var dt = pDatum(r[0]);
       if (egyedi) { if (!tolD && !igD) return true; return !!dt && (!tolD || dt >= tolD) && (!igD || dt < igD); }
       return termHo(dt) === valTk;
     }
+    // időarányos jelölő (a termelési hónapból eltelt rész) és heti bontás
+    var ido = kezd && veg ? clamp((Date.now() - kezd) / (veg - kezd)) : null;
+    var hetSzam = kezd && veg ? Math.min(8, Math.max(1, Math.ceil((veg - kezd) / (7 * NAP)))) : 0, hetek = [];
+    for (var hi = 0; hi < hetSzam; hi++) hetek.push(0);
     function ures() { return { n: 0, taIdo: 0, ajanlas: 0, mtAjanlas: 0, kilatas: 0, taMeg: 0, megkotott: 0, spec: 0 }; }
-    function hozzaad(o, r) { o.n++; o.taIdo += r[1]; o.ajanlas += r[2]; o.mtAjanlas += r[3]; o.kilatas += r[4]; o.taMeg += r[5]; o.megkotott += r[6]; o.spec += r[7]; }
-    var ossz = ures(), csapatok = {}, emberek = [];
+    var KULCSOK = ["n", "taIdo", "ajanlas", "mtAjanlas", "kilatas", "taMeg", "megkotott", "spec"];
+    var ossz = ures(), csapatok = {}, csSor = [], emberek = [];
     mt.forEach(function (m) {
-      var o = ures(); m.sorok.forEach(function (r) { if (bent(r)) hozzaad(o, r); });
-      var cs = m.csapat || "Csapat nélkül", c = csapatok[cs] || (csapatok[cs] = { nev: cs, o: ures(), fo: 0 });
-      c.fo++;
-      ["n", "taIdo", "ajanlas", "mtAjanlas", "kilatas", "taMeg", "megkotott", "spec"].forEach(function (k) { c.o[k] += o[k]; ossz[k] += o[k]; });
-      emberek.push({ nev: m.nev, csapat: m.csapat, poz: m.pozicio, o: o });
+      var o = ures();
+      m.sorok.forEach(function (r) {
+        if (!bent(r)) return;
+        o.n++; o.taIdo += r[1]; o.ajanlas += r[2]; o.mtAjanlas += r[3]; o.kilatas += r[4]; o.taMeg += r[5]; o.megkotott += r[6]; o.spec += r[7];
+        var dt = pDatum(r[0]); if (dt && kezd && hetSzam) { var h = Math.floor((dt - kezd) / (7 * NAP)); if (h >= 0 && h < hetSzam) hetek[h] += r[4]; }
+      });
+      var cs = m.csapat || "Csapat nélkül", c = csapatok[cs];
+      if (!c) { c = csapatok[cs] = { nev: cs, o: ures(), tagok: [] }; csSor.push(c); }
+      KULCSOK.forEach(function (k) { c.o[k] += o[k]; ossz[k] += o[k]; });
+      var e = { nev: m.nev, csapat: m.csapat, poz: m.pozicio, o: o }; c.tagok.push(e); emberek.push(e);
     });
-    function kpi(cim, ertek, al) { return '<section class="card reveal"><p class="k-label">' + cim + '</p><div class="k-num pk-num">' + ertek + "</div>" + (al ? '<p class="k-sub">' + al + "</p>" : "") + "</section>"; }
-    var html = '<div class="pl-sor"><select class="q" id="plIdo" aria-label="Termelési hónap">' + tkLista.map(function (k) {
-        var a = termHoAdat(k); return '<option value="t' + k + '"' + (PL.idoszak === "t" + k ? " selected" : "") + ">" + esc(a.nev + " (" + a.idoszak + ")" + (k === aktTk ? " – aktuális" : "")) + "</option>";
+    var maxKil = Math.max.apply(null, emberek.map(function (e) { return e.o.kilatas; }).concat([1]));
+
+    var vezerlo = '<select class="q" id="plIdo" aria-label="Termelési hónap">' + tkLista.map(function (k) {
+        var a = termHoAdat(k); return '<option value="t' + k + '"' + (PL.idoszak === "t" + k ? " selected" : "") + ">" + esc(a.nev + (k === aktTk ? " – aktuális" : "")) + "</option>";
       }).join("") + '<option value="egyedi"' + (egyedi ? " selected" : "") + ">Egyedi időszak (tól–ig)…</option></select>" +
-      (egyedi ? '<label class="pl-dat">tól <input type="date" id="plTol" value="' + esc(PL.tol || "") + '"></label><label class="pl-dat">ig <input type="date" id="plIg" value="' + esc(PL.ig || "") + '"></label>' : "") + "</div>" +
-      '<div class="status"><span id="allapot">Elemzés összegző · ' + new Date(PL.adat.ido).toLocaleString("hu-HU", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) + '</span><button id="frissit" type="button">↻ Frissítés</button></div>' +
+      (egyedi ? '<label class="pl-dat">tól <input type="date" id="plTol" value="' + esc(PL.tol || "") + '"></label><label class="pl-dat">ig <input type="date" id="plIg" value="' + esc(PL.ig || "") + '"></label>' : "");
+
+    var html = '<div class="status"><span id="allapot">Elemzés összegző: ' + new Date(PL.adat.ido).toLocaleString("hu-HU", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) + "</span>" +
+      '<button id="frissit" type="button">↻ Frissítés</button>' +
+      (ido != null && ido > 0 && ido < 1 ? '<span class="legend"><i></i> időarányos (' + szazalek(ido) + ")</span>" : "") + "</div>" +
       '<h2 class="elso">Pipeline – ' + esc(cimke) + "</h2>";
-    html += '<div class="grid pkpis">' +
-      kpi("Elemzések", szam(ossz.n)) +
-      kpi("Tanácsadás időpont", szam(ossz.taIdo), szazalek(arany(ossz.taIdo, ossz.n)) + " az elemzésekből") +
-      kpi("Ajánlások", szam(ossz.ajanlas) + (ossz.mtAjanlas ? '<small>+ ' + szam(ossz.mtAjanlas) + "</small>" : ""), ossz.mtAjanlas ? "ügyfél + munkatársi" : "") +
-      kpi("Egység kilátás", szam(ossz.kilatas) + "<small>ES</small>") +
-      kpi("TA megvalósult", szam(ossz.taMeg), szazalek(arany(ossz.taMeg, ossz.n)) + " az elemzésekből") +
-      kpi("Megkötött ES", szam(ossz.megkotott) + "<small>ES</small>", ossz.spec ? "spec: " + szam(ossz.spec) + " ES" : "") + "</div>";
+
+    // fő kártyák: mint a havi nézetben (nagy egység-kártya heti bontással + két kisebb)
+    var hmax = Math.max.apply(null, hetek.concat([1]));
+    html += '<div class="grid kpis"><section class="card reveal"><p class="k-label">Egység kilátás</p>' +
+      '<div class="k-num">' + szam(ossz.kilatas) + "<small>ES</small></div>" +
+      '<p class="k-sub">Megkötött: <b>' + szam(ossz.megkotott) + " ES</b>" + (ossz.spec ? " · spec: <b>" + szam(ossz.spec) + " ES</b>" : "") + " · " + pctHtml(arany(ossz.megkotott, ossz.kilatas)) + " a kilátásból</p>" +
+      bar(ossz.megkotott, ossz.kilatas, { big: true, ido: ido }) +
+      (hetSzam > 1 ? '<div class="weeks" style="--n:' + hetSzam + '">' + hetek.map(function (x) {
+        return '<div class="' + (x ? "" : "zero") + '" style="height:' + Math.max(4, (x / hmax) * 100) + '%"><span>' + (x ? szam(x) : "") + "</span></div>";
+      }).join("") + '</div><div class="weeks-l" style="--n:' + hetSzam + '">' + hetek.map(function (_, i) { return "<span>" + (i + 1) + ". hét</span>"; }).join("") + "</div>" : "") +
+      "</section>" +
+      '<section class="card reveal"><p class="k-label">Elemzések</p><div class="k-num">' + szam(ossz.n) + "<small>db</small></div>" +
+      '<p class="k-sub">Tanácsadás időpont: <b>' + szam(ossz.taIdo) + "</b> · " + pctHtml(arany(ossz.taIdo, ossz.n)) + "</p>" + bar(ossz.taIdo, ossz.n, { big: true }) +
+      '<p class="k-sub" style="margin:14px 0 0">Ajánlások: <b>' + szam(ossz.ajanlas) + "</b>" + (ossz.mtAjanlas ? " + <b>" + szam(ossz.mtAjanlas) + "</b> munkatársi" : "") + "</p></section>" +
+      '<section class="card reveal"><p class="k-label">TA megvalósult</p><div class="k-num">' + szam(ossz.taMeg) + "<small>/ " + szam(ossz.n) + "</small></div>" +
+      '<p class="k-sub">' + pctHtml(arany(ossz.taMeg, ossz.n)) + " az elemzésekből</p>" + bar(ossz.taMeg, ossz.n, { big: true }) + "</section></div>";
+
+    // csapatok: mint a havi nézet csapatkártyái
+    csSor.sort(function (a, b) { return b.o.kilatas - a.o.kilatas || b.o.n - a.o.n; });
+    html += '<h2>Csapatok</h2><div class="grid teams">' + csSor.map(function (c) {
+      var tagok = c.tagok.slice().sort(function (a, b) { return b.o.kilatas - a.o.kilatas || b.o.n - a.o.n || a.nev.localeCompare(b.nev, "hu"); });
+      return '<section class="card reveal"><div class="team-h"><h3>' + esc(c.nev) + "</h3><span>" + szam(c.o.kilatas) + " ES</span></div>" +
+        bar(c.o.megkotott, c.o.kilatas, {}) +
+        '<div class="team-mini"><div><b>' + szam(c.o.n) + "</b>elemzés</div><div><b>" + szam(c.o.taIdo) + " · " + szazalek(arany(c.o.taIdo, c.o.n)) + "</b>TA időpont</div>" +
+        "<div><b>" + szam(c.o.megkotott) + " ES</b>megkötött</div></div>" +
+        '<ul class="members">' + tagok.map(function (t) {
+          return "<li" + (t.o.n ? "" : ' class="pl-nulla"') + '><div class="m-name"><b title="' + esc(t.nev) + '">' + esc(t.nev) + "</b>" + (t.poz ? '<span class="chip">' + esc(t.poz) + "</span>" : "") + "</div>" +
+            '<div class="m-units">' + bar(t.o.kilatas, maxKil, {}) + '<div class="bar-row"><span>' + szam(t.o.kilatas) + " ES kilátás</span><span>" + szam(t.o.megkotott) + " ES megkötött</span></div></div>" +
+            '<div class="m-side"><div><b>' + szam(t.o.n) + "</b>elemzés</div><div><b>" + szam(t.o.taMeg) + "</b>TA megv.</div></div></li>";
+        }).join("") + "</ul></section>";
+    }).join("") + "</div>";
+
     function top(k, cim, egys) {
       var l = emberek.filter(function (e) { return e.o[k] > 0; }).sort(function (a, b) { return b.o[k] - a.o[k]; }).slice(0, 5);
       return '<section class="card reveal"><h2 style="margin-top:0">' + cim + "</h2>" + (l.length ? '<ol class="top">' + l.map(function (e, i) {
         return '<li><div class="medal">' + (i + 1) + '</div><div class="t-name"><b>' + esc(e.nev) + "</b><span>" + esc(e.csapat) + '</span></div><div class="t-val"><b>' + szam(e.o[k]) + " " + egys + "</b><span>" + szam(e.o.n) + " elemzés</span></div></li>";
       }).join("") + "</ol>" : '<p class="k-sub">Ebben az időszakban még nincs adat.</p>') + "</section>";
     }
-    html += '<div class="grid lower pl-top">' + top("kilatas", "Egység kilátás toplista", "ES") + top("megkotott", "Megkötött ES toplista", "ES") + top("n", "Elemzés toplista", "db") + "</div>";
-    var csl = Object.keys(csapatok).map(function (k) { return csapatok[k]; }).sort(function (a, b) { return b.o.kilatas - a.o.kilatas || b.o.n - a.o.n; });
-    function sorCellak(o) {
-      return "<td>" + szam(o.n) + "</td><td>" + szam(o.taIdo) + "<span>" + szazalek(arany(o.taIdo, o.n)) + "</span></td><td>" + szam(o.ajanlas) + (o.mtAjanlas ? "<span>+ " + szam(o.mtAjanlas) + " mt.</span>" : "") +
-        "</td><td>" + szam(o.kilatas) + "</td><td>" + szam(o.taMeg) + "<span>" + szazalek(arany(o.taMeg, o.n)) + "</span></td><td>" + szam(o.megkotott) + (o.spec ? "<span>spec " + szam(o.spec) + "</span>" : "") + "</td>";
-    }
-    function fej(rendezheto) {
-      return "<thead><tr><th></th>" + PMEZOK.map(function (m) {
-        return "<th>" + (rendezheto ? '<button type="button" class="pl-rend' + (PL.rend === m.k ? " on" : "") + '" data-rend="' + m.k + '">' + m.cim + (PL.rend === m.k ? " ↓" : "") + "</button>" : m.cim) + "</th>";
-      }).join("") + "</tr></thead>";
-    }
-    html += '<h2>Csapatok</h2><section class="card reveal"><div class="pl-tabla"><table class="hb">' + fej(false) + "<tbody>" + csl.map(function (c) {
-      return "<tr><th>" + esc(c.nev) + "<span>" + c.fo + " fő</span></th>" + sorCellak(c.o) + "</tr>";
-    }).join("") + '<tr class="pl-ossz"><th>Összesen</th>' + sorCellak(ossz) + "</tr></tbody></table></div></section>";
-    var rl = emberek.slice().sort(function (a, b) { return b.o[PL.rend] - a.o[PL.rend] || b.o.n - a.o.n || a.nev.localeCompare(b.nev, "hu"); });
-    html += '<h2>Munkatársak</h2><section class="card reveal"><div class="pl-tabla"><table class="hb">' + fej(true) + "<tbody>" + rl.map(function (e, i) {
-      return '<tr' + (e.o.n ? "" : ' class="pl-nulla"') + "><th>" + (i + 1) + ". " + esc(e.nev) + "<span>" + esc(e.csapat || "") + "</span></th>" + sorCellak(e.o) + "</tr>";
-    }).join("") + '</tbody></table></div><p class="k-sub" style="margin-bottom:0">A számok az Elemzés összegzőből jönnek (ugyanaz, ami a Kontroll SZB Pipeline fülén látszik). Ügyféladat nem jelenik meg.</p></section>';
-    return html;
+    html += '<div class="grid lower">' + top("kilatas", "Egység kilátás toplista", "ES") + top("n", "Elemzés toplista", "db") + top("megkotott", "Megkötött ES toplista", "ES") + "</div>";
+    return { vezerlo: vezerlo, html: html };
   }
   function pipelineEsemenyek() {
     var u = document.getElementById("plUjra"); if (u) u.onclick = function () { PL.hiba = ""; rajzol(); };
     var sel = document.getElementById("plIdo"); if (sel) sel.onchange = function () { PL.idoszak = sel.value; rajzol(); };
     ["plTol", "plIg"].forEach(function (id) { var el = document.getElementById(id); if (el) el.onchange = function () { PL[id === "plTol" ? "tol" : "ig"] = el.value; rajzol(); }; });
-    app.querySelectorAll("[data-rend]").forEach(function (b) { b.onclick = function () { PL.rend = b.dataset.rend; rajzol(); }; });
     var f = document.getElementById("frissit"); if (f) f.onclick = function () { plLetolt(); };
   }
 
