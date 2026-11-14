@@ -766,10 +766,10 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       (ossz.cel || ossz.vallalas ?
         '<div class="k-num">' + szam(ossz.megkotott) + "<small>/ " + szam(ossz.cel || ossz.vallalas) + " ES</small></div>" +
         '<p class="k-sub">' + (ossz.cel ? "Cél: <b>" + szam(ossz.cel) + " ES</b> · " : "") + (ossz.vallalas ? "Vállalás: <b>" + szam(ossz.vallalas) + " ES</b> · " : "") + pctHtml(arany(ossz.megkotott, ossz.cel || ossz.vallalas)) +
-          (ossz.vallalas && ossz.cel ? " · vállalásból " + szazalek(arany(ossz.megkotott, ossz.vallalas)) : "") + (ossz.spec ? " · spec: <b>" + szam(ossz.spec) + " ES</b>" : "") + "</p>" +
+          (ossz.vallalas && ossz.cel ? " · vállalásból " + szazalek(arany(ossz.megkotott, ossz.vallalas)) : "") + "</p>" +
         bar(ossz.megkotott, ossz.cel || ossz.vallalas, { big: true, vallalas: ossz.vallalas, vCimke: true, ido: ido })
       : '<div class="k-num">' + szam(ossz.megkotott) + "<small>ES</small></div>" +
-        '<p class="k-sub">' + (ossz.spec ? "Spec: <b>" + szam(ossz.spec) + " ES</b> · " : "") + "<b>" + szam(emberek.filter(function (e) { return e.o.megkotott > 0; }).length) + "</b> munkatárs adott le</p>") +
+        '<p class="k-sub"><b>' + szam(emberek.filter(function (e) { return e.o.megkotott > 0; }).length) + "</b> munkatárs adott le</p>") +
       (hetSzam > 1 ? '<div class="weeks" style="--n:' + hetSzam + '">' + hetek.map(function (x) {
         return '<div class="' + (x ? "" : "zero") + '" style="height:' + Math.max(4, (x / hmax) * 100) + '%"><span>' + (x ? szam(x) : "") + "</span></div>";
       }).join("") + '</div><div class="weeks-l" style="--n:' + hetSzam + '">' + hetek.map(function (_, i) { return "<span>" + (i + 1) + ". hét</span>"; }).join("") + "</div>" : "") +
@@ -796,7 +796,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
             (t.cel || t.vallalas
               ? '<div class="m-units">' + bar(t.o.megkotott, t.cel || t.vallalas, { vallalas: t.vallalas, ido: ido }) + '<div class="bar-row"><span>' + szam(t.o.megkotott) + " / " + szam(t.cel || t.vallalas) + " ES" + (t.cel ? "" : " (vállalás)") + "</span>" + pctHtml(arany(t.o.megkotott, t.cel || t.vallalas)) + "</div></div>" +
                 '<div class="m-side"><div><b>' + szam(t.vallalas) + "</b>vállalás</div><div><b>" + szazalek(arany(t.o.megkotott, t.vallalas)) + "</b>teljesült</div></div></li>"
-              : '<div class="m-units">' + bar(t.o.megkotott, maxES, {}) + '<div class="bar-row"><span>' + szam(t.o.megkotott) + " ES leadott</span>" + (t.o.spec ? "<span>spec " + szam(t.o.spec) + " ES</span>" : "") + "</div></div>" +
+              : '<div class="m-units">' + bar(t.o.megkotott, maxES, {}) + '<div class="bar-row"><span>' + szam(t.o.megkotott) + " ES leadott</span></div></div>" +
                 '<div class="m-side"><div><b>' + szam(t.o.n) + "</b>elemzés</div><div><b>" + szam(t.o.taMeg) + "</b>TA megv.</div></div></li>");
         }).join("") + "</ul></section>";
     }).join("") + "</div>";

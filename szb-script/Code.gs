@@ -246,7 +246,7 @@ function pipelineOsszesito_(en) {
       const e = ertekek(forras), f = (e[0] || []).map(function (h) { return String(h).replace(/\s+/g, ' ').trim(); });
       const O = {
         datum: oszlop(f, /^időbélyeg/i), ugyfel: oszlop(f, /ügyfél neve/i), munk: oszlop(f, /^munkatárs/i), taIdo: oszlop(f, /tanácsadás időpont/i),
-        ajanlas: oszlop(f, /^hány db/i), mtAjanlas: oszlop(f, /munkatársi ajánlás/i), kilatas: oszlop(f, /egység kilátás/i),
+        ajanlas: oszlop(f, /^hány db/i), mtAjanlas: oszlop(f, /munkatársi ajánlás/i), kilatas: oszlop(f, /kilátás/i),
         taMeg: oszlop(f, /megval[oó]s[uú]lt/i), megkotott: oszlop(f, /megkötött es/i), specEs: oszlop(f, /spec\.?\s*es/i)
       };
       function g(r, i) { return i > -1 ? r[i] : ''; }
