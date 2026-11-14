@@ -58,6 +58,7 @@ function kezel_(k) {
     case 'adatok': return adatok_(en);
     case 'pipeline': return pipeline_(en, k.munkatars_id);
     case 'pipelineMent': return zarral_(function () { return pipelineMent_(en, k); });
+    case 'pipelineUj': return zarral_(function () { return pipelineUj_(en, k); });
     case 'jegyzetMent': return zarral_(function () { return jegyzetMent_(en, k); });
     case 'jegyzetTorol': return zarral_(function () { return jegyzetTorol_(en, k.id); });
     case 'feladatMent': return zarral_(function () { return feladatMent_(en, k); });
@@ -319,6 +320,81 @@ function irCella_(lap, sor, oszlop, v, fejlec) {
   const s = String(v.ertek == null ? '' : v.ertek).slice(0, 5000), t = s.trim();
   if (!/telefon/i.test(fejlec || '') && /^-?(0|[1-9]\d*)([.,]\d+)?$/.test(t)) { cella.setValue(Number(t.replace(',', '.'))); return; }
   cella.setValue(/^[=+\-@]/.test(s) ? "'" + s : s);
+}
+
+/**
+ * Új ügyfél (elemzés) felvétele a Pipeline-ból. k: { munkatars_id, mezok: [{ o, ertek } | { o, pipa }] }
+ * Az űrlap-oszlopok új sorként az „Összes” lap végére kerülnek (időbélyeg = most, munkatárs = a saját lap
+ * QUERY-jében szereplő név), a kézi oszlopok a munkatárs saját lapjának az új ügyfélhez tartozó sorába.
+ * Ha a saját lapon az a sor a kézi oszlopokban nem üres (elcsúszott adat), nem ír semmit.
+ */
+function pipelineUj_(en, k) {
+  pipelineJog_(en, k.munkatars_id);
+  const m = sorok_('Munkatársak').filter(function (x) { return x.id === k.munkatars_id; })[0];
+  if (!m) hiba_('A munkatárs nem található.');
+  const mezok = Array.isArray(k.mezok) ? k.mezok.slice(0, 60) : [];
+  const ss = SpreadsheetApp.openById(ELEMZES_TABLAZAT_ID);
+  const lap = elemzesLap_(ss, m.nev), osszes = ss.getSheetByName('Összes');
+  if (!osszes) hiba_('Az „Összes” lap nem található.');
+  const formN = urlapOszlopSzam_(osszes);
+  const oFej = osszes.getRange(1, 1, 1, formN).getDisplayValues()[0].map(function (h) { return String(h).replace(/\s+/g, ' ').trim(); });
+  const ugyfelI = oFej.findIndex(function (h) { return /ügyfél neve/i.test(h); });
+  const munkI = oFej.findIndex(function (h) { return /^munkatárs/i.test(h); });
+  if (ugyfelI < 0 || munkI < 0) hiba_('Az „Összes” lap fejléce nem a megszokott (hiányzik az ügyfél neve vagy a munkatárs).');
+  mezok.forEach(function (v) {
+    v.o = Math.floor(Number(v.o));
+    if (!(v.o > 0 && v.o !== munkI)) hiba_('Az időbélyeg és a munkatárs nevét a rendszer tölti ki.');
+  });
+  const ugyfelMezo = mezok.filter(function (v) { return v.o === ugyfelI; })[0];
+  const ugyfel = ugyfelMezo ? String(ugyfelMezo.ertek || '').trim() : '';
+  if (!ugyfel) hiba_('Add meg az ügyfél nevét.');
+
+  // A munkatárs neve úgy, ahogy a saját lapja QUERY-je keresi (pl. „Molnár Andus”).
+  let bNev = m.nev;
+  if (lap) {
+    const keplet = String(lap.getRange(1, 1).getFormula() || '');
+    const t = /B\s*=\s*'([^']+)'/.exec(keplet);
+    if (t) bNev = t[1];
+  }
+  const urlap = mezok.filter(function (v) { return v.o < formN; }), kezi = mezok.filter(function (v) { return v.o >= formN; });
+  let celSajat = 0, sFej = [];
+  if (lap) {
+    const n = osszes.getLastRow(), bErt = n >= 2 ? osszes.getRange(2, munkI + 1, n - 1, 1).getValues() : [];
+    const db = bErt.filter(function (r) { return String(r[0]).trim() === bNev; }).length;
+    celSajat = db + 2;   // fejléc + a meglévő sorai után
+    const oszlopN = lap.getLastColumn();
+    sFej = lap.getRange(1, 1, 1, oszlopN).getDisplayValues()[0];
+    if (oszlopN > formN) {
+      const kez = lap.getRange(celSajat, formN + 1, 1, oszlopN - formN).getValues()[0];
+      if (kez.some(function (c) { return c !== '' && c !== null && c !== false; }))
+        hiba_('A munkatárs lapján az új ügyfél helyén (' + celSajat + '. sor) már van kézi adat, ezért nem vettem fel, nehogy összekeveredjen. Nézd meg a táblázatban.');
+    }
+  } else if (kezi.length) {
+    hiba_('Ennek a munkatársnak nincs saját lapja az Elemzés összegzőben, ezért csak az űrlapmezők tölthetők ki.');
+  }
+  const ujSor = osszes.getLastRow() + 1, most = new Date();
+  osszes.getRange(ujSor, 1).setValue(most);
+  osszes.getRange(ujSor, munkI + 1).setValue(bNev);
+  urlap.forEach(function (v) { irCella_(osszes, ujSor, v.o + 1, v, oFej[v.o]); });
+  SpreadsheetApp.flush();
+  const kulcs = idoKulcs_(osszes.getRange(ujSor, 1).getValues()[0][0]);
+  const valtMinEll = mezok.filter(function (v) { return v.pipa === true && /min\.?\s*ell/i.test((v.o < formN ? oFej[v.o] : sFej[v.o]) || ''); });
+  if (!lap) {
+    valtMinEll.forEach(function () { minEllErtesites_(en, m, kulcs, ugyfel); });
+    const sor = osszes.getRange(ujSor, 1, 1, formN).getDisplayValues()[0].map(function (c) { return String(c).trim(); });
+    return { ok: true, sor: sor, sorszam: ujSor, kulcs: kulcs };
+  }
+  const oszlopN = lap.getLastColumn();
+  const ell = lap.getRange(celSajat, 1, 1, oszlopN).getValues()[0];
+  if (!egyezik_(ell, kulcs, ugyfelI, ugyfel)) {
+    return { ok: true, ujratoltes: true, figyelem: 'Az ügyfél bekerült az „Összes” lapra, de a munkatárs lapján nem ott jelent meg, ahol vártam, ezért a kézi mezőket nem írtam be. Frissítsd a Pipeline-t, és töltsd ki őket szerkesztéssel.' };
+  }
+  kezi.forEach(function (v) { irCella_(lap, celSajat, v.o + 1, v, sFej[v.o]); });
+  valtMinEll.forEach(function () { minEllErtesites_(en, m, kulcs, ugyfel); });
+  SpreadsheetApp.flush();
+  let utolso = sFej.length; while (utolso > 0 && !String(sFej[utolso - 1]).trim()) utolso--;
+  const sor = lap.getRange(celSajat, 1, 1, oszlopN).getDisplayValues()[0].slice(0, utolso).map(function (c) { return String(c).trim(); });
+  return { ok: true, sor: sor, sorszam: celSajat, kulcs: kulcs };
 }
 
 /* ================= értesítések ================= */
