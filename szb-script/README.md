@@ -57,6 +57,11 @@ látszik, kit vett fel.
 - A táblázatot ne szerkeszd kézzel, amíg mások használják az oldalt (a sorrend fontos az azonosításhoz).
   Olvasni, szűrni, exportálni nyugodtan lehet.
 
+## Élő eredményjelző
+
+A főoldal (eredményjelző) a belépett felhasználónak ezen a scripten át kéri le élőben a „Felber BL - CÉLOK”
+számait (5 percenként, a script 1 percig gyorsítótáraz). Ha a script nem válaszol, az esti `adat.enc.json` látszik.
+
 ## Telefonparty
 
 A felbercsapat.hu → **📞 Telefonparty** gomb (telefonparty.html) ugyanezt az Apps Scriptet és belépést használja.
