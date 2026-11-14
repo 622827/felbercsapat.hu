@@ -292,8 +292,7 @@ function jelszoCsere_(en, regi, uj) {
 
 /**
  * Telefonparty: minden munkatársnak (a „Felber BL - CÉLOK” aktuális havi csapatai alapján, a vezetőkkel együtt)
- * van egy sora, amelyben kipipálja, hány ügyfélidőpontot tett be. Mindenki látja az egészet;
- * módosítani a saját sorát lehet, a vezető a csapatáét, az admin bárkiét.
+ * van egy sora, amelyben kipipálja, hány ügyfélidőpontot tett be. Mindenki látja és pipálhatja az egészet.
  */
 function telefonparty_(en, partyId) {
   const partyk = sorok_('Telefonpartyk').map(function (p) { return { id: p.id, nev: p.nev, datum: p.datum, helyek: Number(p.helyek) || 10 }; })
@@ -309,18 +308,15 @@ function telefonparty_(en, partyId) {
   return { en: enAdat_(en), sajat: nevNorm_(en.nev), letrehozhat: en.szerep !== 'munkatars', partyk: partyk, party: party, sorok: sorok, ido: most_() };
 }
 
-function tpSzerk_(en, e) {
-  if (en.szerep === 'admin') return true;
-  if (nevNorm_(en.nev) === e.kulcs) return true;
-  return en.szerep === 'vezeto' && !!en.csapat && en.csapat === e.csapat;
-}
+/** Bárki bármelyik sort pipálhatja (belépett felhasználó). */
+function tpSzerk_(en, e) { return true; }
 
 function telefonpartyPipal_(en, partyId, kulcs, db) {
   const party = sorok_('Telefonpartyk').filter(function (p) { return p.id === partyId; })[0];
   if (!party) hiba_('A telefonparty nem található.');
   const e = telefonEmberek_().filter(function (x) { return x.kulcs === kulcs; })[0];
   if (!e) hiba_('A munkatárs nem található.');
-  if (!tpSzerk_(en, e)) hiba_('Csak a saját sorodat pipálhatod.');
+  if (!tpSzerk_(en, e)) hiba_('Ezt a sort nem pipálhatod.');
   const n = Math.max(0, Math.min(Number(party.helyek) || 10, Math.floor(Number(db) || 0)));
   const meglevo = sorok_('Telefonparty').filter(function (r) { return r.party_id === partyId && r.kulcs === kulcs; })[0];
   const adat = { nev: e.nev, csapat: e.csapat, db: String(n), modositva: most_(), szerzo: en.email };

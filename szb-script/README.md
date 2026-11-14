@@ -63,7 +63,7 @@ A felbercsapat.hu → **📞 Telefonparty** gomb (telefonparty.html) ugyanezt az
 
 - Minden munkatársnak van egy sora (a „Felber BL - CÉLOK” legfrissebb negyedéves lapjának aktuális hónapja szerint,
   csapatonként, a vezetőkkel együtt), benne pipákkal: ahány pipa, annyi betett ügyfélidőpont.
-- Mindenki látja az egészet. Pipálni a saját sorában lehet; a csapatvezető a csapata sorait, az admin bárkiét pipálhatja.
+- Mindenki látja az egészet, és bárki bármelyik sort pipálhatja.
 - Új telefonpartyt (név, dátum, pipák száma) a csapatvezető vagy az admin indíthat; a korábbiak a legördülőből választhatók.
 - Az adatok a táblázat „Telefonpartyk” és „Telefonparty” lapjára kerülnek (maguktól létrejönnek).
 - A névsor 10 percig gyorsítótárazott, így egy új csapattag legfeljebb 10 perc múlva jelenik meg.
