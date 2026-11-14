@@ -88,6 +88,8 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   .pcs b { font-size: 1.5rem; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
   .pcs small { color: var(--muted); font-size: .78rem; }
   .pkartyak { display: grid; gap: 12px; }
+  .tho { margin: 10px 0 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; font-size: 1.05rem; }
+  .tho span { font-size: .82rem; font-weight: 500; color: var(--muted); }
   .pk { background: var(--panel); border-radius: 16px; padding: 14px 16px; border-left: 4px solid var(--blue); display: grid; gap: 10px; min-width: 0; }
   .pk.kesz { border-left-color: var(--accent); }
   .pk header { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
@@ -578,7 +580,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   });
 
   /* ---------- pipeline (Elemzés összegző) ---------- */
-  var P = { cache: {}, idoszak: "osszes", allapot: "mind", keres: "", mutat: 30 };
+  var P = { cache: {}, idoszak: "aktualis", allapot: "mind", keres: "", mutat: 30 };
   function pipeBetolt(mtId, frissit) {
     var el = $("pipe"); if (!el) return;
     var c = P.cache[mtId];
@@ -591,6 +593,21 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   function igen(v) { return /^(igen|true|yes|x|✓)/i.test(String(v || "").trim()); }
   function nem(v) { return /^(nem|false|no)\b/i.test(String(v || "").trim()); }
   function szamv(v) { var n = parseFloat(String(v || "").replace(/\s/g, "").replace(",", ".")); return isFinite(n) ? n : 0; }
+  /* Termelési hónap: a hónap első keddjétől a következő hónap első keddjéig (az már a következőhöz tartozik). */
+  var HONAPNEV = ["január", "február", "március", "április", "május", "június", "július", "augusztus", "szeptember", "október", "november", "december"];
+  function elsoKedd(y, m) { var d = new Date(y, m, 1); d.setDate(1 + ((2 - d.getDay() + 7) % 7)); return d; }
+  function termHo(dt) {
+    if (!dt) return null;
+    var y = dt.getFullYear(), m = dt.getMonth(), nap = new Date(y, m, dt.getDate());
+    if (nap < elsoKedd(y, m)) { m--; if (m < 0) { m = 11; y--; } }
+    return y * 12 + m;
+  }
+  function termHoAdat(k) {
+    var y = Math.floor(k / 12), m = k % 12, tol = elsoKedd(y, m), ig = elsoKedd(m === 11 ? y + 1 : y, (m + 1) % 12);
+    var utolso = new Date(ig); utolso.setDate(utolso.getDate() - 1);
+    function r(d) { return d.toLocaleDateString("hu-HU", { month: "short", day: "numeric" }); }
+    return { nev: y + ". " + HONAPNEV[m], idoszak: r(tol) + " – " + r(utolso) };
+  }
   function pdatum(v) { var m = /^(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})/.exec(String(v || "")); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; }
   function rajzolPipe(mtId) {
     var el = $("pipe"), d = P.cache[mtId]; if (!el || !d) return;
@@ -604,15 +621,15 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     };
     P.O = O;
     var igenyek = f.map(function (h, i) { return /^konkrét igény/i.test(h) ? i : -1; }).filter(function (i) { return i > -1; });
-    var most = new Date(), ho = new Date(most.getFullYear(), most.getMonth(), 1), elozo = new Date(most.getFullYear(), most.getMonth() - 1, 1), ev = new Date(most.getFullYear(), 0, 1);
-    var nap30 = new Date(most); nap30.setDate(nap30.getDate() - 30);
     function g(r, i) { return i > -1 ? (r[i] || "") : ""; }
-    var mind = d.sorok.map(function (r, idx) { return { r: r, idx: idx, d: pdatum(g(r, O.datum)) }; });
-    var idoszakban = mind.filter(function (x) {
-      if (P.idoszak === "osszes") return true; if (!x.d) return false;
-      if (P.idoszak === "ho") return x.d >= ho; if (P.idoszak === "elozo") return x.d >= elozo && x.d < ho;
-      if (P.idoszak === "30") return x.d >= nap30; if (P.idoszak === "ev") return x.d >= ev; return true;
-    });
+    var mind = d.sorok.map(function (r, idx) { var dt = pdatum(g(r, O.datum)); return { r: r, idx: idx, d: dt, tk: termHo(dt) }; });
+    var aktTk = termHo(new Date());
+    var tkLista = [aktTk]; mind.forEach(function (x) { if (x.tk !== null && tkLista.indexOf(x.tk) < 0) tkLista.push(x.tk); });
+    tkLista.sort(function (a, b) { return b - a; });
+    if (P.idoszak === "aktualis") P.idoszak = "t" + aktTk;
+    if (P.idoszak !== "osszes" && tkLista.indexOf(+P.idoszak.slice(1)) < 0) P.idoszak = "t" + aktTk;
+    var valTk = P.idoszak === "osszes" ? null : +P.idoszak.slice(1);
+    var idoszakban = mind.filter(function (x) { return valTk === null || x.tk === valTk; });
     var szurt = idoszakban.filter(function (x) {
       if (P.allapot === "nyitott" && igen(g(x.r, O.taMeg))) return false;
       if (P.allapot === "kesz" && !igen(g(x.r, O.taMeg))) return false;
@@ -623,7 +640,8 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     var megval = idoszakban.filter(function (x) { return igen(g(x.r, O.taMeg)); }).length;
     function csempe(cim, ertek, al) { return '<div class="pcs"><span>' + cim + "</span><b>" + ertek + "</b>" + (al ? "<small>" + al + "</small>" : "") + "</div>"; }
     var html = '<div class="pipe-fej"><div class="sor">' +
-      '<select id="pIdo" aria-label="Időszak"><option value="osszes">Minden elemzés</option><option value="ho">Ez a hónap</option><option value="elozo">Előző hónap</option><option value="30">Utolsó 30 nap</option><option value="ev">Idei év</option></select>' +
+      '<select id="pIdo" aria-label="Termelési hónap">' + tkLista.map(function (k) { var a = termHoAdat(k); return '<option value="t' + k + '">' + esc(a.nev + " (" + a.idoszak + ")" + (k === aktTk ? " – aktuális" : "")) + "</option>"; }).join("") +
+        '<option value="osszes">Minden elemzés (termelési hónaponként)</option></select>' +
       '<div class="gyors" id="pAll" style="margin:0"><button type="button" data-p="mind">Mind</button><button type="button" data-p="nyitott">Nyitott</button><button type="button" data-p="kesz">TA megvalósult</button></div>' +
       '<input type="search" class="mezo" id="pKeres" placeholder="Ügyfél keresése" aria-label="Ügyfél keresése" style="max-width:220px;padding:8px 12px;border-width:1px">' +
       '<button class="gomb jobbra" type="button" id="pUj">+ Új ügyfél</button><button class="gomb halk" type="button" id="pFrissit">↻ Frissítés</button></div>' +
@@ -638,7 +656,15 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     else if (!szurt.length) html += '<p class="ures">Nincs a szűrésnek megfelelő elemzés.</p>';
     else {
       var specOszl = {}; Object.keys(O).forEach(function (k) { if (O[k] > -1) specOszl[O[k]] = 1; }); igenyek.forEach(function (i) { specOszl[i] = 1; });
+      var csop = {}; szurt.forEach(function (x) { var k = x.tk === null ? "x" : x.tk; var c = csop[k] || (csop[k] = { n: 0, kil: 0, ta: 0 }); c.n++; c.kil += szamv(g(x.r, O.kilatas)); if (igen(g(x.r, O.taMeg))) c.ta++; });
+      var elozoTk;
       html += '<div class="pkartyak">' + szurt.slice(0, P.mutat).map(function (x) {
+        var fej = "";
+        if (valTk === null && x.tk !== elozoTk) {
+          elozoTk = x.tk; var k = x.tk === null ? "x" : x.tk, c = csop[k], a = x.tk === null ? { nev: "Dátum nélkül", idoszak: "" } : termHoAdat(x.tk);
+          fej = '<h4 class="tho"><b>' + esc(a.nev) + "</b><span>" + esc((a.idoszak ? a.idoszak + " · " : "") + c.n + " elemzés" + (O.kilatas > -1 ? " · " + Math.round(c.kil).toLocaleString("hu-HU") + " ES kilátás" : "") + (O.taMeg > -1 ? " · " + c.ta + " TA megvalósult" : "")) + "</span></h4>";
+        }
+        return fej + (function () {
         var r = x.r, kesz = igen(g(r, O.taMeg));
         function minEll(i) {
           if (i < 0) return ""; var v = g(r, i), ig = igen(v), nm = nem(v);
@@ -666,6 +692,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
           (g(r, O.spec) ? '<p class="pcel"><span>Specialista:</span> ' + esc(g(r, O.spec)) + "</p>" : "") +
           (g(r, O.teendo) ? '<p class="pteendo"><b>Teendők:</b> ' + esc(g(r, O.teendo)) + "</p>" : "") +
           '<details><summary>Minden adat</summary><div class="tabla"><table class="fh pt"><tbody>' + tobbi + "</tbody></table></div></details></article>";
+        })();
       }).join("") + "</div>" + (szurt.length > P.mutat ? '<button class="gomb halk" type="button" id="pTobb">Továbbiak (' + (szurt.length - P.mutat) + ")</button>" : "");
     }
     el.innerHTML = html;
