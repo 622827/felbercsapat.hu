@@ -30,6 +30,7 @@ const LAPOK = {
   'Feladatok': ['id', 'munkatars_id', 'szoveg', 'hatarido', 'kesz', 'letrehozva', 'kesz_ido', 'szerzo'],
   'Telefonpartyk': ['id', 'nev', 'datum', 'helyek', 'letrehozva', 'szerzo'],
   'Telefonparty': ['party_id', 'kulcs', 'nev', 'csapat', 'db', 'modositva', 'szerzo'],
+  'Célok': ['munkatars_id', 'honap', 'cel', 'vallalas', 'modositva', 'szerzo'],
   'Értesítések': ['id', 'tipus', 'munkatars_id', 'munkatars_nev', 'ugyfel', 'kulcs', 'cimzettek', 'letrehozva', 'szerzo', 'kesz', 'kesz_ido', 'kesz_szerzo']
 };
 
@@ -58,6 +59,7 @@ function kezel_(k) {
     case 'adatok': return adatok_(en);
     case 'pipeline': return pipeline_(en, k.munkatars_id);
     case 'pipelineOsszesito': return pipelineOsszesito_(en);
+    case 'celokMent': return zarral_(function () { return celokMent_(en, k); });
     case 'pipelineMent': return zarral_(function () { return pipelineMent_(en, k); });
     case 'pipelineUj': return zarral_(function () { return pipelineUj_(en, k); });
     case 'jegyzetMent': return zarral_(function () { return jegyzetMent_(en, k); });
@@ -257,9 +259,40 @@ function pipelineOsszesito_(en) {
           szam(g(r, O.kilatas)), igen(g(r, O.taMeg)), szam(g(r, O.megkotott)), szam(g(r, O.specEs))]);
       }
     }
-    return { nev: m.nev, csapat: m.csapat || '', pozicio: m.pozicio || '', sorok: sorok };
+    return { id: m.id, nev: m.nev, csapat: m.csapat || '', pozicio: m.pozicio || '', sorok: sorok };
   });
-  return { munkatarsak: munkatarsak, ido: most_() };
+  const celok = sorok_('Célok').map(function (c) { return { munkatars_id: c.munkatars_id, honap: c.honap, cel: c.cel, vallalas: c.vallalas }; });
+  return { munkatarsak: munkatarsak, celok: celok, admin: en.szerep === 'admin', ido: most_() };
+}
+
+/**
+ * Termelési havi cél és vállalás (ES) munkatársanként – csak az admin állíthatja.
+ * k: { honap: 'ÉÉÉÉ-HH', lista: [{ munkatars_id, cel, vallalas }] } (üres érték = nincs megadva)
+ */
+function celokMent_(en, k) {
+  admin_(en);
+  const honap = String(k.honap || '');
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(honap)) hiba_('Hibás hónap.');
+  const ervenyes = {};
+  sorok_('Munkatársak').forEach(function (m) { ervenyes[m.id] = true; });
+  function szam(v) {
+    const t = String(v == null ? '' : v).replace(/\s/g, '').replace(',', '.');
+    if (t === '') return '';
+    const n = Number(t);
+    if (!isFinite(n) || n < 0 || n > 100000) hiba_('Hibás szám: ' + v);
+    return String(Math.round(n * 100) / 100);
+  }
+  const meglevo = {};
+  sorok_('Célok').forEach(function (c) { if (c.honap === honap) meglevo[c.munkatars_id] = c; });
+  let db = 0;
+  (k.lista || []).forEach(function (x) {
+    if (!ervenyes[x.munkatars_id]) return;
+    const adat = { cel: szam(x.cel), vallalas: szam(x.vallalas), modositva: most_(), szerzo: en.email }, m = meglevo[x.munkatars_id];
+    if (m) { if (m.cel === adat.cel && m.vallalas === adat.vallalas) return; frissit_('Célok', m._sor, adat); }
+    else { if (adat.cel === '' && adat.vallalas === '') return; adat.munkatars_id = x.munkatars_id; adat.honap = honap; hozzaad_('Célok', adat); }
+    db++;
+  });
+  return { ok: true, mentve: db };
 }
 
 /** Pipeline olvasás/írás joga: aki a munkatársat látja; a vezető a saját lapját is. */
