@@ -57,6 +57,7 @@ function kezel_(k) {
     case 'kilepes': PropertiesService.getScriptProperties().deleteProperty('m_' + k.token); return { ok: true };
     case 'adatok': return adatok_(en);
     case 'pipeline': return pipeline_(en, k.munkatars_id);
+    case 'pipelineOsszesito': return pipelineOsszesito_(en);
     case 'pipelineMent': return zarral_(function () { return pipelineMent_(en, k); });
     case 'pipelineUj': return zarral_(function () { return pipelineUj_(en, k); });
     case 'jegyzetMent': return zarral_(function () { return jegyzetMent_(en, k); });
@@ -220,6 +221,45 @@ function pipeline_(en, mtId) {
     sorok: sorok.slice(n), sorszamok: sorszamok.slice(n), kulcsok: kulcsok.slice(n),
     urlapOszlop: urlapOszlopSzam_(osszes), sajatLap: !!lap, ido: most_()
   };
+}
+
+/**
+ * Eredményjelző a pipeline-ból: minden aktív munkatárs elemzéseinek számai (ügyféladat nélkül).
+ * Soronként: [dátum 'ÉÉÉÉ-HH-NN', TA időpont 0/1, ajánlás, munkatársi ajánlás, egység kilátás, TA megvalósult 0/1, megkötött ES, spec ES].
+ */
+function pipelineOsszesito_(en) {
+  const mt = sorok_('Munkatársak').filter(function (m) { return m.aktiv !== 'nem'; });
+  const ss = SpreadsheetApp.openById(ELEMZES_TABLAZAT_ID), lapok = ss.getSheets();
+  const cache = {};
+  function ertekek(lap) { const n = lap.getName(); return cache[n] || (cache[n] = lap.getDataRange().getDisplayValues()); }
+  function oszlop(fej, re) { for (let i = 0; i < fej.length; i++) if (re.test(fej[i])) return i; return -1; }
+  function igen(v) { return /^(igen|true|yes|x|✓)/i.test(String(v || '').trim()) ? 1 : 0; }
+  function szam(v) { const n = parseFloat(String(v || '').replace(/\s/g, '').replace(',', '.')); return isFinite(n) ? n : 0; }
+  const osszesLap = lapok.filter(function (l) { return l.getName().trim() === 'Összes'; })[0] || null;
+  const munkatarsak = mt.map(function (m) {
+    const cel = nevNorm_(m.nev);
+    const lap = lapok.filter(function (l) { return l.getName().trim() !== 'Összes' && nevNorm_(l.getName()) === cel; })[0] || null;
+    const forras = lap || osszesLap, sorok = [];
+    if (forras) {
+      const e = ertekek(forras), f = (e[0] || []).map(function (h) { return String(h).replace(/\s+/g, ' ').trim(); });
+      const O = {
+        datum: oszlop(f, /^időbélyeg/i), ugyfel: oszlop(f, /ügyfél neve/i), munk: oszlop(f, /^munkatárs/i), taIdo: oszlop(f, /tanácsadás időpont/i),
+        ajanlas: oszlop(f, /^hány db/i), mtAjanlas: oszlop(f, /munkatársi ajánlás/i), kilatas: oszlop(f, /egység kilátás/i),
+        taMeg: oszlop(f, /megval[oó]s[uú]lt/i), megkotott: oszlop(f, /megkötött es/i), specEs: oszlop(f, /spec\.?\s*es/i)
+      };
+      function g(r, i) { return i > -1 ? r[i] : ''; }
+      for (let i = 1; i < e.length; i++) {
+        const r = e[i];
+        if (String(r[0] || r[3] || '').trim() === '') continue;
+        if (!lap && !(O.munk > -1 && nevNorm_(r[O.munk]) === cel)) continue;
+        const d = /^(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})/.exec(String(g(r, O.datum)));
+        sorok.push([d ? d[1] + '-' + ('0' + d[2]).slice(-2) + '-' + ('0' + d[3]).slice(-2) : '', igen(g(r, O.taIdo)), szam(g(r, O.ajanlas)), szam(g(r, O.mtAjanlas)),
+          szam(g(r, O.kilatas)), igen(g(r, O.taMeg)), szam(g(r, O.megkotott)), szam(g(r, O.specEs))]);
+      }
+    }
+    return { nev: m.nev, csapat: m.csapat || '', pozicio: m.pozicio || '', sorok: sorok };
+  });
+  return { munkatarsak: munkatarsak, ido: most_() };
 }
 
 /** Pipeline olvasás/írás joga: aki a munkatársat látja; a vezető a saját lapját is. */
