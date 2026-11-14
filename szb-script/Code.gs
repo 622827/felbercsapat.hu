@@ -64,6 +64,7 @@ function kezel_(k) {
     case 'telefonparty': return telefonparty_(en, k.party_id);
     case 'telefonpartyPipal': return zarral_(function () { return telefonpartyPipal_(en, k.party_id, k.kulcs, k.db); });
     case 'telefonpartyUj': return zarral_(function () { return telefonpartyUj_(en, k); });
+    case 'telefonpartyTorol': return zarral_(function () { return telefonpartyTorol_(en, k.party_id); });
     case 'jelszoCsere': return zarral_(function () { return jelszoCsere_(en, k.regi, k.uj); });
     case 'adatKulcsBeallit': admin_(en);
       if (!/^[0-9a-f]{128}$/.test(String(k.kulcs || ''))) hiba_('Hibás kulcs.');
@@ -295,7 +296,7 @@ function jelszoCsere_(en, regi, uj) {
  * van egy sora, amelyben kipipálja, hány ügyfélidőpontot tett be. Mindenki látja és pipálhatja az egészet.
  */
 function telefonparty_(en, partyId) {
-  const partyk = sorok_('Telefonpartyk').map(function (p) { return { id: p.id, nev: p.nev, datum: p.datum, helyek: Number(p.helyek) || 10 }; })
+  const partyk = sorok_('Telefonpartyk').map(function (p) { return { id: p.id, nev: p.nev, datum: p.datum, helyek: Number(p.helyek) || 10, torolhet: tpTorolhet_(en, p) }; })
     .sort(function (a, b) { return a.datum < b.datum ? 1 : a.datum > b.datum ? -1 : 0; });
   const party = partyk.filter(function (p) { return p.id === partyId; })[0] || partyk[0] || null;
   const emberek = telefonEmberek_();
@@ -323,6 +324,20 @@ function telefonpartyPipal_(en, partyId, kulcs, db) {
   if (meglevo) frissit_('Telefonparty', meglevo._sor, adat);
   else { adat.party_id = partyId; adat.kulcs = kulcs; hozzaad_('Telefonparty', adat); }
   return { ok: true, db: n };
+}
+
+/** Telefonpartyt az admin és a létrehozója törölhet. */
+function tpTorolhet_(en, p) { return en.szerep === 'admin' || (!!p.szerzo && String(p.szerzo).toLowerCase() === String(en.email).toLowerCase()); }
+
+/** A telefonparty és minden pipája törlése (alulról felfelé, hogy a sorszámok ne csússzanak el). */
+function telefonpartyTorol_(en, partyId) {
+  const p = sorok_('Telefonpartyk').filter(function (x) { return x.id === partyId; })[0];
+  if (!p) hiba_('A telefonparty már nem létezik.');
+  if (!tpTorolhet_(en, p)) hiba_('Ezt a telefonpartyt csak a létrehozója vagy az admin törölheti.');
+  const pipak = sorok_('Telefonparty').filter(function (r) { return r.party_id === partyId; }).map(function (r) { return r._sor; }).sort(function (a, b) { return b - a; });
+  pipak.forEach(function (s) { torol_('Telefonparty', s); });
+  torol_('Telefonpartyk', p._sor);
+  return { ok: true, torolt_pipa: pipak.length };
 }
 
 function telefonpartyUj_(en, k) {
