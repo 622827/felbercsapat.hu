@@ -98,7 +98,8 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   .pp.ok { background: var(--accent-soft); color: var(--ink); }
   .pp.no { background: rgba(255,138,122,.18); color: var(--danger); }
   .pp.nincs { opacity: .55; }
-  .ppk { align-items: center; }
+  .ppk { align-items: center; gap: 8px; }
+  .ppk span.pp { font-size: .9rem; padding: 8px 14px; min-height: 38px; border-radius: 12px; display: inline-flex; align-items: center; }
   .pszam { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .88rem; color: var(--muted); }
   .pszam b { color: var(--ink); }
   .pcel { margin: 0; font-size: .92rem; overflow-wrap: anywhere; }
@@ -106,9 +107,9 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   .pig { margin: 0; padding-left: 18px; font-size: .92rem; overflow-wrap: anywhere; }
   .pteendo { margin: 0; background: var(--warn-soft); color: var(--ink); border-radius: 10px; padding: 8px 12px; font-size: .9rem; overflow-wrap: anywhere; }
   .pk details summary { font-size: .82rem; }
-  .pp-dupla { display: inline-flex; align-items: center; gap: 4px; font-size: .76rem; font-weight: 600; padding: 2px 3px 2px 9px; border-radius: 99px; background: var(--track); color: var(--muted); }
+  .pp-dupla { display: inline-flex; align-items: center; gap: 6px; font-size: .9rem; font-weight: 600; padding: 4px 4px 4px 14px; min-height: 38px; border-radius: 12px; background: var(--track); color: var(--muted); }
   .pp-dupla.ig { background: rgba(255,200,87,.18); color: var(--ink); }
-  .pp-dupla button { border: 0; border-radius: 99px; padding: 1px 9px; font: inherit; font-size: .74rem; font-weight: 700; cursor: pointer; background: transparent; color: var(--muted); }
+  .pp-dupla button { border: 0; border-radius: 9px; padding: 6px 14px; font: inherit; font-size: .88rem; font-weight: 700; cursor: pointer; background: transparent; color: var(--muted); }
   .pp-dupla button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
   .pp-dupla button[data-minell="1"][aria-pressed="true"] { background: var(--warn); color: #3b2a00; }
   .ertesitesek { background: var(--warn-soft); border-radius: 14px; padding: 10px 12px; display: grid; gap: 8px; }
@@ -118,11 +119,13 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   .ert span { display: block; font-size: .75rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .ert-gombok { display: flex; gap: 8px; align-items: center; }
   .ert-kesz { padding: 4px 10px; font-size: .78rem; }
-  button.pp { border: 0; cursor: pointer; font: inherit; font-size: .76rem; font-weight: 600; }
+  button.pp { border: 0; cursor: pointer; font: inherit; font-size: .9rem; font-weight: 600; padding: 8px 14px; min-height: 38px; border-radius: 12px; }
   button.pp:hover { outline: 2px solid var(--line); }
   .pk-jobb { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
   .pk-szerk { padding: 4px 10px; font-size: .8rem; }
   .pk.szerk { border-left-color: var(--warn); }
+  .pk.uj { border-left-color: var(--accent); }
+  .pm select.mezo { border-width: 1px; padding: 7px 10px; font-size: .9rem; }
   .pm-racs { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
   .pm { display: flex; flex-direction: column; gap: 4px; font-size: .78rem; color: var(--muted); min-width: 0; }
   .pm .mezo { border-width: 1px; padding: 7px 10px; font-size: .9rem; color: var(--ink); }
@@ -623,13 +626,14 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       '<select id="pIdo" aria-label="Időszak"><option value="osszes">Minden elemzés</option><option value="ho">Ez a hónap</option><option value="elozo">Előző hónap</option><option value="30">Utolsó 30 nap</option><option value="ev">Idei év</option></select>' +
       '<div class="gyors" id="pAll" style="margin:0"><button type="button" data-p="mind">Mind</button><button type="button" data-p="nyitott">Nyitott</button><button type="button" data-p="kesz">TA megvalósult</button></div>' +
       '<input type="search" class="mezo" id="pKeres" placeholder="Ügyfél keresése" aria-label="Ügyfél keresése" style="max-width:220px;padding:8px 12px;border-width:1px">' +
-      '<button class="gomb halk jobbra" type="button" id="pFrissit">↻ Frissítés</button></div>' +
+      '<button class="gomb jobbra" type="button" id="pUj">+ Új ügyfél</button><button class="gomb halk" type="button" id="pFrissit">↻ Frissítés</button></div>' +
       '<p class="pforras">Forrás: Elemzés összegző – „' + esc(d.forras) + '” lap · frissítve ' + esc(ido(d.ido)) + "</p></div>" +
       '<div class="pcsempek">' + csempe("Elemzések", n) + csempe("Tanácsadás időpont", taIgen, n ? Math.round(taIgen / n * 100) + "%" : "") +
         (O.ajanlas > -1 ? csempe("Ajánlások", Math.round(osszeg(O.ajanlas)) + (O.mtAjanlas > -1 ? " + " + Math.round(osszeg(O.mtAjanlas)) : ""), O.mtAjanlas > -1 ? "ügyfél + munkatársi" : "") : "") +
         (O.kilatas > -1 ? csempe("Egység kilátás", Math.round(osszeg(O.kilatas)).toLocaleString("hu-HU") + " ES") : "") +
         (O.taMeg > -1 ? csempe("TA megvalósult", megval, n ? Math.round(megval / n * 100) + "%" : "") : "") +
         (O.megkotott > -1 ? csempe("Megkötött ES", Math.round(osszeg(O.megkotott)).toLocaleString("hu-HU") + " ES", O.specEs > -1 ? "spec: " + Math.round(osszeg(O.specEs)).toLocaleString("hu-HU") + " ES" : "") : "") + "</div>";
+    if (P.uj === mtId) html += ujKartya(O, f, d);
     if (!d.sorok.length) html += '<p class="ures">Ennek a munkatársnak még nincs elemzése az Elemzés összegzőben.</p>';
     else if (!szurt.length) html += '<p class="ures">Nincs a szűrésnek megfelelő elemzés.</p>';
     else {
@@ -674,6 +678,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     $("pFrissit").onclick = function () { this.disabled = true; this.textContent = "Frissítés…"; pipeBetolt(mtId, true); };
     var t = $("pTobb"); if (t) t.onclick = function () { P.mutat += 30; rajzolPipe(mtId); };
     el.onclick = function (e) { pipeKattint(mtId, e); };
+    $("pUj").onclick = function () { P.uj = mtId; P.szerk = null; rajzolPipe(mtId); var u = document.querySelector(".pk.uj [data-o]"); if (u) u.focus(); };
   }
 
   /* ---------- pipeline szerkesztés ---------- */
@@ -693,6 +698,26 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       '<p class="pforras" style="margin:0">Mentéskor az űrlapból jövő mezők az „Összes” lapra, a kézi oszlopok (egység kilátás, teendők, megkötött ES…) a munkatárs saját lapjára kerülnek. Az időbélyeg és a munkatárs neve nem módosítható.</p>' +
       '<div class="sor"><span class="hiba" id="pmHiba"></span><button type="button" class="gomb halk jobbra" data-megse="1">Mégse</button><button type="button" class="gomb" data-mentes="1">Mentés</button></div></article>';
   }
+  function ujKartya(O, f, d) {
+    var pipak = pipaOszlopok(O), mezok = "";
+    f.forEach(function (h, i) {
+      if (!h || i === O.datum || i === O.munk) return;
+      if (!d.sajatLap && i >= (d.urlapOszlop || 22)) return;
+      var kot = i === O.ugyfel;
+      if (pipak.indexOf(i) > -1) {
+        mezok += '<label class="pm"><span>' + esc(h) + '</span><select class="mezo" data-o="' + i + '" data-pipa-mezo="1"><option value="">–</option><option value="1">Igen</option><option value="0">Nem</option></select></label>';
+        return;
+      }
+      var hosszu = /fő célja|konkrét igény|teendő|témá|specialista/i.test(h);
+      mezok += '<label class="pm"><span>' + esc(h) + (kot ? " *" : "") + "</span>" + (hosszu
+        ? '<textarea class="mezo" data-o="' + i + '" rows="2"></textarea>'
+        : '<input class="mezo" data-o="' + i + '"' + (kot ? " required" : "") + ">") + "</label>";
+    });
+    return '<article class="pk szerk uj" data-uj="1"><header><div><b>Új ügyfél</b><span>Az időbélyeget és a munkatárs nevét a rendszer tölti ki.</span></div></header>' +
+      '<div class="pm-racs">' + mezok + "</div>" +
+      '<p class="pforras" style="margin:0">Az űrlapmezők új sorként az „Összes” lapra kerülnek (a munkatárs lapjára a QUERY hozza át), a kézi mezők a munkatárs saját lapjára.</p>' +
+      '<div class="sor"><span class="hiba" id="ujHiba"></span><button type="button" class="gomb halk jobbra" data-uj-megse="1">Mégse</button><button type="button" class="gomb" data-uj-ment="1">Ügyfél felvétele</button></div></article>';
+  }
   P.lanc = {};
   function pipeMent(mtId, idx, valtozasok) {
     var d0 = P.cache[mtId];
@@ -710,6 +735,27 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   }
   function pipeKattint(mtId, e) {
     var d = P.cache[mtId], O = P.O; if (!d || !O) return;
+    var ujk = e.target.closest("[data-uj]");
+    if (ujk) {
+      if (e.target.closest("[data-uj-megse]")) { P.uj = null; rajzolPipe(mtId); return; }
+      var ub = e.target.closest("[data-uj-ment]"); if (!ub) return;
+      var mz = [], hiba = "";
+      ujk.querySelectorAll("[data-o]").forEach(function (m) {
+        var o = +m.dataset.o, v = m.value.trim(); if (!v) return;
+        mz.push(m.dataset.pipaMezo ? { o: o, pipa: v === "1" } : { o: o, ertek: v });
+      });
+      if (!mz.some(function (x) { return x.o === O.ugyfel && x.ertek; })) hiba = "Add meg az ügyfél nevét.";
+      if (hiba) { $("ujHiba").textContent = hiba; return; }
+      ub.disabled = true; ub.textContent = "Felvétel…"; $("ujHiba").textContent = "";
+      api("pipelineUj", { munkatars_id: mtId, mezok: mz }).then(function (res) {
+        P.uj = null;
+        if (res.ujratoltes) { toast(res.figyelem || "Felvéve – frissítem a listát"); pipeBetolt(mtId, true); return; }
+        var hossz = d.fejlec.length, uj = res.sor.slice(0, hossz); while (uj.length < hossz) uj.push("");
+        d.sorok.push(uj); d.sorszamok.push(res.sorszam); d.kulcsok.push(res.kulcs);
+        P.keres = ""; P.allapot = "mind"; toast("Ügyfél felvéve"); rajzolPipe(mtId);
+      }).catch(function (err) { var h = $("ujHiba"); if (h) h.textContent = err.message; ub.disabled = false; ub.textContent = "Ügyfél felvétele"; });
+      return;
+    }
     var kartya = e.target.closest("[data-idx]"); if (!kartya) return;
     var idx = +kartya.dataset.idx, r = d.sorok[idx];
     var me = e.target.closest("[data-minell]");
