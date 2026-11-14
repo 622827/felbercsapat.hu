@@ -650,11 +650,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   }
 
   /* ---------- pipeline eredményjelző (Elemzés összegző) ---------- */
-  var PL = { adat: null, betolt: false, hiba: "", idoszak: "aktualis", tol: undefined, ig: undefined, rend: "kilatas" };
-  var PMEZOK = [
-    { k: "n", cim: "Elemzés", egys: "db" }, { k: "taIdo", cim: "TA időpont", egys: "db" }, { k: "ajanlas", cim: "Ajánlás", egys: "db" },
-    { k: "kilatas", cim: "Egység kilátás", egys: "ES" }, { k: "taMeg", cim: "TA megvalósult", egys: "db" }, { k: "megkotott", cim: "Megkötött ES", egys: "ES" }
-  ];
+  var PL = { adat: null, betolt: false, hiba: "", idoszak: "aktualis", tol: undefined, ig: undefined };
   function elsoKedd(y, m) { var x = new Date(y, m, 1); x.setDate(1 + ((2 - x.getDay() + 7) % 7)); return x; }
   /* A termelési hónap zárása a következő hónap első keddje (az még ide tartozik); a következő hónap az utána lévő nappal indul. */
   function hoKezd(y, m) { var x = elsoKedd(y, m); x.setDate(x.getDate() + 1); return x; }
@@ -714,14 +710,15 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       m.sorok.forEach(function (r) {
         if (!bent(r)) return;
         o.n++; o.taIdo += r[1]; o.ajanlas += r[2]; o.mtAjanlas += r[3]; o.kilatas += r[4]; o.taMeg += r[5]; o.megkotott += r[6]; o.spec += r[7];
-        var dt = pDatum(r[0]); if (dt && kezd && hetSzam) { var h = Math.floor((dt - kezd) / (7 * NAP)); if (h >= 0 && h < hetSzam) hetek[h] += r[4]; }
+        var dt = pDatum(r[0]); if (dt && kezd && hetSzam) { var h = Math.floor((dt - kezd) / (7 * NAP)); if (h >= 0 && h < hetSzam) hetek[h] += r[6]; }
       });
       var cs = m.csapat || "Csapat nélkül", c = csapatok[cs];
       if (!c) { c = csapatok[cs] = { nev: cs, o: ures(), tagok: [] }; csSor.push(c); }
       KULCSOK.forEach(function (k) { c.o[k] += o[k]; ossz[k] += o[k]; });
       var e = { nev: m.nev, csapat: m.csapat, poz: m.pozicio, o: o }; c.tagok.push(e); emberek.push(e);
     });
-    var maxKil = Math.max.apply(null, emberek.map(function (e) { return e.o.kilatas; }).concat([1]));
+    var maxES = Math.max.apply(null, emberek.map(function (e) { return e.o.megkotott; }).concat([1]));
+    var maxCsES = Math.max.apply(null, csSor.map(function (c) { return c.o.megkotott; }).concat([1]));
 
     var vezerlo = '<select class="q" id="plIdo" aria-label="Termelési hónap">' + tkLista.map(function (k) {
         var a = termHoAdat(k); return '<option value="t' + k + '"' + (PL.idoszak === "t" + k ? " selected" : "") + ">" + esc(a.nev + (k === aktTk ? " – aktuális" : "")) + "</option>";
@@ -735,10 +732,9 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
 
     // fő kártyák: mint a havi nézetben (nagy egység-kártya heti bontással + két kisebb)
     var hmax = Math.max.apply(null, hetek.concat([1]));
-    html += '<div class="grid kpis"><section class="card reveal"><p class="k-label">Egység kilátás</p>' +
-      '<div class="k-num">' + szam(ossz.kilatas) + "<small>ES</small></div>" +
-      '<p class="k-sub">Megkötött: <b>' + szam(ossz.megkotott) + " ES</b>" + (ossz.spec ? " · spec: <b>" + szam(ossz.spec) + " ES</b>" : "") + " · " + pctHtml(arany(ossz.megkotott, ossz.kilatas)) + " a kilátásból</p>" +
-      bar(ossz.megkotott, ossz.kilatas, { big: true, ido: ido }) +
+    html += '<div class="grid kpis"><section class="card reveal"><p class="k-label">Leadott egység</p>' +
+      '<div class="k-num">' + szam(ossz.megkotott) + "<small>ES</small></div>" +
+      '<p class="k-sub">' + (ossz.spec ? "Spec: <b>" + szam(ossz.spec) + " ES</b> · " : "") + "<b>" + szam(emberek.filter(function (e) { return e.o.megkotott > 0; }).length) + "</b> munkatárs adott le</p>" +
       (hetSzam > 1 ? '<div class="weeks" style="--n:' + hetSzam + '">' + hetek.map(function (x) {
         return '<div class="' + (x ? "" : "zero") + '" style="height:' + Math.max(4, (x / hmax) * 100) + '%"><span>' + (x ? szam(x) : "") + "</span></div>";
       }).join("") + '</div><div class="weeks-l" style="--n:' + hetSzam + '">' + hetek.map(function (_, i) { return "<span>" + (i + 1) + ". hét</span>"; }).join("") + "</div>" : "") +
@@ -750,16 +746,16 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       '<p class="k-sub">' + pctHtml(arany(ossz.taMeg, ossz.n)) + " az elemzésekből</p>" + bar(ossz.taMeg, ossz.n, { big: true }) + "</section></div>";
 
     // csapatok: mint a havi nézet csapatkártyái
-    csSor.sort(function (a, b) { return b.o.kilatas - a.o.kilatas || b.o.n - a.o.n; });
+    csSor.sort(function (a, b) { return b.o.megkotott - a.o.megkotott || b.o.n - a.o.n; });
     html += '<h2>Csapatok</h2><div class="grid teams">' + csSor.map(function (c) {
-      var tagok = c.tagok.slice().sort(function (a, b) { return b.o.kilatas - a.o.kilatas || b.o.n - a.o.n || a.nev.localeCompare(b.nev, "hu"); });
-      return '<section class="card reveal"><div class="team-h"><h3>' + esc(c.nev) + "</h3><span>" + szam(c.o.kilatas) + " ES</span></div>" +
-        bar(c.o.megkotott, c.o.kilatas, {}) +
+      var tagok = c.tagok.slice().sort(function (a, b) { return b.o.megkotott - a.o.megkotott || b.o.n - a.o.n || a.nev.localeCompare(b.nev, "hu"); });
+      return '<section class="card reveal"><div class="team-h"><h3>' + esc(c.nev) + "</h3><span>" + szam(c.o.megkotott) + " ES</span></div>" +
+        bar(c.o.megkotott, maxCsES, {}) +
         '<div class="team-mini"><div><b>' + szam(c.o.n) + "</b>elemzés</div><div><b>" + szam(c.o.taIdo) + " · " + szazalek(arany(c.o.taIdo, c.o.n)) + "</b>TA időpont</div>" +
-        "<div><b>" + szam(c.o.megkotott) + " ES</b>megkötött</div></div>" +
+        "<div><b>" + szam(c.o.taMeg) + "</b>TA megvalósult</div></div>" +
         '<ul class="members">' + tagok.map(function (t) {
           return "<li" + (t.o.n ? "" : ' class="pl-nulla"') + '><div class="m-name"><b title="' + esc(t.nev) + '">' + esc(t.nev) + "</b>" + (t.poz ? '<span class="chip">' + esc(t.poz) + "</span>" : "") + "</div>" +
-            '<div class="m-units">' + bar(t.o.kilatas, maxKil, {}) + '<div class="bar-row"><span>' + szam(t.o.kilatas) + " ES kilátás</span><span>" + szam(t.o.megkotott) + " ES megkötött</span></div></div>" +
+            '<div class="m-units">' + bar(t.o.megkotott, maxES, {}) + '<div class="bar-row"><span>' + szam(t.o.megkotott) + " ES leadott</span>" + (t.o.spec ? "<span>spec " + szam(t.o.spec) + " ES</span>" : "") + "</div></div>" +
             '<div class="m-side"><div><b>' + szam(t.o.n) + "</b>elemzés</div><div><b>" + szam(t.o.taMeg) + "</b>TA megv.</div></div></li>";
         }).join("") + "</ul></section>";
     }).join("") + "</div>";
@@ -770,7 +766,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
         return '<li><div class="medal">' + (i + 1) + '</div><div class="t-name"><b>' + esc(e.nev) + "</b><span>" + esc(e.csapat) + '</span></div><div class="t-val"><b>' + szam(e.o[k]) + " " + egys + "</b><span>" + szam(e.o.n) + " elemzés</span></div></li>";
       }).join("") + "</ol>" : '<p class="k-sub">Ebben az időszakban még nincs adat.</p>') + "</section>";
     }
-    html += '<div class="grid lower">' + top("kilatas", "Egység kilátás toplista", "ES") + top("n", "Elemzés toplista", "db") + top("megkotott", "Megkötött ES toplista", "ES") + "</div>";
+    html += '<div class="grid lower">' + top("megkotott", "Leadott egység toplista", "ES") + top("n", "Elemzés toplista", "db") + top("taMeg", "TA megvalósult toplista", "db") + "</div>";
     return { vezerlo: vezerlo, html: html };
   }
   function pipelineEsemenyek() {
