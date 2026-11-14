@@ -106,6 +106,15 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   .pig { margin: 0; padding-left: 18px; font-size: .92rem; overflow-wrap: anywhere; }
   .pteendo { margin: 0; background: var(--warn-soft); color: var(--ink); border-radius: 10px; padding: 8px 12px; font-size: .9rem; overflow-wrap: anywhere; }
   .pk details summary { font-size: .82rem; }
+  button.pp { border: 0; cursor: pointer; font: inherit; font-size: .76rem; font-weight: 600; }
+  button.pp:hover { outline: 2px solid var(--line); }
+  .pk-jobb { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+  .pk-szerk { padding: 4px 10px; font-size: .8rem; }
+  .pk.szerk { border-left-color: var(--warn); }
+  .pm-racs { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+  .pm { display: flex; flex-direction: column; gap: 4px; font-size: .78rem; color: var(--muted); min-width: 0; }
+  .pm .mezo { border-width: 1px; padding: 7px 10px; font-size: .9rem; color: var(--ink); }
+  .pm textarea.mezo { min-height: 0; resize: vertical; }
   table.pt th { width: 40%; text-transform: none; letter-spacing: 0; font-size: .8rem; }
   table.pt td { overflow-wrap: anywhere; }
   section h3 { margin: 0 0 10px; font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
@@ -549,8 +558,10 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       hitel: oszlop(f, /hitelesítve/i), taIdo: oszlop(f, /tanácsadás időpont/i), portal: oszlop(f, /portál/i),
       ajanlas: oszlop(f, /^hány db/i), mtAjanlas: oszlop(f, /munkatársi ajánlás/i), fix: oszlop(f, /ráfixáltál/i), kt: oszlop(f, /kapcsolati tőké/i),
       cel: oszlop(f, /fő célja/i), kilatas: oszlop(f, /egység kilátás/i), spec: oszlop(f, /^specialista igény/i), minEll: oszlop(f, /min\.?\s*ell/i),
-      taMeg: oszlop(f, /ta megvalósult/i), teendo: oszlop(f, /^teendő/i), megkotott: oszlop(f, /megkötött es/i), specEs: oszlop(f, /spec\.?\s*es/i), csob: oszlop(f, /csob/i)
+      taMeg: oszlop(f, /megval[oó]s[uú]lt/i), teendo: oszlop(f, /teendő/i), megkotott: oszlop(f, /megkötött es/i), specEs: oszlop(f, /spec\.?\s*es/i), csob: oszlop(f, /csob/i),
+      kidolg: oszlop(f, /dolgozva/i), munk: oszlop(f, /^munkatárs/i)
     };
+    P.O = O;
     var igenyek = f.map(function (h, i) { return /^konkrét igény/i.test(h) ? i : -1; }).filter(function (i) { return i > -1; });
     var most = new Date(), ho = new Date(most.getFullYear(), most.getMonth(), 1), elozo = new Date(most.getFullYear(), most.getMonth() - 1, 1), ev = new Date(most.getFullYear(), 0, 1);
     var nap30 = new Date(most); nap30.setDate(nap30.getDate() - 30);
@@ -587,16 +598,21 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       var specOszl = {}; Object.keys(O).forEach(function (k) { if (O[k] > -1) specOszl[O[k]] = 1; }); igenyek.forEach(function (i) { specOszl[i] = 1; });
       html += '<div class="pkartyak">' + szurt.slice(0, P.mutat).map(function (x) {
         var r = x.r, kesz = igen(g(r, O.taMeg));
-        function pont(cim, i, ertek) { if (i < 0) return ""; var v = g(r, i); var cls = igen(v) ? "ok" : nem(v) ? "no" : v ? "" : "nincs"; return '<span class="pp ' + cls + '">' + (igen(v) ? "✓ " : nem(v) ? "✗ " : "") + cim + (ertek ? ": " + esc(ertek) : "") + "</span>"; }
+        function pont(cim, i) {
+          if (i < 0) return ""; var v = g(r, i); var cls = igen(v) ? "ok" : nem(v) ? "no" : v ? "" : "nincs";
+          var cimke = igen(v) ? "igen" : nem(v) ? "nem" : v ? v : "üres";
+          return '<button type="button" class="pp ' + cls + '" data-pipa="' + i + '" title="' + esc(cim + ": " + cimke + " – kattints a módosításhoz") + '">' + (igen(v) ? "✓ " : nem(v) ? "✗ " : "") + esc(cim) + (v && !igen(v) && !nem(v) ? ": " + esc(v) : "") + "</button>";
+        }
         var ig = igenyek.map(function (i) { return g(r, i); }).filter(String);
         var szamok = [[O.kilatas, "Egység kilátás"], [O.megkotott, "Megkötött"], [O.specEs, "Spec"]].filter(function (p) { return p[0] > -1 && g(r, p[0]); })
           .map(function (p) { return "<span>" + p[1] + ": <b>" + esc(g(r, p[0])) + " ES</b></span>"; }).join("");
         var tobbi = f.map(function (h, i) { return h && g(r, i) ? "<tr><th>" + esc(h) + "</th><td>" + esc(g(r, i)) + "</td></tr>" : ""; }).join("");
-        return '<article class="pk' + (kesz ? " kesz" : "") + '"><header><div><b>' + esc(g(r, O.ugyfel) || "Névtelen ügyfél") + "</b><span>" + esc(x.d ? x.d.toLocaleDateString("hu-HU", { year: "numeric", month: "short", day: "numeric" }) : g(r, O.datum)) +
-          (g(r, O.tipus) ? " · " + esc(g(r, O.tipus)) : "") + '</span></div><span class="allapot' + (kesz ? " ok" : "") + '">' + (kesz ? "✓ TA megvalósult" : "Nyitott") + "</span></header>" +
+        if (P.szerk === x.idx) return szerkKartya(x, O, f);
+        return '<article class="pk' + (kesz ? " kesz" : "") + '" data-idx="' + x.idx + '"><header><div><b>' + esc(g(r, O.ugyfel) || "Névtelen ügyfél") + "</b><span>" + esc(x.d ? x.d.toLocaleDateString("hu-HU", { year: "numeric", month: "short", day: "numeric" }) : g(r, O.datum)) +
+          (g(r, O.tipus) ? " · " + esc(g(r, O.tipus)) : "") + '</span></div><div class="pk-jobb"><span class="allapot' + (kesz ? " ok" : "") + '">' + (kesz ? "✓ TA megvalósult" : "Nyitott") + '</span><button type="button" class="gomb halk pk-szerk" data-szerk="1">✏️ Szerkesztés</button></div></header>' +
           '<div class="ppk">' + pont("Hitelesítve", O.hitel) + pont("Tanácsadás időpont", O.taIdo) + pont("Portál admin", O.portal) +
             (O.ajanlas > -1 ? '<span class="pp' + (szamv(g(r, O.ajanlas)) ? " ok" : " nincs") + '">Ajánlás: ' + (esc(g(r, O.ajanlas)) || "0") + (g(r, O.mtAjanlas) ? " + " + esc(g(r, O.mtAjanlas)) + " mt." : "") + "</span>" : "") +
-            pont("Fixálva", O.fix) + pont("Kapcsolati tőke", O.kt) + pont("Min. ell. hívás", O.minEll) + pont("CSOB", O.csob) + "</div>" +
+            pont("Fixálva", O.fix) + pont("Kapcsolati tőke", O.kt) + pont("Min. ell. kell?", O.minEll) + pont("Kidolgozva", O.kidolg) + pont("TA megvalósult", O.taMeg) + pont("CSOB", O.csob) + "</div>" +
           (szamok ? '<div class="pszam">' + szamok + "</div>" : "") +
           (g(r, O.cel) ? '<p class="pcel"><span>Cél:</span> ' + esc(g(r, O.cel)) + "</p>" : "") +
           (ig.length ? '<ul class="pig">' + ig.map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("") + "</ul>" : "") +
@@ -614,6 +630,66 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     $("pKeres").oninput = function () { P.keres = this.value; P.mutat = 30; var pos = this.selectionStart; rajzolPipe(mtId); var k = $("pKeres"); k.focus(); try { k.setSelectionRange(pos, pos); } catch (e) {} };
     $("pFrissit").onclick = function () { this.disabled = true; this.textContent = "Frissítés…"; pipeBetolt(mtId, true); };
     var t = $("pTobb"); if (t) t.onclick = function () { P.mutat += 30; rajzolPipe(mtId); };
+    el.onclick = function (e) { pipeKattint(mtId, e); };
+  }
+
+  /* ---------- pipeline szerkesztés ---------- */
+  function pipaOszlopok(O) { return [O.hitel, O.taIdo, O.portal, O.fix, O.kt, O.minEll, O.kidolg, O.taMeg, O.csob].filter(function (i) { return i > -1; }); }
+  function logikai(d, i) { return d.sorok.some(function (r) { return /^(true|false)$/i.test(String(r[i] || "")); }); }
+  function szerkKartya(x, O, f) {
+    var r = x.r, pipak = pipaOszlopok(O), mezok = "";
+    f.forEach(function (h, i) {
+      if (!h || i === O.datum || i === O.munk || pipak.indexOf(i) > -1) return;
+      var v = r[i] || "", hosszu = v.length > 60 || /fő célja|konkrét igény|teendő|témá|specialista/i.test(h);
+      mezok += '<label class="pm"><span>' + esc(h) + "</span>" + (hosszu
+        ? '<textarea class="mezo" data-o="' + i + '" rows="2">' + esc(v) + "</textarea>"
+        : '<input class="mezo" data-o="' + i + '" value="' + esc(v) + '">') + "</label>";
+    });
+    return '<article class="pk szerk" data-idx="' + x.idx + '"><header><div><b>' + esc(r[O.ugyfel] || "Névtelen ügyfél") + "</b><span>Szerkesztés · " + esc(r[O.datum] || "") + "</span></div></header>" +
+      '<div class="pm-racs">' + mezok + "</div>" +
+      '<p class="pforras" style="margin:0">Mentéskor az űrlapból jövő mezők az „Összes” lapra, a kézi oszlopok (egység kilátás, teendők, megkötött ES…) a munkatárs saját lapjára kerülnek. Az időbélyeg és a munkatárs neve nem módosítható.</p>' +
+      '<div class="sor"><span class="hiba" id="pmHiba"></span><button type="button" class="gomb halk jobbra" data-megse="1">Mégse</button><button type="button" class="gomb" data-mentes="1">Mentés</button></div></article>';
+  }
+  P.lanc = {};
+  function pipeMent(mtId, idx, valtozasok) {
+    var d0 = P.cache[mtId];
+    var elozo = P.lanc[mtId + ":" + idx] || Promise.resolve();
+    var p = elozo.catch(function () {}).then(function () {
+      var d = P.cache[mtId], ui = oszlop(d.fejlec, /ügyfél neve/i);
+      return api("pipelineMent", { munkatars_id: mtId, sor: d.sorszamok[idx], kulcs: d.kulcsok[idx], ugyfel: ui > -1 ? d.sorok[idx][ui] : "", valtozasok: valtozasok })
+        .then(function (res) {
+          var hossz = d.fejlec.length, uj = res.sor.slice(0, hossz); while (uj.length < hossz) uj.push("");
+          d.sorok[idx] = uj; d.kulcsok[idx] = res.kulcs; return res;
+        });
+    });
+    P.lanc[mtId + ":" + idx] = p;
+    return p;
+  }
+  function pipeKattint(mtId, e) {
+    var d = P.cache[mtId], O = P.O; if (!d || !O) return;
+    var kartya = e.target.closest("[data-idx]"); if (!kartya) return;
+    var idx = +kartya.dataset.idx, r = d.sorok[idx];
+    var pb = e.target.closest("[data-pipa]");
+    if (pb) {
+      var i = +pb.dataset.pipa, v = r[i] || "", bool = logikai(d, i), regi = v, uj;
+      if (bool) uj = igen(v) ? false : true; else uj = igen(v) ? false : nem(v) ? null : true;
+      r[i] = bool ? (uj ? "TRUE" : "FALSE") : (uj === true ? "Igen" : uj === false ? "Nem" : "");
+      rajzolPipe(mtId);
+      pipeMent(mtId, idx, [{ o: i, pipa: uj }]).then(function () { if (S.sel === mtId || (S.sajat && S.sajat.id === mtId)) rajzolPipe(mtId); })
+        .catch(function (err) { r[i] = regi; toast(err.message); rajzolPipe(mtId); });
+      return;
+    }
+    if (e.target.closest("[data-szerk]")) { P.szerk = idx; rajzolPipe(mtId); var f = kartya.parentNode && document.querySelector('.pk.szerk [data-o]'); if (f) f.focus(); return; }
+    if (e.target.closest("[data-megse]")) { P.szerk = null; rajzolPipe(mtId); return; }
+    var mb = e.target.closest("[data-mentes]");
+    if (mb) {
+      var valt = [];
+      kartya.querySelectorAll("[data-o]").forEach(function (m) { var o = +m.dataset.o, v = m.value.trim(); if (v !== (r[o] || "").trim()) valt.push({ o: o, ertek: v }); });
+      if (!valt.length) { P.szerk = null; rajzolPipe(mtId); return; }
+      mb.disabled = true; mb.textContent = "Mentés…"; $("pmHiba").textContent = "";
+      pipeMent(mtId, idx, valt).then(function () { P.szerk = null; toast("Mentve"); rajzolPipe(mtId); })
+        .catch(function (err) { var h = $("pmHiba"); if (h) h.textContent = err.message; mb.disabled = false; mb.textContent = "Mentés"; });
+    }
   }
 
   /* ---------- jelszócsere ---------- */
