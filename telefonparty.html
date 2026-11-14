@@ -71,6 +71,12 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbzjrOhZMlvI838NLxxwY12qFd
   .urlap { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; margin-top: 12px; }
   .urlap label { display: grid; gap: 4px; color: var(--muted); font-size: .82rem; }
   .mezo { border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 8px 10px; }
+  .torles { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px; margin: 2px 0 6px; font-size: .9rem; }
+  .torles span { flex: 1 1 260px; text-align: right; }
+  .link-torol { border: 0; background: none; color: var(--muted); cursor: pointer; font: inherit; font-size: .85rem; text-decoration: underline; text-underline-offset: 2px; padding: 4px 0; }
+  .link-torol:hover { color: var(--ink); }
+  .gomb.gomb-vesz { background: #ff8a7a; color: #3a0d08; padding: 8px 14px; }
+  .gomb.gomb-halk { background: transparent; color: var(--muted); border: 1px solid var(--line, rgba(255,255,255,.2)); padding: 8px 14px; }
   .gomb { border: 0; border-radius: 10px; padding: 10px 18px; font-weight: 700; cursor: pointer; background: var(--accent); color: var(--accent-ink); }
   .gomb[disabled] { opacity: .55; cursor: default; }
   .hiba { color: var(--warn); font-size: .9rem; margin: 8px 0 0; min-height: 1.2em; }
@@ -197,6 +203,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbzjrOhZMlvI838NLxxwY12qFd
       '<div class="kpi"><span>Már pipált</span><b id="kAktiv">' + aktiv + '</b><small>' + d.sorok.length + " munkatársból</small></div>" +
       (sajat ? '<div class="kpi"><span>Te</span><b id="kSajat">' + sajat.db + "</b><small>időpont</small></div>" : "") +
       "</div>";
+    if (p.torolhet) h += '<div class="torles" id="torles"><button class="link-torol" type="button" id="torolGomb">🗑 Ez a telefonparty törlése</button></div>';
 
     csapatok.forEach(function (c) {
       h += '<section class="csapat"><header><h2>' + esc(c.nev) + '</h2><span><b data-cs="' + esc(c.nev) + '">' + c.ossz + "</b> időpont</span></header>";
@@ -206,7 +213,24 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbzjrOhZMlvI838NLxxwY12qFd
     if (!d.sorok.length) h += '<p class="ures">A „Felber BL - CÉLOK” táblázatban nem találtam munkatársakat.</p>';
     if (d.letrehozhat) h += ujUrlap(false);
     app.innerHTML = h;
-    kotUrlap();
+    kotUrlap(); kotTorles();
+  }
+
+  /* ---------- törlés ---------- */
+  function kotTorles() {
+    var g = $("torolGomb"); if (!g) return;
+    g.onclick = function () {
+      var p = S.d.party, ossz = S.d.sorok.reduce(function (s, r) { return s + r.db; }, 0);
+      $("torles").innerHTML = '<span>Biztosan törlöd a(z) <b>' + esc(p.nev + " – " + p.datum) + '</b> telefonpartyt' + (ossz ? " és a benne lévő <b>" + ossz + " pipát</b>" : "") + '? Ez nem vonható vissza.</span>' +
+        '<button class="gomb gomb-vesz" type="button" id="torolIgen">Törlés</button><button class="gomb gomb-halk" type="button" id="torolNem">Mégse</button>';
+      $("torolNem").onclick = function () { rajzol(); };
+      $("torolIgen").onclick = function () {
+        this.disabled = true; this.textContent = "Törlés…";
+        api("telefonpartyTorol", { party_id: p.id }).then(function () {
+          S.partyId = ""; lsSet("tp_party", ""); toast("Telefonparty törölve"); return betolt();
+        }).catch(function (err) { toast(err.message); rajzol(); });
+      };
+    };
   }
 
   function sorHtml(r, helyek) {
