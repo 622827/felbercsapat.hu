@@ -598,15 +598,16 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   /* Termelési hónap: a hónap első keddjétől a következő hónap első keddjéig (az már a következőhöz tartozik). */
   var HONAPNEV = ["január", "február", "március", "április", "május", "június", "július", "augusztus", "szeptember", "október", "november", "december"];
   function elsoKedd(y, m) { var d = new Date(y, m, 1); d.setDate(1 + ((2 - d.getDay() + 7) % 7)); return d; }
+  /* A termelési hónap zárása a következő hónap első keddje (az még ide tartozik); a következő hónap az utána lévő nappal indul. */
+  function hoKezd(y, m) { var x = elsoKedd(y, m); x.setDate(x.getDate() + 1); return x; }
   function termHo(dt) {
     if (!dt) return null;
     var y = dt.getFullYear(), m = dt.getMonth(), nap = new Date(y, m, dt.getDate());
-    if (nap < elsoKedd(y, m)) { m--; if (m < 0) { m = 11; y--; } }
+    if (nap < hoKezd(y, m)) { m--; if (m < 0) { m = 11; y--; } }
     return y * 12 + m;
   }
   function termHoAdat(k) {
-    var y = Math.floor(k / 12), m = k % 12, tol = elsoKedd(y, m), ig = elsoKedd(m === 11 ? y + 1 : y, (m + 1) % 12);
-    var utolso = new Date(ig); utolso.setDate(utolso.getDate() - 1);
+    var y = Math.floor(k / 12), m = k % 12, tol = hoKezd(y, m), utolso = elsoKedd(m === 11 ? y + 1 : y, (m + 1) % 12);
     function r(d) { return d.toLocaleDateString("hu-HU", { month: "short", day: "numeric" }); }
     return { nev: y + ". " + HONAPNEV[m], idoszak: r(tol) + " – " + r(utolso) };
   }
@@ -633,7 +634,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     if (P.idoszak !== "osszes" && !egyedi && tkLista.indexOf(+P.idoszak.slice(1)) < 0) P.idoszak = "t" + aktTk;
     var valTk = P.idoszak === "osszes" || egyedi ? null : +P.idoszak.slice(1);
     function ymd(dt) { return dt.getFullYear() + "-" + String(dt.getMonth() + 1).padStart(2, "0") + "-" + String(dt.getDate()).padStart(2, "0"); }
-    if (egyedi && P.tol === undefined) { P.tol = ymd(elsoKedd(Math.floor(aktTk / 12), aktTk % 12)); P.ig = ymd(new Date()); }
+    if (egyedi && P.tol === undefined) { P.tol = ymd(hoKezd(Math.floor(aktTk / 12), aktTk % 12)); P.ig = ymd(new Date()); }
     var tolD = egyedi && P.tol ? new Date(P.tol + "T00:00:00") : null, igD = egyedi && P.ig ? new Date(P.ig + "T00:00:00") : null;
     if (igD) igD.setDate(igD.getDate() + 1);
     var idoszakban = mind.filter(function (x) {
