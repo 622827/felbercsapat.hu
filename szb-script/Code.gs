@@ -27,7 +27,9 @@ const LAPOK = {
   'Felhasználók': ['email', 'nev', 'szerep', 'munkatars_id', 'csapat', 'jelszo_hash', 'so', 'aktiv', 'letrehozva'],
   'Munkatársak': ['id', 'nev', 'csapat', 'pozicio', 'sorrend', 'aktiv'],
   'Jegyzetek': ['id', 'munkatars_id', 'datum', 'szoveg', 'mentve', 'szerzo', 'modositva'],
-  'Feladatok': ['id', 'munkatars_id', 'szoveg', 'hatarido', 'kesz', 'letrehozva', 'kesz_ido', 'szerzo']
+  'Feladatok': ['id', 'munkatars_id', 'szoveg', 'hatarido', 'kesz', 'letrehozva', 'kesz_ido', 'szerzo'],
+  'Telefonpartyk': ['id', 'nev', 'datum', 'helyek', 'letrehozva', 'szerzo'],
+  'Telefonparty': ['party_id', 'kulcs', 'nev', 'csapat', 'db', 'modositva', 'szerzo']
 };
 
 /* ================= belépési pont ================= */
@@ -59,6 +61,9 @@ function kezel_(k) {
     case 'feladatMent': return zarral_(function () { return feladatMent_(en, k); });
     case 'feladatAllit': return zarral_(function () { return feladatAllit_(en, k.id, !!k.kesz); });
     case 'feladatTorol': return zarral_(function () { return feladatTorol_(en, k.id); });
+    case 'telefonparty': return telefonparty_(en, k.party_id);
+    case 'telefonpartyPipal': return zarral_(function () { return telefonpartyPipal_(en, k.party_id, k.kulcs, k.db); });
+    case 'telefonpartyUj': return zarral_(function () { return telefonpartyUj_(en, k); });
     case 'jelszoCsere': return zarral_(function () { return jelszoCsere_(en, k.regi, k.uj); });
     case 'adatKulcsBeallit': admin_(en);
       if (!/^[0-9a-f]{128}$/.test(String(k.kulcs || ''))) hiba_('Hibás kulcs.');
@@ -281,6 +286,89 @@ function jelszoCsere_(en, regi, uj) {
   const so = ujSo_();
   frissit_('Felhasználók', en._sor, { jelszo_hash: lenyomat_(uj, so), so: so });
   return { ok: true };
+}
+
+/* ================= telefonparty ================= */
+
+/**
+ * Telefonparty: minden munkatársnak (a „Felber BL - CÉLOK” aktuális havi csapatai alapján, a vezetőkkel együtt)
+ * van egy sora, amelyben kipipálja, hány ügyfélidőpontot tett be. Mindenki látja és pipálhatja az egészet.
+ */
+function telefonparty_(en, partyId) {
+  const partyk = sorok_('Telefonpartyk').map(function (p) { return { id: p.id, nev: p.nev, datum: p.datum, helyek: Number(p.helyek) || 10 }; })
+    .sort(function (a, b) { return a.datum < b.datum ? 1 : a.datum > b.datum ? -1 : 0; });
+  const party = partyk.filter(function (p) { return p.id === partyId; })[0] || partyk[0] || null;
+  const emberek = telefonEmberek_();
+  const db = {};
+  if (party) sorok_('Telefonparty').forEach(function (r) { if (r.party_id === party.id) db[r.kulcs] = { db: Number(r.db) || 0, modositva: r.modositva }; });
+  const sorok = emberek.map(function (e) {
+    const x = db[e.kulcs] || { db: 0, modositva: '' };
+    return { kulcs: e.kulcs, nev: e.nev, csapat: e.csapat, vezeto: e.vezeto, poz: e.poz, db: x.db, modositva: x.modositva, szerk: tpSzerk_(en, e) };
+  });
+  return { en: enAdat_(en), sajat: nevNorm_(en.nev), letrehozhat: en.szerep !== 'munkatars', partyk: partyk, party: party, sorok: sorok, ido: most_() };
+}
+
+/** Bárki bármelyik sort pipálhatja (belépett felhasználó). */
+function tpSzerk_(en, e) { return true; }
+
+function telefonpartyPipal_(en, partyId, kulcs, db) {
+  const party = sorok_('Telefonpartyk').filter(function (p) { return p.id === partyId; })[0];
+  if (!party) hiba_('A telefonparty nem található.');
+  const e = telefonEmberek_().filter(function (x) { return x.kulcs === kulcs; })[0];
+  if (!e) hiba_('A munkatárs nem található.');
+  if (!tpSzerk_(en, e)) hiba_('Ezt a sort nem pipálhatod.');
+  const n = Math.max(0, Math.min(Number(party.helyek) || 10, Math.floor(Number(db) || 0)));
+  const meglevo = sorok_('Telefonparty').filter(function (r) { return r.party_id === partyId && r.kulcs === kulcs; })[0];
+  const adat = { nev: e.nev, csapat: e.csapat, db: String(n), modositva: most_(), szerzo: en.email };
+  if (meglevo) frissit_('Telefonparty', meglevo._sor, adat);
+  else { adat.party_id = partyId; adat.kulcs = kulcs; hozzaad_('Telefonparty', adat); }
+  return { ok: true, db: n };
+}
+
+function telefonpartyUj_(en, k) {
+  if (en.szerep === 'munkatars') hiba_('Új telefonpartyt a vezető vagy az admin indíthat.');
+  const datum = /^\d{4}-\d{2}-\d{2}$/.test(k.datum || '') ? k.datum : most_().slice(0, 10);
+  const nev = String(k.nev || '').trim().slice(0, 80) || 'Telefonparty';
+  const helyek = Math.max(1, Math.min(40, Math.floor(Number(k.helyek) || 10)));
+  if (k.id) {
+    const p = sorok_('Telefonpartyk').filter(function (x) { return x.id === k.id; })[0];
+    if (!p) hiba_('A telefonparty nem található.');
+    frissit_('Telefonpartyk', p._sor, { nev: nev, datum: datum, helyek: String(helyek) });
+    return { ok: true, id: k.id };
+  }
+  const id = ujId_();
+  hozzaad_('Telefonpartyk', { id: id, nev: nev, datum: datum, helyek: String(helyek), letrehozva: most_(), szerzo: en.email });
+  return { ok: true, id: id };
+}
+
+/**
+ * A telefonparty sorai: a „Felber BL - CÉLOK” legfrissebb negyedéves lapjának aktuális hónapja (ha nincs, az utolsó)
+ * csapatonként, a vezetővel kezdve. 10 percig gyorsítótárazva.
+ */
+function telefonEmberek_() {
+  const cache = CacheService.getScriptCache(), c = cache.get('tp_emberek');
+  if (c) return JSON.parse(c);
+  const ss = SpreadsheetApp.openById(CELOK_TABLAZAT_ID);
+  const lapok = ss.getSheets().map(function (l) { return l.getName(); }).filter(function (n) { return /^\d{4} Q[1-4]$/.test(n); }).sort().reverse();
+  let lista = [];
+  if (lapok.length) {
+    const honapok = feldolgoz(ss.getSheetByName(lapok[0]).getRange('A1:AE120').getDisplayValues());
+    const nevek = ['január', 'február', 'március', 'április', 'május', 'június', 'július', 'augusztus', 'szeptember', 'október', 'november', 'december'];
+    const most = nevek[new Date().getMonth()];
+    const h = honapok.filter(function (x) { return String(x.nev).trim().toLowerCase() === most && x.csapatok.length; })[0] ||
+      honapok.filter(function (x) { return x.csapatok.length; }).pop();
+    const volt = {};
+    if (h) h.csapatok.forEach(function (cs) {
+      cs.tagok.forEach(function (t) {
+        const kulcs = nevNorm_(t.nev);
+        if (!kulcs || volt[kulcs]) return;
+        volt[kulcs] = true;
+        lista.push({ kulcs: kulcs, nev: t.nev, csapat: cs.nev, vezeto: !!t.vezeto, poz: t.poz || '' });
+      });
+    });
+  }
+  cache.put('tp_emberek', JSON.stringify(lista), 600);
+  return lista;
 }
 
 /* ================= admin ================= */

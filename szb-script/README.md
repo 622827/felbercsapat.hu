@@ -57,6 +57,17 @@ látszik, kit vett fel.
 - A táblázatot ne szerkeszd kézzel, amíg mások használják az oldalt (a sorrend fontos az azonosításhoz).
   Olvasni, szűrni, exportálni nyugodtan lehet.
 
+## Telefonparty
+
+A felbercsapat.hu → **📞 Telefonparty** gomb (telefonparty.html) ugyanezt az Apps Scriptet és belépést használja.
+
+- Minden munkatársnak van egy sora (a „Felber BL - CÉLOK” legfrissebb negyedéves lapjának aktuális hónapja szerint,
+  csapatonként, a vezetőkkel együtt), benne pipákkal: ahány pipa, annyi betett ügyfélidőpont.
+- Mindenki látja az egészet, és bárki bármelyik sort pipálhatja.
+- Új telefonpartyt (név, dátum, pipák száma) a csapatvezető vagy az admin indíthat; a korábbiak a legördülőből választhatók.
+- Az adatok a táblázat „Telefonpartyk” és „Telefonparty” lapjára kerülnek (maguktól létrejönnek).
+- A névsor 10 percig gyorsítótárazott, így egy új csapattag legfeljebb 10 perc múlva jelenik meg.
+
 ## Kódmódosítás után
 
 **Telepítés → Telepítések kezelése → ✏️ → Verzió: Új verzió → Telepítés.** Az URL nem változik.
