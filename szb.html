@@ -106,6 +106,18 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   .pig { margin: 0; padding-left: 18px; font-size: .92rem; overflow-wrap: anywhere; }
   .pteendo { margin: 0; background: var(--warn-soft); color: var(--ink); border-radius: 10px; padding: 8px 12px; font-size: .9rem; overflow-wrap: anywhere; }
   .pk details summary { font-size: .82rem; }
+  .pp-dupla { display: inline-flex; align-items: center; gap: 4px; font-size: .76rem; font-weight: 600; padding: 2px 3px 2px 9px; border-radius: 99px; background: var(--track); color: var(--muted); }
+  .pp-dupla.ig { background: rgba(255,200,87,.18); color: var(--ink); }
+  .pp-dupla button { border: 0; border-radius: 99px; padding: 1px 9px; font: inherit; font-size: .74rem; font-weight: 700; cursor: pointer; background: transparent; color: var(--muted); }
+  .pp-dupla button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+  .pp-dupla button[data-minell="1"][aria-pressed="true"] { background: var(--warn); color: #3b2a00; }
+  .ertesitesek { background: var(--warn-soft); border-radius: 14px; padding: 10px 12px; display: grid; gap: 8px; }
+  .ertesitesek h2 { margin: 0; font-size: .8rem; letter-spacing: .04em; color: var(--warn); }
+  .ert { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+  .ert b { display: block; font-size: .9rem; }
+  .ert span { display: block; font-size: .75rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ert-gombok { display: flex; gap: 8px; align-items: center; }
+  .ert-kesz { padding: 4px 10px; font-size: .78rem; }
   button.pp { border: 0; cursor: pointer; font: inherit; font-size: .76rem; font-weight: 600; }
   button.pp:hover { outline: 2px solid var(--line); }
   .pk-jobb { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
@@ -206,6 +218,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       <div class="heti-sav" aria-hidden="true"><i id="hetiSav" style="width:0"></i></div>
     </div>
     <input class="mezo" type="search" id="kereso" placeholder="Munkatárs keresése" aria-label="Munkatárs keresése" style="padding:9px 12px;border-width:1px">
+    <div id="ertesitesek" class="ertesitesek" hidden></div>
     <nav id="lista" aria-label="Munkatársak"></nav>
     <div class="lent">
       <div id="adminLent" hidden>
@@ -310,7 +323,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   function betolt() {
     if (S.betolt) return Promise.resolve(); S.betolt = true;
     return api("adatok").then(function (d) {
-      S.en = d.en; S.sajat = d.sajat || null; S.mt = d.munkatarsak; S.jegy = d.jegyzetek; S.fel = d.feladatok; S.nevek = d.nevek || {};
+      S.en = d.en; S.sajat = d.sajat || null; S.mt = d.munkatarsak; S.jegy = d.jegyzetek; S.fel = d.feladatok; S.nevek = d.nevek || {}; S.ertesitesek = d.ertesitesek || [];
       if (S.en.szerep === "munkatars" && !S.sel && S.mt[0]) S.sel = S.mt[0].id;
       rajzolMinden();
     }).catch(function (e) { $("heti").textContent = e.message; }).then(function () { S.betolt = false; });
@@ -331,12 +344,37 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     $("enNev").textContent = S.en.nev || S.en.email;
     $("adminLent").hidden = !admin();
     $("kereso").hidden = S.mt.length < 2;
+    rajzolErtesitesek();
     rajzolLista();
     if (S.nezet !== "mt") return;
     if (!$("jegyzetForm") || (aktualis() === null)) rajzolReszletVaz();
     else { rajzolJegyzetek(); rajzolFeladatok(); rajzolAllapot(); }
     if (S.sel) $("app").classList.add("reszletben");
   }
+
+  /* ---------- értesítések (minőség-ellenőrző hívás) ---------- */
+  function rajzolErtesitesek() {
+    var el = $("ertesitesek"), l = S.ertesitesek || [];
+    el.hidden = !l.length; if (!l.length) { el.innerHTML = ""; return; }
+    el.innerHTML = '<h2>🔔 Minőség-ellenőrző hívás (' + l.length + ")</h2>" + l.map(function (e) {
+      return '<div class="ert" data-ert="' + esc(e.id) + '"><div><b>' + esc(e.munkatars_nev) + "</b><span>" + esc(e.ugyfel || "ügyfél") + " · " + esc(ido(e.letrehozva)) + "</span></div>" +
+        '<div class="ert-gombok"><button type="button" class="link" data-ert-nyit="' + esc(e.munkatars_id) + '" data-ugyfel="' + esc(e.ugyfel) + '">Megnyitás</button><button type="button" class="gomb ert-kesz" data-ert-kesz="' + esc(e.id) + '">Kész</button></div></div>';
+    }).join("");
+  }
+  $("ertesitesek").addEventListener("click", function (e) {
+    var ny = e.target.closest("[data-ert-nyit]"), k = e.target.closest("[data-ert-kesz]");
+    if (ny) {
+      var id = ny.dataset.ertNyit;
+      if (!S.mt.some(function (m) { return m.id === id; })) { toast("Ez a munkatárs nincs a listádban."); return; }
+      S.ful = "pipeline"; lsSet("szb_ful", "pipeline"); P.keres = ny.dataset.ugyfel || ""; P.allapot = "mind"; P.idoszak = "osszes"; P.mutat = 30;
+      S.sel = null; valaszt(id); return;
+    }
+    if (k) {
+      k.disabled = true; var eid = k.dataset.ertKesz;
+      api("ertesitesKesz", { id: eid }).then(function () { S.ertesitesek = S.ertesitesek.filter(function (x) { return x.id !== eid; }); rajzolErtesitesek(); toast("Kész"); })
+        .catch(function (err) { k.disabled = false; toast(err.message); });
+    }
+  });
 
   /* ---------- lista ---------- */
   function rajzolLista() {
@@ -598,6 +636,11 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       var specOszl = {}; Object.keys(O).forEach(function (k) { if (O[k] > -1) specOszl[O[k]] = 1; }); igenyek.forEach(function (i) { specOszl[i] = 1; });
       html += '<div class="pkartyak">' + szurt.slice(0, P.mutat).map(function (x) {
         var r = x.r, kesz = igen(g(r, O.taMeg));
+        function minEll(i) {
+          if (i < 0) return ""; var v = g(r, i), ig = igen(v), nm = nem(v);
+          return '<span class="pp-dupla' + (ig ? " ig" : "") + '" title="Minőség-ellenőrző hívás kell?">Min. ell. kell?' +
+            '<button type="button" data-minell="1" data-o="' + i + '" aria-pressed="' + ig + '">Igen</button><button type="button" data-minell="0" data-o="' + i + '" aria-pressed="' + nm + '">Nem</button></span>';
+        }
         function pont(cim, i) {
           if (i < 0) return ""; var v = g(r, i); var cls = igen(v) ? "ok" : nem(v) ? "no" : v ? "" : "nincs";
           var cimke = igen(v) ? "igen" : nem(v) ? "nem" : v ? v : "üres";
@@ -612,7 +655,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
           (g(r, O.tipus) ? " · " + esc(g(r, O.tipus)) : "") + '</span></div><div class="pk-jobb"><span class="allapot' + (kesz ? " ok" : "") + '">' + (kesz ? "✓ TA megvalósult" : "Nyitott") + '</span><button type="button" class="gomb halk pk-szerk" data-szerk="1">✏️ Szerkesztés</button></div></header>' +
           '<div class="ppk">' + pont("Hitelesítve", O.hitel) + pont("Tanácsadás időpont", O.taIdo) + pont("Portál admin", O.portal) +
             (O.ajanlas > -1 ? '<span class="pp' + (szamv(g(r, O.ajanlas)) ? " ok" : " nincs") + '">Ajánlás: ' + (esc(g(r, O.ajanlas)) || "0") + (g(r, O.mtAjanlas) ? " + " + esc(g(r, O.mtAjanlas)) + " mt." : "") + "</span>" : "") +
-            pont("Fixálva", O.fix) + pont("Kapcsolati tőke", O.kt) + pont("Min. ell. kell?", O.minEll) + pont("Kidolgozva", O.kidolg) + pont("TA megvalósult", O.taMeg) + pont("CSOB", O.csob) + "</div>" +
+            pont("Fixálva", O.fix) + pont("Kapcsolati tőke", O.kt) + minEll(O.minEll) + pont("Kidolgozva", O.kidolg) + pont("TA megvalósult", O.taMeg) + pont("CSOB", O.csob) + "</div>" +
           (szamok ? '<div class="pszam">' + szamok + "</div>" : "") +
           (g(r, O.cel) ? '<p class="pcel"><span>Cél:</span> ' + esc(g(r, O.cel)) + "</p>" : "") +
           (ig.length ? '<ul class="pig">' + ig.map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("") + "</ul>" : "") +
@@ -669,6 +712,15 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     var d = P.cache[mtId], O = P.O; if (!d || !O) return;
     var kartya = e.target.closest("[data-idx]"); if (!kartya) return;
     var idx = +kartya.dataset.idx, r = d.sorok[idx];
+    var me = e.target.closest("[data-minell]");
+    if (me) {
+      var mi = +me.dataset.o, ertek = me.dataset.minell === "1", mv = r[mi] || "";
+      if ((ertek && igen(mv)) || (!ertek && nem(mv))) return;
+      r[mi] = ertek ? "Igen" : "Nem"; rajzolPipe(mtId);
+      pipeMent(mtId, idx, [{ o: mi, pipa: ertek }]).then(function () { toast(ertek && S.en && S.en.szerep === "munkatars" ? "Mentve – a vezetőd értesítést kapott" : "Mentve"); rajzolPipe(mtId); })
+        .catch(function (err) { r[mi] = mv; toast(err.message); rajzolPipe(mtId); });
+      return;
+    }
     var pb = e.target.closest("[data-pipa]");
     if (pb) {
       var i = +pb.dataset.pipa, v = r[i] || "", bool = logikai(d, i), regi = v, uj;
