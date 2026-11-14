@@ -29,7 +29,8 @@ const LAPOK = {
   'Jegyzetek': ['id', 'munkatars_id', 'datum', 'szoveg', 'mentve', 'szerzo', 'modositva'],
   'Feladatok': ['id', 'munkatars_id', 'szoveg', 'hatarido', 'kesz', 'letrehozva', 'kesz_ido', 'szerzo'],
   'Telefonpartyk': ['id', 'nev', 'datum', 'helyek', 'letrehozva', 'szerzo'],
-  'Telefonparty': ['party_id', 'kulcs', 'nev', 'csapat', 'db', 'modositva', 'szerzo']
+  'Telefonparty': ['party_id', 'kulcs', 'nev', 'csapat', 'db', 'modositva', 'szerzo'],
+  'Értesítések': ['id', 'tipus', 'munkatars_id', 'munkatars_nev', 'ugyfel', 'kulcs', 'cimzettek', 'letrehozva', 'szerzo', 'kesz', 'kesz_ido', 'kesz_szerzo']
 };
 
 /* ================= belépési pont ================= */
@@ -66,6 +67,7 @@ function kezel_(k) {
     case 'telefonpartyPipal': return zarral_(function () { return telefonpartyPipal_(en, k.party_id, k.kulcs, k.db); });
     case 'telefonpartyUj': return zarral_(function () { return telefonpartyUj_(en, k); });
     case 'telefonpartyTorol': return zarral_(function () { return telefonpartyTorol_(en, k.party_id); });
+    case 'ertesitesKesz': return zarral_(function () { return ertesitesKesz_(en, k.id); });
     case 'jelszoCsere': return zarral_(function () { return jelszoCsere_(en, k.regi, k.uj); });
     case 'adatKulcsBeallit': admin_(en);
       if (!/^[0-9a-f]{128}$/.test(String(k.kulcs || ''))) hiba_('Hibás kulcs.');
@@ -287,6 +289,12 @@ function pipelineMent_(en, k) {
     if (!lap) hiba_('Ennek a munkatársnak nincs saját lapja az Elemzés összegzőben, ezért a kézi oszlopok nem menthetők.');
     kezi.forEach(function (v) { irCella_(lap, sor, v.o + 1, v, fej[v.o]); });
   }
+  // Minőség-ellenőrző hívás: „igen” → értesítés a közvetlen vezetőnek; „nem”/üres → a nyitott értesítés törlése.
+  valt.forEach(function (v) {
+    if (!/min\.?\s*ell/i.test(fej[v.o] || '') || !Object.prototype.hasOwnProperty.call(v, 'pipa')) return;
+    if (v.pipa === true) minEllErtesites_(en, m, k.kulcs, ugyfelI > -1 ? String(sorErtek[ugyfelI] || '').trim() : String(k.ugyfel || ''));
+    else minEllErtesitesTorol_(m.id, k.kulcs);
+  });
   SpreadsheetApp.flush();
   let utolso = fej.length; while (utolso > 0 && !fej[utolso - 1]) utolso--;
   const friss = forras.getRange(sor, 1, 1, oszlopN).getDisplayValues()[0].slice(0, utolso).map(function (c) { return String(c).trim(); });
@@ -313,6 +321,48 @@ function irCella_(lap, sor, oszlop, v, fejlec) {
   cella.setValue(/^[=+\-@]/.test(s) ? "'" + s : s);
 }
 
+/* ================= értesítések ================= */
+
+/**
+ * A munkatárs közvetlen vezetője: a csapata aktív vezető felhasználói. Ha a csapatnak nincs külön vezetője
+ * (pl. a BL saját csapata), vagy a munkatárs maga vezető, akkor az admin(ok).
+ */
+function kozvetlenVezetok_(m) {
+  const felh = sorok_('Felhasználók').filter(function (f) { return f.aktiv !== 'nem'; });
+  const vezetoE = felh.filter(function (f) { return f.szerep === 'vezeto'; });
+  const sajatVezeto = vezetoE.some(function (f) { return nevNorm_(f.nev) === nevNorm_(m.nev); });
+  const csapatVezetok = sajatVezeto ? [] : vezetoE.filter(function (f) { return f.csapat && f.csapat === m.csapat; });
+  const lista = csapatVezetok.length ? csapatVezetok : felh.filter(function (f) { return f.szerep === 'admin'; });
+  return lista.map(function (f) { return f.email.toLowerCase(); });
+}
+
+function minEllErtesites_(en, m, kulcs, ugyfel) {
+  const nyitott = sorok_('Értesítések').some(function (e) { return e.tipus === 'minell' && e.munkatars_id === m.id && e.kulcs === String(kulcs) && e.kesz !== 'igen'; });
+  if (nyitott) return;
+  const cimzettek = kozvetlenVezetok_(m).filter(function (e) { return e !== String(en.email).toLowerCase(); });
+  if (!cimzettek.length) return;
+  hozzaad_('Értesítések', { id: ujId_(), tipus: 'minell', munkatars_id: m.id, munkatars_nev: m.nev, ugyfel: ugyfel, kulcs: String(kulcs), cimzettek: cimzettek.join(','), letrehozva: most_(), szerzo: en.email, kesz: '', kesz_ido: '', kesz_szerzo: '' });
+}
+
+function minEllErtesitesTorol_(mtId, kulcs) {
+  sorok_('Értesítések').filter(function (e) { return e.tipus === 'minell' && e.munkatars_id === mtId && e.kulcs === String(kulcs) && e.kesz !== 'igen'; })
+    .map(function (e) { return e._sor; }).sort(function (a, b) { return b - a; }).forEach(function (s) { torol_('Értesítések', s); });
+}
+
+function sajatErtesitesek_(en) {
+  const email = String(en.email).toLowerCase();
+  return sorok_('Értesítések').filter(function (e) { return e.kesz !== 'igen' && e.cimzettek.split(',').indexOf(email) > -1; })
+    .map(function (e) { return { id: e.id, tipus: e.tipus, munkatars_id: e.munkatars_id, munkatars_nev: e.munkatars_nev, ugyfel: e.ugyfel, letrehozva: e.letrehozva, szerzo: e.szerzo }; });
+}
+
+function ertesitesKesz_(en, id) {
+  const e = sorok_('Értesítések').filter(function (x) { return x.id === id; })[0];
+  if (!e) return { ok: true };
+  if (en.szerep !== 'admin' && e.cimzettek.split(',').indexOf(String(en.email).toLowerCase()) < 0) hiba_('Ez nem a te értesítésed.');
+  frissit_('Értesítések', e._sor, { kesz: 'igen', kesz_ido: most_(), kesz_szerzo: en.email });
+  return { ok: true };
+}
+
 /* ================= adatok ================= */
 
 function adatok_(en) {
@@ -325,7 +375,7 @@ function adatok_(en) {
   sorok_('Felhasználók').forEach(function (f) { if (kell[f.email]) nevek[f.email] = f.nev || ''; });
   let sajat = null;
   if (en.szerep === 'vezeto') { const sid = sajatId_(en); sajat = sorok_('Munkatársak').filter(function (x) { return x.id === sid && x.aktiv !== 'nem'; }).map(tisztit)[0] || null; }
-  return { en: enAdat_(en), sajat: sajat, munkatarsak: lathatoMunkatarsak_(en).map(tisztit), jegyzetek: jegyzetek, feladatok: feladatok, nevek: nevek, ido: most_() };
+  return { en: enAdat_(en), sajat: sajat, munkatarsak: lathatoMunkatarsak_(en).map(tisztit), jegyzetek: jegyzetek, feladatok: feladatok, nevek: nevek, ertesitesek: sajatErtesitesek_(en), ido: most_() };
 }
 
 function jegyzetMent_(en, k) {
