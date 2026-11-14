@@ -394,7 +394,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       var c = m.csapat || "Egyéb"; if (!csop[c]) { csop[c] = []; sor.push(c); } csop[c].push(m);
     });
     $("csapatok").innerHTML = Object.keys(S.mt.reduce(function (o, m) { if (m.csapat) o[m.csapat] = 1; return o; }, {})).map(function (c) { return '<option value="' + esc(c) + '">'; }).join("");
-    var sajatGomb = S.sajat ? '<div class="csapat"><h2>Saját</h2><button class="mt" data-sajat="1" data-id="' + esc(S.sajat.id) + '" aria-current="' + (S.sajatMod && S.nezet === "mt") + '"><span class="pont ok" aria-hidden="true">📈</span><span><b>' + esc(S.sajat.nev) + '</b><small>Saját pipeline</small></span><span></span></button></div>' : "";
+    var sajatGomb = S.sajat ? '<div class="csapat"><h2>Saját</h2><button class="mt" data-sajat="1" data-id="' + esc(S.sajat.id) + '" aria-current="' + (S.sajatMod && S.nezet === "mt") + '"><span class="pont ok" aria-hidden="true">📈</span><span><b>' + esc(S.sajat.nev) + '</b><small>Saját elemzés összegző</small></span><span></span></button></div>' : "";
     if (!S.mt.length && sajatGomb) { $("lista").innerHTML = sajatGomb; return; }
     if (!S.mt.length) { $("lista").innerHTML = '<p class="ures">' + (admin() ? "Vedd fel a munkatársakat lent a „+ Munkatárs hozzáadása” vagy a „Felhasználók kezelése” résznél." : "A vezetőd még nem rendelt hozzád munkatársi lapot.") + "</p>"; return; }
     $("lista").innerHTML = sajatGomb + sor.map(function (c) {
@@ -424,8 +424,8 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     if (!m) { main.innerHTML = '<div class="kezdo"><div><h2>Válassz munkatársat</h2><p>Bal oldalt kattints egy névre: ott írhatod az SZB jegyzetet és a megbeszélt feladatokat.</p></div></div>'; return; }
     if (S.sajatMod) {
       main.innerHTML = '<div class="lap"><button class="vissza" id="vissza" type="button">← Munkatársak</button>' +
-        '<div class="fej"><div><h2>' + esc(m.nev) + '</h2><p>Saját pipeline – a saját elemzéseid az Elemzés összegzőből</p></div></div>' +
-        '<section><div id="pipe" class="pipe"><p class="ures">Pipeline betöltése…</p></div></section></div>';
+        '<div class="fej"><div><h2>' + esc(m.nev) + '</h2><p>Saját elemzés összegző – a saját elemzéseid</p></div></div>' +
+        '<section><div id="pipe" class="pipe"><p class="ures">Elemzés összegző betöltése…</p></div></section></div>';
       $("vissza").onclick = function () { $("app").classList.remove("reszletben"); S.sel = null; S.sajatMod = false; rajzolLista(); };
       pipeBetolt(m.id); return;
     }
@@ -436,10 +436,10 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
         (S.mt.length <= 1 ? '<p class="fiok" style="margin-top:6px">Belépve: <b>' + esc(S.en.nev || S.en.email) + '</b> ' + (AUTO ? "" : '<button class="link" type="button" data-a="jelszo">Jelszócsere</button> ') + '<button class="link" type="button" data-a="kilep">Kilépés</button></p>' : "") +
         '</div><span class="allapot" id="allapot"></span></div>' +
       '<div class="fulek" role="tablist" aria-label="Munkatárs menü">' +
-        '<button type="button" role="tab" data-ful="pipeline" aria-selected="' + (S.ful === "pipeline") + '"><span aria-hidden="true">📈</span>Pipeline</button>' +
+        '<button type="button" role="tab" data-ful="pipeline" aria-selected="' + (S.ful === "pipeline") + '"><span aria-hidden="true">📈</span>Elemzés összegző</button>' +
         '<button type="button" role="tab" data-ful="szb" aria-selected="' + (S.ful === "szb") + '"><span aria-hidden="true">📝</span>Kontroll SZB</button></div>' +
-      '<div id="fulValaszt" class="ures"' + (S.ful ? " hidden" : "") + '>Válaszd ki fent, mit nyitsz meg: <b>Pipeline</b> vagy <b>Kontroll SZB</b>.</div>' +
-      '<div id="fulPipeline" class="ful"' + (S.ful === "pipeline" ? "" : " hidden") + '><section><div id="pipe" class="pipe"><p class="ures">Pipeline betöltése…</p></div></section></div>' +
+      '<div id="fulValaszt" class="ures"' + (S.ful ? " hidden" : "") + '>Válaszd ki fent, mit nyitsz meg: <b>Elemzés összegző</b> vagy <b>Kontroll SZB</b>.</div>' +
+      '<div id="fulPipeline" class="ful"' + (S.ful === "pipeline" ? "" : " hidden") + '><section><div id="pipe" class="pipe"><p class="ures">Elemzés összegző betöltése…</p></div></section></div>' +
       '<div id="fulSzb" class="ful"' + (S.ful === "szb" ? "" : " hidden") + '>' +
       '<section><h3>Új SZB jegyzet</h3><form class="szerkeszto" id="jegyzetForm">' +
         '<textarea id="jegyzetSzoveg" aria-label="SZB jegyzet" placeholder="Milyen volt a múlt hét? Mi a terv a jövő hétre? Bármi, amit meg akarsz jegyezni…">' + esc(vazlat) + "</textarea>" +
@@ -587,7 +587,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     var el = $("pipe"); if (!el) return;
     var c = P.cache[mtId];
     if (c && !frissit) { rajzolPipe(mtId); return; }
-    if (!c) el.innerHTML = '<p class="ures">Pipeline betöltése…</p>';
+    if (!c) el.innerHTML = '<p class="ures">Elemzés összegző betöltése…</p>';
     api("pipeline", { munkatars_id: mtId }).then(function (d) { P.cache[mtId] = d; if (S.sel === mtId) rajzolPipe(mtId); })
       .catch(function (e) { if (S.sel === mtId && $("pipe")) $("pipe").innerHTML = '<p class="ures">' + esc(e.message) + "</p>"; });
   }

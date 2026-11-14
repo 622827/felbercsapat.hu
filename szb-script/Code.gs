@@ -20,7 +20,7 @@ const MUNKAMENET_NAP = 60;
 
 /* Google-csoport szinkron: a csoport tagjai automatikusan felhasználók lesznek (óránként). */
 const CSOPORT_EMAIL = 'felber-csapat@googlegroups.com';
-const ELEMZES_TABLAZAT_ID = '1zHKPw1AfyDcGJ47TjvjzGOTFfaruDY72oJzD5s4iI1U'; // „Elemzés összegző”: a Pipeline forrása
+const ELEMZES_TABLAZAT_ID = '1zHKPw1AfyDcGJ47TjvjzGOTFfaruDY72oJzD5s4iI1U'; // „Elemzés összegző” táblázat
 const CELOK_TABLAZAT_ID = '1O0ujAN7klANbmvpnF_FuFJ-KdDyf6lChshpWTziMZSk'; // „Felber BL - CÉLOK”: ki vezető, ki munkatárs
 
 const LAPOK = {
@@ -298,12 +298,12 @@ function pipelineMent_(en, k) {
   if (!osszes) hiba_('Az „Összes” lap nem található.');
   const forras = lap || osszes, formN = urlapOszlopSzam_(osszes);
   const oszlopN = forras.getLastColumn(), sor = Math.floor(Number(k.sor));
-  if (!(sor >= 2 && sor <= forras.getLastRow())) hiba_('A sor nem található. Frissítsd a Pipeline-t (↻), és próbáld újra.');
+  if (!(sor >= 2 && sor <= forras.getLastRow())) hiba_('A sor nem található. Frissítsd az elemzés összegzőt (↻), és próbáld újra.');
   const fej = forras.getRange(1, 1, 1, oszlopN).getDisplayValues()[0].map(function (h) { return String(h).replace(/\s+/g, ' ').trim(); });
   const ugyfelI = fej.findIndex(function (h) { return /ügyfél neve/i.test(h); });
   const munkI = fej.findIndex(function (h) { return /^munkatárs/i.test(h); });
   const sorErtek = forras.getRange(sor, 1, 1, oszlopN).getValues()[0];
-  if (!egyezik_(sorErtek, k.kulcs, ugyfelI, k.ugyfel)) hiba_('A táblázat ezen sora időközben megváltozott, ezért nem mentettem. Frissítsd a Pipeline-t (↻), és próbáld újra.');
+  if (!egyezik_(sorErtek, k.kulcs, ugyfelI, k.ugyfel)) hiba_('A táblázat ezen sora időközben megváltozott, ezért nem mentettem. Frissítsd az elemzés összegzőt (↻), és próbáld újra.');
   if (!lap && munkI > -1 && nevNorm_(sorErtek[munkI]) !== nevNorm_(m.nev)) hiba_('Ez a sor nem ehhez a munkatárshoz tartozik.');
   valt.forEach(function (v) {
     v.o = Math.floor(Number(v.o));
@@ -427,7 +427,7 @@ function pipelineUj_(en, k) {
   const oszlopN = lap.getLastColumn();
   const ell = lap.getRange(celSajat, 1, 1, oszlopN).getValues()[0];
   if (!egyezik_(ell, kulcs, ugyfelI, ugyfel)) {
-    return { ok: true, ujratoltes: true, figyelem: 'Az ügyfél bekerült az „Összes” lapra, de a munkatárs lapján nem ott jelent meg, ahol vártam, ezért a kézi mezőket nem írtam be. Frissítsd a Pipeline-t, és töltsd ki őket szerkesztéssel.' };
+    return { ok: true, ujratoltes: true, figyelem: 'Az ügyfél bekerült az „Összes” lapra, de a munkatárs lapján nem ott jelent meg, ahol vártam, ezért a kézi mezőket nem írtam be. Frissítsd az elemzés összegzőt, és töltsd ki őket szerkesztéssel.' };
   }
   kezi.forEach(function (v) { irCella_(lap, celSajat, v.o + 1, v, sFej[v.o]); });
   valtMinEll.forEach(function () { minEllErtesites_(en, m, kulcs, ugyfel); });
