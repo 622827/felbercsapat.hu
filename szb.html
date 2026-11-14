@@ -88,6 +88,8 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   .pcs b { font-size: 1.5rem; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
   .pcs small { color: var(--muted); font-size: .78rem; }
   .pkartyak { display: grid; gap: 12px; }
+  .pdat { display: inline-flex; align-items: center; gap: 6px; font-size: .88rem; color: var(--muted); }
+  .pdat .mezo { padding: 7px 10px; border-width: 1px; width: auto; }
   .tho { margin: 10px 0 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; font-size: 1.05rem; }
   .tho span { font-size: .82rem; font-weight: 500; color: var(--muted); }
   .pk { background: var(--panel); border-radius: 16px; padding: 14px 16px; border-left: 4px solid var(--blue); display: grid; gap: 10px; min-width: 0; }
@@ -627,9 +629,17 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     var tkLista = [aktTk]; mind.forEach(function (x) { if (x.tk !== null && tkLista.indexOf(x.tk) < 0) tkLista.push(x.tk); });
     tkLista.sort(function (a, b) { return b - a; });
     if (P.idoszak === "aktualis") P.idoszak = "t" + aktTk;
-    if (P.idoszak !== "osszes" && tkLista.indexOf(+P.idoszak.slice(1)) < 0) P.idoszak = "t" + aktTk;
-    var valTk = P.idoszak === "osszes" ? null : +P.idoszak.slice(1);
-    var idoszakban = mind.filter(function (x) { return valTk === null || x.tk === valTk; });
+    var egyedi = P.idoszak === "egyedi";
+    if (P.idoszak !== "osszes" && !egyedi && tkLista.indexOf(+P.idoszak.slice(1)) < 0) P.idoszak = "t" + aktTk;
+    var valTk = P.idoszak === "osszes" || egyedi ? null : +P.idoszak.slice(1);
+    function ymd(dt) { return dt.getFullYear() + "-" + String(dt.getMonth() + 1).padStart(2, "0") + "-" + String(dt.getDate()).padStart(2, "0"); }
+    if (egyedi && P.tol === undefined) { P.tol = ymd(elsoKedd(Math.floor(aktTk / 12), aktTk % 12)); P.ig = ymd(new Date()); }
+    var tolD = egyedi && P.tol ? new Date(P.tol + "T00:00:00") : null, igD = egyedi && P.ig ? new Date(P.ig + "T00:00:00") : null;
+    if (igD) igD.setDate(igD.getDate() + 1);
+    var idoszakban = mind.filter(function (x) {
+      if (egyedi) { if (!tolD && !igD) return true; if (!x.d) return false; return (!tolD || x.d >= tolD) && (!igD || x.d < igD); }
+      return valTk === null || x.tk === valTk;
+    });
     var szurt = idoszakban.filter(function (x) {
       if (P.allapot === "nyitott" && igen(g(x.r, O.taMeg))) return false;
       if (P.allapot === "kesz" && !igen(g(x.r, O.taMeg))) return false;
@@ -641,7 +651,8 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     function csempe(cim, ertek, al) { return '<div class="pcs"><span>' + cim + "</span><b>" + ertek + "</b>" + (al ? "<small>" + al + "</small>" : "") + "</div>"; }
     var html = '<div class="pipe-fej"><div class="sor">' +
       '<select id="pIdo" aria-label="Termelési hónap">' + tkLista.map(function (k) { var a = termHoAdat(k); return '<option value="t' + k + '">' + esc(a.nev + " (" + a.idoszak + ")" + (k === aktTk ? " – aktuális" : "")) + "</option>"; }).join("") +
-        '<option value="osszes">Minden elemzés (termelési hónaponként)</option></select>' +
+        '<option value="egyedi">Egyedi időszak (tól–ig)…</option><option value="osszes">Minden elemzés (termelési hónaponként)</option></select>' +
+      (egyedi ? '<label class="pdat">tól <input type="date" class="mezo" id="pTol" value="' + esc(P.tol || "") + '"></label><label class="pdat">ig <input type="date" class="mezo" id="pIg" value="' + esc(P.ig || "") + '"></label>' : "") +
       '<div class="gyors" id="pAll" style="margin:0"><button type="button" data-p="mind">Mind</button><button type="button" data-p="nyitott">Nyitott</button><button type="button" data-p="kesz">TA megvalósult</button></div>' +
       '<input type="search" class="mezo" id="pKeres" placeholder="Ügyfél keresése" aria-label="Ügyfél keresése" style="max-width:220px;padding:8px 12px;border-width:1px">' +
       '<button class="gomb jobbra" type="button" id="pUj">+ Új ügyfél</button><button class="gomb halk" type="button" id="pFrissit">↻ Frissítés</button></div>' +
@@ -700,6 +711,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     $("pAll").querySelectorAll("[data-p]").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.p === P.allapot)); });
     $("pKeres").value = P.keres;
     $("pIdo").onchange = function () { P.idoszak = this.value; P.mutat = 30; rajzolPipe(mtId); };
+    if (egyedi) ["pTol", "pIg"].forEach(function (id) { $(id).onchange = function () { P[id === "pTol" ? "tol" : "ig"] = this.value; P.mutat = 30; rajzolPipe(mtId); }; });
     $("pAll").onclick = function (e) { var b = e.target.closest("[data-p]"); if (!b) return; P.allapot = b.dataset.p; P.mutat = 30; rajzolPipe(mtId); };
     $("pKeres").oninput = function () { P.keres = this.value; P.mutat = 30; var pos = this.selectionStart; rajzolPipe(mtId); var k = $("pKeres"); k.focus(); try { k.setSelectionRange(pos, pos); } catch (e) {} };
     $("pFrissit").onclick = function () { this.disabled = true; this.textContent = "Frissítés…"; pipeBetolt(mtId, true); };
