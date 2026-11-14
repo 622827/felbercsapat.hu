@@ -40,7 +40,15 @@ már nem sikerül, a már belépett böngészők viszont a közös jelszó cser�
 Töröld az `adat.enc.json`-t, futtasd újra a `frissit.js`-t az új `FBR_JELSZO`-val, majd a `hozzaferes.js`-t is.
 Az ütemezett feladat leírásában is cseréld le a jelszót. Mindenkinek újra be kell majd lépnie.
 
-## Élő mód (opcionális)
+## Élő számok
+
+Belépés után a főoldal a számokat élőben, a Kontroll SZB Apps Scripten át (`eredmeny` művelet, `szb-script/Code.gs`)
+is lekéri a „Felber BL - CÉLOK” táblázatból, 5 percenként (a „↻ Frissítés” gombra azonnal). A rekordcélokat és a
+jutalmakat ilyenkor is az `adat.enc.json`-ból veszi, az év végi rekord „eddig” értékét pedig az élő számokból
+számolja (ugyanúgy, mint a `frissit.js`). Ha az élő lekérés nem sikerül, az esti adatfájl látszik („Adatok: …”
+felirat a „● Élő · …” helyett).
+
+## Régi élő mód (apps-script/, nincs használatban)
 
 Ha az `apps-script/` alatti Apps Script telepítve van, és az `index.html` elején az `API` be van
 állítva, az oldal élőben a táblázatból olvas, és nem használja az `adat.enc.json`-t.

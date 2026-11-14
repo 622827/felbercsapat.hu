@@ -67,6 +67,7 @@ function kezel_(k) {
     case 'feladatMent': return zarral_(function () { return feladatMent_(en, k); });
     case 'feladatAllit': return zarral_(function () { return feladatAllit_(en, k.id, !!k.kesz); });
     case 'feladatTorol': return zarral_(function () { return feladatTorol_(en, k.id); });
+    case 'eredmeny': return eredmeny_(k.lap);
     case 'telefonparty': return telefonparty_(en, k.party_id);
     case 'telefonpartyPipal': return zarral_(function () { return telefonpartyPipal_(en, k.party_id, k.kulcs, k.db); });
     case 'telefonpartyUj': return zarral_(function () { return telefonpartyUj_(en, k); });
@@ -586,6 +587,34 @@ function jelszoCsere_(en, regi, uj) {
   const so = ujSo_();
   frissit_('Felhasználók', en._sor, { jelszo_hash: lenyomat_(uj, so), so: so });
   return { ok: true };
+}
+
+/* ================= élő eredményjelző ================= */
+
+/**
+ * A főoldali eredményjelző élő adatai a „Felber BL - CÉLOK” táblázatból (bármely belépett felhasználónak).
+ * A kért negyedéves lap (alapból a legfrissebb) havi blokkjai, 1 percig gyorsítótárazva.
+ * A rekordcélokat és a jutalmakat a főoldal továbbra is a titkosított adatfájlból veszi.
+ */
+function eredmeny_(lap) {
+  const cache = CacheService.getScriptCache();
+  const lapokKulcs = 'er_lapok';
+  let lapok = JSON.parse(cache.get(lapokKulcs) || 'null');
+  let ss = null;
+  if (!lapok) {
+    ss = SpreadsheetApp.openById(CELOK_TABLAZAT_ID);
+    lapok = ss.getSheets().map(function (l) { return l.getName(); }).filter(function (n) { return /^\d{4} Q[1-4]$/.test(n); }).sort().reverse();
+    cache.put(lapokKulcs, JSON.stringify(lapok), 60);
+  }
+  if (!lapok.length) hiba_('A táblázatban nincs negyedéves lap.');
+  const l = lapok.indexOf(lap) > -1 ? lap : lapok[0];
+  const kulcs = 'er_' + l.replace(/\s/g, '_');
+  const c = cache.get(kulcs);
+  if (c) return JSON.parse(c);
+  ss = ss || SpreadsheetApp.openById(CELOK_TABLAZAT_ID);
+  const valasz = { lap: l, lapok: lapok, honapok: feldolgoz(ss.getSheetByName(l).getRange('A1:AE120').getDisplayValues()), ido: most_() };
+  try { cache.put(kulcs, JSON.stringify(valasz), 60); } catch (e) { /* túl nagy a gyorsítótárhoz */ }
+  return valasz;
 }
 
 /* ================= telefonparty ================= */
