@@ -147,6 +147,40 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   .gomb.halk { background: transparent; color: var(--muted); border: 1px solid var(--line); font-weight: 600; padding: 7px 12px; }
   .gomb.vesz { background: var(--danger); color: #3a0d08; padding: 7px 12px; }
   .jobbra { margin-left: auto; }
+  /* lépésenkénti új ügyfél */
+  .pk.var { border-left-color: var(--accent); gap: 14px; }
+  .var-sav { height: 6px; background: var(--track); border-radius: 99px; overflow: hidden; }
+  .var-sav i { display: block; height: 100%; background: var(--accent); border-radius: 99px; transition: width .25s; }
+  .pk .var-k { margin: 4px 0 0; font-size: 1.25rem; line-height: 1.3; text-transform: none; letter-spacing: 0; color: var(--ink); font-weight: 700; }
+  .var-k .kot { color: var(--warn); }
+  .var-sugo { margin: -6px 0 0; color: var(--muted); font-size: .9rem; }
+  .var .mezo { font-size: 1.05rem; }
+  .var-opt { display: flex; flex-wrap: wrap; gap: 8px; }
+  .var-o { border: 2px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 14px; padding: 12px 18px; font: inherit; font-weight: 600; cursor: pointer; min-height: 48px; text-align: left; }
+  .var-o[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+  .var-o:hover { border-color: var(--muted); }
+  .var-egyeb { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: .9rem; margin-top: 4px; }
+  .var-ossz { margin: 0; display: grid; gap: 0; }
+  .var-ossz > div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 4px 14px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: .9rem; }
+  .var-ossz dt { color: var(--muted); }
+  .var-ossz dd { margin: 0; overflow-wrap: anywhere; }
+  .var-ossz dd i { color: var(--muted); }
+  @media (max-width: 560px) { .var-ossz > div { grid-template-columns: 1fr; } }
+  /* utókövetés: tanácsadások */
+  .alk { border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 8px; }
+  .alk-fej { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .alk-fej .alk-uj { margin-left: auto; padding: 8px 14px; }
+  .alk-ures { margin: 0; color: var(--muted); font-size: .85rem; }
+  .alk-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+  .alk-lista li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: start; background: var(--bg); border-radius: 12px; padding: 8px 10px; border-left: 4px solid var(--accent); font-size: .9rem; }
+  .alk-lista li.el { border-left-color: var(--danger); }
+  .alk-lista p { margin: 4px 0 0; color: var(--muted); overflow-wrap: anywhere; }
+  .alk-n { font-weight: 700; color: var(--muted); }
+  .alk-x { border: 0; background: none; color: var(--muted); font-size: 1.2rem; line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 8px; }
+  .alk-x:hover { color: var(--danger); }
+  .alk-urlap { background: var(--bg); border-radius: 14px; padding: 12px; display: grid; gap: 10px; border: 2px solid var(--accent-soft); }
+  .alk-sor { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+  .pp.ro { cursor: default; }
   .jegyzetek { display: grid; gap: 14px; }
   .jegyzet { border-left: 3px solid var(--line); padding: 2px 0 2px 16px; }
   .jegyzet.friss { border-left-color: var(--accent); }
@@ -663,7 +697,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
         (O.kilatas > -1 ? csempe("Egység kilátás", Math.round(osszeg(O.kilatas)).toLocaleString("hu-HU") + " ES") : "") +
         (O.taMeg > -1 ? csempe("TA megvalósult", megval, n ? Math.round(megval / n * 100) + "%" : "") : "") +
         (O.megkotott > -1 ? csempe("Megkötött ES", Math.round(osszeg(O.megkotott)).toLocaleString("hu-HU") + " ES", O.specEs > -1 ? "spec: " + Math.round(osszeg(O.specEs)).toLocaleString("hu-HU") + " ES" : "") : "") + "</div>";
-    if (P.uj === mtId) html += ujKartya(O, f, d);
+    if (P.uj === mtId && P.v && P.v.mtId === mtId) html += varKartya(O, d);
     if (!d.sorok.length) html += '<p class="ures">Ennek a munkatársnak még nincs elemzése az Elemzés összegzőben.</p>';
     else if (!szurt.length) html += '<p class="ures">Nincs a szűrésnek megfelelő elemzés.</p>';
     else {
@@ -688,6 +722,10 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
           var cimke = igen(v) ? "igen" : nem(v) ? "nem" : v ? v : "üres";
           return '<button type="button" class="pp ' + cls + '" data-pipa="' + i + '" title="' + esc(cim + ": " + cimke + " – kattints a módosításhoz") + '">' + (igen(v) ? "✓ " : nem(v) ? "✗ " : "") + esc(cim) + (v && !igen(v) && !nem(v) ? ": " + esc(v) : "") + "</button>";
         }
+        function pontRO(cim, i) {
+          if (i < 0) return ""; var v = g(r, i), cls = igen(v) ? "ok" : nem(v) ? "no" : v ? "" : "nincs";
+          return '<span class="pp ro ' + cls + '" title="A tanácsadás rögzítésével pipálódik ki">' + (igen(v) ? "✓ " : "") + esc(cim) + "</span>";
+        }
         var ig = igenyek.map(function (i) { return g(r, i); }).filter(String);
         var szamok = [[O.kilatas, "Egység kilátás"], [O.megkotott, "Megkötött"], [O.specEs, "Spec"]].filter(function (p) { return p[0] > -1 && g(r, p[0]); })
           .map(function (p) { return "<span>" + p[1] + ": <b>" + esc(g(r, p[0])) + " ES</b></span>"; }).join("");
@@ -697,12 +735,13 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
           (g(r, O.tipus) ? " · " + esc(g(r, O.tipus)) : "") + '</span></div><div class="pk-jobb"><span class="allapot' + (kesz ? " ok" : "") + '">' + (kesz ? "✓ TA megvalósult" : "Nyitott") + '</span><button type="button" class="gomb halk pk-szerk" data-szerk="1">✏️ Szerkesztés</button></div></header>' +
           '<div class="ppk">' + pont("Hitelesítve", O.hitel) + pont("Tanácsadás időpont", O.taIdo) + pont("Portál admin", O.portal) +
             (O.ajanlas > -1 ? '<span class="pp' + (szamv(g(r, O.ajanlas)) ? " ok" : " nincs") + '">Ajánlás: ' + (esc(g(r, O.ajanlas)) || "0") + (g(r, O.mtAjanlas) ? " + " + esc(g(r, O.mtAjanlas)) + " mt." : "") + "</span>" : "") +
-            pont("Fixálva", O.fix) + pont("Kapcsolati tőke", O.kt) + minEll(O.minEll) + pont("Kidolgozva", O.kidolg) + pont("TA megvalósult", O.taMeg) + pont("CSOB", O.csob) + "</div>" +
+            pont("Fixálva", O.fix) + pont("Kapcsolati tőke", O.kt) + minEll(O.minEll) + pont("Kidolgozva", O.kidolg) + pontRO("TA megvalósult", O.taMeg) + pont("CSOB", O.csob) + "</div>" +
           (szamok ? '<div class="pszam">' + szamok + "</div>" : "") +
           (g(r, O.cel) ? '<p class="pcel"><span>Cél:</span> ' + esc(g(r, O.cel)) + "</p>" : "") +
           (ig.length ? '<ul class="pig">' + ig.map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("") + "</ul>" : "") +
           (g(r, O.spec) ? '<p class="pcel"><span>Specialista:</span> ' + esc(g(r, O.spec)) + "</p>" : "") +
           (g(r, O.teendo) ? '<p class="pteendo"><b>Teendők:</b> ' + esc(g(r, O.teendo)) + "</p>" : "") +
+          alkBlokk(x, d, O) +
           '<details><summary>Minden adat</summary><div class="tabla"><table class="fh pt"><tbody>' + tobbi + "</tbody></table></div></details></article>";
         })();
       }).join("") + "</div>" + (szurt.length > P.mutat ? '<button class="gomb halk" type="button" id="pTobb">Továbbiak (' + (szurt.length - P.mutat) + ")</button>" : "");
@@ -718,7 +757,11 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     $("pFrissit").onclick = function () { this.disabled = true; this.textContent = "Frissítés…"; pipeBetolt(mtId, true); };
     var t = $("pTobb"); if (t) t.onclick = function () { P.mutat += 30; rajzolPipe(mtId); };
     el.onclick = function (e) { pipeKattint(mtId, e); };
-    $("pUj").onclick = function () { P.uj = mtId; P.szerk = null; rajzolPipe(mtId); var u = document.querySelector(".pk.uj [data-o]"); if (u) u.focus(); };
+    el.onkeydown = function (e) {
+      if (e.key !== "Enter" || !e.target.closest(".pk.var") || e.target.tagName !== "INPUT") return;
+      e.preventDefault(); var b = document.querySelector("[data-var-tovabb]"); if (b) b.click();
+    };
+    $("pUj").onclick = function () { varIndit(mtId, this); };
   }
 
   /* ---------- pipeline szerkesztés ---------- */
@@ -727,7 +770,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   function szerkKartya(x, O, f) {
     var r = x.r, pipak = pipaOszlopok(O), mezok = "";
     f.forEach(function (h, i) {
-      if (!h || i === O.datum || i === O.munk || pipak.indexOf(i) > -1) return;
+      if (!h || i === O.datum || i === O.munk || pipak.indexOf(i) > -1 || alkOszlop(h)) return;
       var v = r[i] || "", hosszu = v.length > 60 || /fő célja|konkrét igény|teendő|témá|specialista/i.test(h);
       mezok += '<label class="pm"><span>' + esc(h) + "</span>" + (hosszu
         ? '<textarea class="mezo" data-o="' + i + '" rows="2">' + esc(v) + "</textarea>"
@@ -735,28 +778,165 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     });
     return '<article class="pk szerk" data-idx="' + x.idx + '"><header><div><b>' + esc(r[O.ugyfel] || "Névtelen ügyfél") + "</b><span>Szerkesztés · " + esc(r[O.datum] || "") + "</span></div></header>" +
       '<div class="pm-racs">' + mezok + "</div>" +
-      '<p class="pforras" style="margin:0">Mentéskor az űrlapból jövő mezők az „Összes” lapra, a kézi oszlopok (egység kilátás, teendők, megkötött ES…) a munkatárs saját lapjára kerülnek. Az időbélyeg és a munkatárs neve nem módosítható.</p>' +
+      '<p class="pforras" style="margin:0">Mentéskor az űrlapból jövő mezők az „Összes” lapra, a kézi oszlopok (egység kilátás, teendők…) a munkatárs saját lapjára kerülnek. Az időbélyeg és a munkatárs neve nem módosítható; a TA megvalósult és a megkötött ES a tanácsadások rögzítésével változik.</p>' +
       '<div class="sor"><span class="hiba" id="pmHiba"></span><button type="button" class="gomb halk jobbra" data-megse="1">Mégse</button><button type="button" class="gomb" data-mentes="1">Mentés</button></div></article>';
   }
-  function ujKartya(O, f, d) {
-    var pipak = pipaOszlopok(O), mezok = "";
-    f.forEach(function (h, i) {
-      if (!h || i === O.datum || i === O.munk) return;
-      if (!d.sajatLap && i >= (d.urlapOszlop || 22)) return;
-      var kot = i === O.ugyfel;
-      if (pipak.indexOf(i) > -1) {
-        mezok += '<label class="pm"><span>' + esc(h) + '</span><select class="mezo" data-o="' + i + '" data-pipa-mezo="1"><option value="">–</option><option value="1">Igen</option><option value="0">Nem</option></select></label>';
-        return;
-      }
-      var hosszu = /fő célja|konkrét igény|teendő|témá|specialista/i.test(h);
-      mezok += '<label class="pm"><span>' + esc(h) + (kot ? " *" : "") + "</span>" + (hosszu
-        ? '<textarea class="mezo" data-o="' + i + '" rows="2"></textarea>'
-        : '<input class="mezo" data-o="' + i + '"' + (kot ? " required" : "") + ">") + "</label>";
+  /* ---------- új ügyfél lépésenként (a Google Űrlap kérdései szerint) ---------- */
+  function nrm(h) { return String(h || "").replace(/\s+/g, " ").trim().toLowerCase(); }
+  function alkOszlop(h) { return /megval[oó]s[uú]lt/i.test(h || "") || /megkötött es/i.test(h || ""); }
+  function kovetkeztet(d, i) {
+    var h = d.fejlec[i], db = {};
+    if (/fő célja|konkrét igény|témá|specialista/i.test(h)) return { tipus: "hosszu" };
+    d.sorok.forEach(function (r) { var v = String(r[i] || "").trim(); if (v) db[v] = (db[v] || 0) + 1; });
+    var l = Object.keys(db);
+    if (l.length >= 2 && l.length <= 6 && l.every(function (v) { return v.length <= 30 && !/^\d/.test(v); })) return { tipus: "valaszt", valaszok: l.sort(function (a, b) { return db[b] - db[a]; }), egyeb: true };
+    return { tipus: "szoveg" };
+  }
+  function varLepesek(d, O) {
+    var f = d.fejlec, kesz = {}, lep = [], form = (P.urlap && P.urlap.kerdesek) || [];
+    var hely = d.helyek || f.map(function (h, i) { return i < (d.urlapOszlop || 22) ? "u" : (d.sajatLap ? "s" : ""); });   // régi szerver: nincs „helyek”
+    function idx(cim) { var c = nrm(cim); for (var i = 0; i < f.length; i++) if (hely[i] === "u" && nrm(f[i]) === c) return i; return -1; }
+    function hasznal(i, q) { if (i < 0 || kesz[i] || i === O.datum || i === O.munk || hely[i] !== "u" || !f[i]) return; kesz[i] = 1; lep.push(Object.assign({ o: i, cim: f[i], tipus: "szoveg", valaszok: [] }, q)); }
+    var ugyQ = form.filter(function (q) { return nrm(q.cim) === nrm(f[O.ugyfel]); })[0];
+    hasznal(O.ugyfel, Object.assign({}, ugyQ || {}, { tipus: "szoveg", kotelezo: true }));
+    form.forEach(function (q) { hasznal(idx(q.cim), q); });
+    f.forEach(function (h, i) { if (hely[i] === "u") hasznal(i, kovetkeztet(d, i)); });
+    var kezi = []; f.forEach(function (h, i) { if (hely[i] === "s" && h && !alkOszlop(h)) kezi.push(i); });
+    if (kezi.length) lep.push({ tipus: "kezi", mezok: kezi, cim: "Elemzés összegző adatok", sugo: "Ezek a munkatárs saját lapjára kerülnek. A TA megvalósult és a megkötött ES a tanácsadások rögzítésével töltődik." });
+    lep.push({ tipus: "osszegzes", cim: "Összegzés", sugo: "Nézd át, és ha minden rendben, vedd fel az ügyfelet." });
+    return lep;
+  }
+  function varIndit(mtId, gomb) {
+    function kezd() {
+      var d = P.cache[mtId]; if (!d || !P.O) return;
+      P.uj = mtId; P.szerk = null; P.alk = null;
+      P.v = { mtId: mtId, lepes: 0, lep: varLepesek(d, P.O), val: {} };
+      rajzolPipe(mtId); varFokusz();
+      var k = document.querySelector(".pk.var"); if (k) k.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    if (P.urlap) { kezd(); return; }
+    if (gomb) { gomb.disabled = true; gomb.textContent = "Betöltés…"; }
+    api("urlap", {}).then(function (u) { P.urlap = u || { kerdesek: [] }; }, function () { P.urlap = { kerdesek: [] }; }).then(function () {
+      if (gomb) { gomb.disabled = false; gomb.textContent = "+ Új ügyfél"; } kezd();
     });
-    return '<article class="pk szerk uj" data-uj="1"><header><div><b>Új ügyfél</b><span>Az időbélyeget és a munkatárs nevét a rendszer tölti ki.</span></div></header>' +
-      '<div class="pm-racs">' + mezok + "</div>" +
-      '<p class="pforras" style="margin:0">Az űrlapmezők új sorként az „Összes” lapra kerülnek (a munkatárs lapjára a QUERY hozza át), a kézi mezők a munkatárs saját lapjára.</p>' +
-      '<div class="sor"><span class="hiba" id="ujHiba"></span><button type="button" class="gomb halk jobbra" data-uj-megse="1">Mégse</button><button type="button" class="gomb" data-uj-ment="1">Ügyfél felvétele</button></div></article>';
+  }
+  function varFokusz() {
+    setTimeout(function () {
+      var k = document.querySelector(".pk.var"); if (!k) return;
+      var el = k.querySelector('.var-o[aria-pressed="true"]') || k.querySelector("input:not([type=hidden]), textarea, select, .var-o");
+      if (el) try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
+    }, 30);
+  }
+  function varErtekSzoveg(q, v, O) {
+    if (Array.isArray(v)) return v.join(", ");
+    return v == null ? "" : String(v);
+  }
+  function varKartya(O, d) {
+    var V = P.v, q = V.lep[V.lepes], n = V.lep.length, pipak = pipaOszlopok(O), body = "", v = V.val[q.o];
+    function opciok(tobb) {
+      var lista = q.valaszok || [], kij = tobb ? (v || []) : [v], egyeb = "";
+      if (q.egyeb) { var e = kij.filter(function (x) { return x && lista.indexOf(x) < 0; })[0]; egyeb = e || ""; }
+      return '<div class="var-opt" role="' + (tobb ? "group" : "radiogroup") + '">' + lista.map(function (o) {
+          return '<button type="button" class="var-o" data-var-v="' + esc(o) + '" aria-pressed="' + (kij.indexOf(o) > -1) + '">' + esc(o) + "</button>";
+        }).join("") + "</div>" +
+        (q.egyeb ? '<label class="var-egyeb">Egyéb: <input class="mezo" data-var-egyeb="1" value="' + esc(egyeb) + '"></label>' : "");
+    }
+    if (q.tipus === "osszegzes") {
+      body = '<dl class="var-ossz">' + V.lep.map(function (x, li) {
+        if (x.tipus === "osszegzes") return "";
+        var link = ' <button type="button" class="link" data-var-ugr="' + li + '">módosít</button>';
+        if (x.tipus === "kezi") return x.mezok.map(function (o) {
+          var e = V.val[o] || "", sz = pipak.indexOf(o) > -1 ? (e === "1" ? "Igen" : e === "0" ? "Nem" : "") : e;
+          return "<div><dt>" + esc(d.fejlec[o]) + "</dt><dd>" + (sz ? esc(sz) : "<i>–</i>") + link + "</dd></div>";
+        }).join("");
+        var s2 = varErtekSzoveg(x, V.val[x.o], O);
+        return "<div><dt>" + esc(x.cim) + "</dt><dd>" + (s2 ? esc(s2) : "<i>–</i>") + link + "</dd></div>";
+      }).join("") + "</dl>";
+    } else if (q.tipus === "kezi") {
+      body = '<div class="pm-racs">' + q.mezok.map(function (o) {
+        var h = d.fejlec[o], e = V.val[o] || "";
+        if (pipak.indexOf(o) > -1) return '<label class="pm"><span>' + esc(h) + '</span><select class="mezo" data-var-o="' + o + '"><option value="">–</option><option value="1"' + (e === "1" ? " selected" : "") + '>Igen</option><option value="0"' + (e === "0" ? " selected" : "") + ">Nem</option></select></label>";
+        var hosszu = /teendő|specialista|jegyz/i.test(h);
+        return '<label class="pm"><span>' + esc(h) + "</span>" + (hosszu ? '<textarea class="mezo" rows="2" data-var-o="' + o + '">' + esc(e) + "</textarea>" : '<input class="mezo" data-var-o="' + o + '" value="' + esc(e) + '"' + (/kilátás|es\b/i.test(h) ? ' inputmode="decimal"' : "") + ">") + "</label>";
+      }).join("") + "</div>";
+    } else if (q.tipus === "valaszt") body = opciok(false);
+    else if (q.tipus === "tobb") body = opciok(true);
+    else if (q.tipus === "hosszu") body = '<textarea class="mezo" rows="4" data-var-mezo="1">' + esc(v || "") + "</textarea>";
+    else if (q.tipus === "datum") body = '<input type="date" class="mezo" data-var-mezo="1" value="' + esc(v || "") + '">';
+    else body = '<input class="mezo" data-var-mezo="1" value="' + esc(v || "") + '"' + (/telefon/i.test(q.cim) ? ' inputmode="tel" autocomplete="off"' : /hány|jövedelm/i.test(q.cim) ? ' inputmode="numeric"' : "") + ">";
+    return '<article class="pk szerk uj var" data-uj="1"><header><div><b>Új ügyfél' + (V.val[O.ugyfel] && V.lepes ? " – " + esc(V.val[O.ugyfel]) : "") + "</b><span>" + (V.lepes + 1) + ". / " + n + " lépés</span></div></header>" +
+      '<div class="var-sav" aria-hidden="true"><i style="width:' + Math.round((V.lepes + 1) / n * 100) + '%"></i></div>' +
+      '<h3 class="var-k">' + esc(q.cim) + (q.kotelezo ? ' <span class="kot">*</span>' : "") + "</h3>" + (q.sugo ? '<p class="var-sugo">' + esc(q.sugo) + "</p>" : "") + body +
+      '<div class="sor"><span class="hiba" id="ujHiba"></span><button type="button" class="gomb halk" data-uj-megse="1">Mégse</button><span class="jobbra"></span>' +
+      (V.lepes ? '<button type="button" class="gomb halk" data-var-vissza="1">← Vissza</button>' : "") +
+      (q.tipus === "osszegzes" ? '<button type="button" class="gomb" data-uj-ment="1">Ügyfél felvétele</button>' : '<button type="button" class="gomb" data-var-tovabb="1">Tovább →</button>') + "</div></article>";
+  }
+  /** Az aktuális lépés értékeinek eltárolása; kötelezőnél üres → hibaüzenet (false). */
+  function varMent(ellenoriz) {
+    var V = P.v, q = V.lep[V.lepes], k = document.querySelector(".pk.var"); if (!k || !q) return true;
+    if (q.tipus === "kezi") { k.querySelectorAll("[data-var-o]").forEach(function (m) { V.val[+m.dataset.varO] = m.value.trim(); }); return true; }
+    if (q.tipus === "osszegzes") return true;
+    var ertek;
+    if (q.tipus === "valaszt" || q.tipus === "tobb") {
+      var kij = []; k.querySelectorAll('.var-o[aria-pressed="true"]').forEach(function (b) { kij.push(b.dataset.varV); });
+      var eg = k.querySelector("[data-var-egyeb]"), egv = eg ? eg.value.trim() : "";
+      if (q.tipus === "tobb") { if (egv) kij.push(egv); ertek = kij; }
+      else ertek = egv || kij[0] || "";
+    } else { var m = k.querySelector("[data-var-mezo]"); ertek = m ? m.value.trim() : ""; }
+    V.val[q.o] = ertek;
+    var ures = Array.isArray(ertek) ? !ertek.length : !ertek;
+    if (ellenoriz && q.kotelezo && ures) { var h = $("ujHiba"); if (h) h.textContent = "Ez a kérdés kötelező."; return false; }
+    return true;
+  }
+  function varLep(mtId, irany) {
+    if (!varMent(irany > 0)) return;
+    P.v.lepes = Math.max(0, Math.min(P.v.lep.length - 1, P.v.lepes + irany));
+    rajzolPipe(mtId); varFokusz();
+  }
+  function varBekuld(mtId, gomb) {
+    var V = P.v, O = P.O, pipak = pipaOszlopok(O), mz = [], kezi = {};
+    V.lep.forEach(function (x) { if (x.tipus === "kezi") x.mezok.forEach(function (o) { kezi[o] = 1; }); });
+    Object.keys(V.val).forEach(function (k) {
+      var o = +k, v = V.val[k];
+      if (kezi[o] && pipak.indexOf(o) > -1) { if (v === "1" || v === "0") mz.push({ o: o, pipa: v === "1" }); return; }
+      var s2 = Array.isArray(v) ? v.join(", ") : String(v || "").trim();
+      if (s2) mz.push({ o: o, ertek: s2 });
+    });
+    if (!mz.some(function (x) { return x.o === O.ugyfel && x.ertek; })) { $("ujHiba").textContent = "Add meg az ügyfél nevét."; return; }
+    gomb.disabled = true; gomb.textContent = "Felvétel…"; $("ujHiba").textContent = "";
+    api("pipelineUj", { munkatars_id: mtId, mezok: mz }).then(function (res) {
+      P.uj = null; P.v = null; P.keres = ""; P.allapot = "mind";
+      toast(res.ujratoltes ? (res.figyelem || "Felvéve – frissítem a listát") : "Ügyfél felvéve");
+      pipeBetolt(mtId, true);
+    }).catch(function (err) { var h = $("ujHiba"); if (h) h.textContent = err.message; gomb.disabled = false; gomb.textContent = "Ügyfél felvétele"; });
+  }
+
+  /* ---------- utókövetés: tanácsadás-alkalmak ---------- */
+  function datumHu(s) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ""); return m ? new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString("hu-HU", { year: "numeric", month: "short", day: "numeric" }) : esc(s); }
+  function ma() { var d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+  function alkalmaiK(d, idx, O) {
+    var kulcs = d.kulcsok[idx], ugyfel = String(d.sorok[idx][O.ugyfel] || "").trim();
+    return (d.alkalmak || []).filter(function (a) { return a.kulcs === kulcs && String(a.ugyfel).trim() === ugyfel; })
+      .sort(function (a, b) { return a.datum < b.datum ? -1 : a.datum > b.datum ? 1 : String(a.rogzitve).localeCompare(String(b.rogzitve)); });
+  }
+  function alkBlokk(x, d, O) {
+    var l = alkalmaiK(d, x.idx, O), nyitva = P.alk === x.idx;
+    var h = '<div class="alk"><div class="alk-fej"><b>Tanácsadások' + (l.length ? " (" + l.length + ")" : "") + "</b>" +
+      (nyitva ? "" : '<button type="button" class="gomb halk alk-uj" data-alk-uj="1">+ Tanácsadás rögzítése</button>') + "</div>";
+    if (l.length) h += '<ol class="alk-lista">' + l.map(function (a, i) {
+      var ok = a.eredmeny === "Megvalósult";
+      return '<li class="' + (ok ? "ok" : "el") + '"><span class="alk-n">' + (i + 1) + '.</span><div><b>' + datumHu(a.datum) + "</b> · " + (ok ? "✓ Megvalósult" : "✗ Elmaradt") +
+        (a.es ? " · <b>" + esc(a.es) + " ES</b>" : "") + (a.jegyzet ? "<p>" + esc(a.jegyzet) + "</p>" : "") + "</div>" +
+        '<button type="button" class="alk-x" data-alk-torol="' + esc(a.id) + '" data-alk-n="' + (i + 1) + '" title="Törlés" aria-label="' + (i + 1) + '. tanácsadás törlése">×</button></li>';
+    }).join("") + "</ol>";
+    else if (!nyitva) h += '<p class="alk-ures">Még nincs rögzített tanácsadás.</p>';
+    if (nyitva) h += '<div class="alk-urlap"><b>' + (l.length + 1) + '. tanácsadás</b>' +
+      '<div class="var-opt" role="radiogroup" aria-label="Eredmény"><button type="button" class="var-o" data-alk-er="Megvalósult" aria-pressed="false">✓ Megvalósult</button><button type="button" class="var-o" data-alk-er="Elmaradt" aria-pressed="false">✗ Elmaradt</button></div>' +
+      '<div class="alk-sor"><label class="pm"><span>Dátum</span><input type="date" class="mezo" id="alkDatum" value="' + ma() + '"></label>' +
+      '<label class="pm"><span>Leadott ES</span><input class="mezo" id="alkEs" inputmode="decimal" placeholder="0"></label></div>' +
+      '<label class="pm"><span>Jegyzet</span><textarea class="mezo" id="alkJegyzet" rows="2" placeholder="Mi történt, mit kötöttetek…"></textarea></label>' +
+      '<div class="sor"><span class="hiba" id="alkHiba"></span><button type="button" class="gomb halk jobbra" data-alk-megse="1">Mégse</button><button type="button" class="gomb" data-alk-ment="1">Mentés</button></div></div>';
+    return h + "</div>";
   }
   P.lanc = {};
   function pipeMent(mtId, idx, valtozasok) {
@@ -777,27 +957,55 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     var d = P.cache[mtId], O = P.O; if (!d || !O) return;
     var ujk = e.target.closest("[data-uj]");
     if (ujk) {
-      if (e.target.closest("[data-uj-megse]")) { P.uj = null; rajzolPipe(mtId); return; }
-      var ub = e.target.closest("[data-uj-ment]"); if (!ub) return;
-      var mz = [], hiba = "";
-      ujk.querySelectorAll("[data-o]").forEach(function (m) {
-        var o = +m.dataset.o, v = m.value.trim(); if (!v) return;
-        mz.push(m.dataset.pipaMezo ? { o: o, pipa: v === "1" } : { o: o, ertek: v });
-      });
-      if (!mz.some(function (x) { return x.o === O.ugyfel && x.ertek; })) hiba = "Add meg az ügyfél nevét.";
-      if (hiba) { $("ujHiba").textContent = hiba; return; }
-      ub.disabled = true; ub.textContent = "Felvétel…"; $("ujHiba").textContent = "";
-      api("pipelineUj", { munkatars_id: mtId, mezok: mz }).then(function (res) {
-        P.uj = null;
-        if (res.ujratoltes) { toast(res.figyelem || "Felvéve – frissítem a listát"); pipeBetolt(mtId, true); return; }
-        var hossz = d.fejlec.length, uj = res.sor.slice(0, hossz); while (uj.length < hossz) uj.push("");
-        d.sorok.push(uj); d.sorszamok.push(res.sorszam); d.kulcsok.push(res.kulcs);
-        P.keres = ""; P.allapot = "mind"; toast("Ügyfél felvéve"); rajzolPipe(mtId);
-      }).catch(function (err) { var h = $("ujHiba"); if (h) h.textContent = err.message; ub.disabled = false; ub.textContent = "Ügyfél felvétele"; });
+      if (e.target.closest("[data-uj-megse]")) { P.uj = null; P.v = null; rajzolPipe(mtId); return; }
+      var opt = e.target.closest("[data-var-v]");
+      if (opt) {
+        var q = P.v.lep[P.v.lepes], most = opt.getAttribute("aria-pressed") === "true";
+        if (q.tipus === "valaszt") {
+          ujk.querySelectorAll("[data-var-v]").forEach(function (b) { b.setAttribute("aria-pressed", String(b === opt)); });
+          var eg = ujk.querySelector("[data-var-egyeb]"); if (eg) eg.value = "";
+          setTimeout(function () { varLep(mtId, 1); }, 160);
+        } else opt.setAttribute("aria-pressed", String(!most));
+        return;
+      }
+      var ugr = e.target.closest("[data-var-ugr]");
+      if (ugr) { P.v.lepes = +ugr.dataset.varUgr; rajzolPipe(mtId); varFokusz(); return; }
+      if (e.target.closest("[data-var-tovabb]")) { varLep(mtId, 1); return; }
+      if (e.target.closest("[data-var-vissza]")) { varLep(mtId, -1); return; }
+      var ub = e.target.closest("[data-uj-ment]"); if (ub) varBekuld(mtId, ub);
       return;
     }
     var kartya = e.target.closest("[data-idx]"); if (!kartya) return;
     var idx = +kartya.dataset.idx, r = d.sorok[idx];
+    if (e.target.closest("[data-alk-uj]")) { P.alk = idx; P.alkEr = ""; rajzolPipe(mtId); var ad = $("alkDatum"); if (ad) ad.closest(".alk-urlap").scrollIntoView({ behavior: "smooth", block: "nearest" }); return; }
+    if (e.target.closest("[data-alk-megse]")) { P.alk = null; rajzolPipe(mtId); return; }
+    var er = e.target.closest("[data-alk-er]");
+    if (er) {
+      P.alkEr = er.dataset.alkEr;
+      kartya.querySelectorAll("[data-alk-er]").forEach(function (b) { b.setAttribute("aria-pressed", String(b === er)); });
+      var es = $("alkEs"); if (es) { es.disabled = P.alkEr === "Elmaradt"; if (es.disabled) es.value = ""; }
+      return;
+    }
+    var am = e.target.closest("[data-alk-ment]");
+    if (am) {
+      var hib = $("alkHiba"), datum = $("alkDatum").value, esv = $("alkEs").value.trim(), jegyzet = $("alkJegyzet").value.trim();
+      if (!P.alkEr) { hib.textContent = "Válaszd ki: megvalósult vagy elmaradt."; return; }
+      if (!datum) { hib.textContent = "Add meg a dátumot."; return; }
+      if (esv && !/^\d+([.,]\d+)?$/.test(esv)) { hib.textContent = "Az ES szám legyen (pl. 40 vagy 12,5)."; return; }
+      am.disabled = true; am.textContent = "Mentés…"; hib.textContent = "";
+      api("alkalomUj", { munkatars_id: mtId, sor: d.sorszamok[idx], kulcs: d.kulcsok[idx], ugyfel: String(r[P.O.ugyfel] || "").trim(), datum: datum, eredmeny: P.alkEr, es: esv, jegyzet: jegyzet })
+        .then(function () { P.alk = null; toast(P.alkEr === "Megvalósult" ? "Tanácsadás rögzítve – TA megvalósult" : "Tanácsadás rögzítve"); pipeBetolt(mtId, true); })
+        .catch(function (err) { var h2 = $("alkHiba"); if (h2) h2.textContent = err.message; am.disabled = false; am.textContent = "Mentés"; });
+      return;
+    }
+    var at = e.target.closest("[data-alk-torol]");
+    if (at) {
+      if (!confirm("Biztosan törlöd a(z) " + at.dataset.alkN + ". tanácsadást? A hozzá tartozó ES levonódik.")) return;
+      at.disabled = true;
+      api("alkalomTorol", { munkatars_id: mtId, id: at.dataset.alkTorol }).then(function () { toast("Tanácsadás törölve"); pipeBetolt(mtId, true); })
+        .catch(function (err) { at.disabled = false; toast(err.message); });
+      return;
+    }
     var me = e.target.closest("[data-minell]");
     if (me) {
       var mi = +me.dataset.o, ertek = me.dataset.minell === "1", mv = r[mi] || "";
