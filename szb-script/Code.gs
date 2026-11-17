@@ -67,6 +67,7 @@ function kezel_(k) {
     case 'urlap': return urlap_();
     case 'alkalomUj': return zarral_(function () { return alkalomUj_(en, k); });
     case 'alkalomTorol': return zarral_(function () { return alkalomTorol_(en, k); });
+    case 'elemzesTorol': return zarral_(function () { return elemzesTorol_(en, k); });
     case 'jegyzetMent': return zarral_(function () { return jegyzetMent_(en, k); });
     case 'jegyzetTorol': return zarral_(function () { return jegyzetTorol_(en, k.id); });
     case 'feladatMent': return zarral_(function () { return feladatMent_(en, k); });
@@ -600,6 +601,39 @@ function alkalomTorol_(en, k) {
   const vanMeg = marad.some(function (x) { return x.eredmeny === 'Megvalósult'; });
   alkalomKihat_(L, sor, -(parseFloat(a.es) || 0), a.eredmeny === 'Megvalósult' && !vanMeg ? false : null);
   ss.getSheetByName('Utókövetés').deleteRow(a._sor);
+  SpreadsheetApp.flush();
+  return { ok: true };
+}
+
+/* ================= elemzés (ügyfélkártya) törlése ================= */
+
+/**
+ * Egy elemzés végleges törlése. k: { munkatars_id, sor, kulcs, ugyfel }. Csak admin és vezető.
+ * Az „Összes” lapról törli a sort; a munkatárs saját lapján a kézi oszlopok celláit törli és feljebb csúsztatja
+ * (a QUERY-s A–V rész magától feljebb csúszik, így minden sor a helyén marad). Törli a tanácsadásait és nyitott értesítéseit is.
+ */
+function elemzesTorol_(en, k) {
+  if (en.szerep !== 'admin' && en.szerep !== 'vezeto') hiba_('Ügyfelet csak vezető vagy admin törölhet.');
+  pipelineJog_(en, k.munkatars_id);
+  const m = sorok_('Munkatársak').filter(function (x) { return x.id === k.munkatars_id; })[0];
+  if (!m) hiba_('A munkatárs nem található.');
+  const ss = SpreadsheetApp.openById(ELEMZES_TABLAZAT_ID), L = elrendezes_(ss, m);
+  const ugyfel = String(k.ugyfel || '').trim(), kulcs = String(k.kulcs || '');
+  const sor = forrasSor_(L, Math.floor(Number(k.sor)), kulcs, ugyfel);
+  if (!sor) hiba_('Ezt az elemzést nem találom a táblázatban. Frissítsd az elemzés összegzőt (↻), és próbáld újra.');
+  const forras = L.lap || L.osszes;
+  const sorErtek = forras.getRange(sor, 1, 1, Math.max(1, forras.getLastColumn())).getValues()[0];
+  if (!L.lap && L.sMunk > -1 && nevNorm_(sorErtek[L.sMunk]) !== nevNorm_(m.nev)) hiba_('Ez a sor nem ehhez a munkatárshoz tartozik.');
+  const oSor = L.lap ? osszesSor_(L, kulcs, sorErtek[L.sMunk], ugyfel) : sor;
+  if (L.lap) {
+    const utolso = L.lap.getLastColumn();
+    if (utolso > L.k) L.lap.getRange(sor, L.k + 1, 1, utolso - L.k).deleteCells(SpreadsheetApp.Dimension.ROWS);
+  }
+  L.osszes.deleteRow(oSor);
+  const uto = ss.getSheetByName('Utókövetés');
+  if (uto) utoSorok_(ss).filter(function (a) { return a.munkatars_id === m.id && a.kulcs === kulcs && String(a.ugyfel).trim() === ugyfel; })
+    .map(function (a) { return a._sor; }).sort(function (a, b) { return b - a; }).forEach(function (s2) { uto.deleteRow(s2); });
+  minEllErtesitesTorol_(m.id, kulcs);
   SpreadsheetApp.flush();
   return { ok: true };
 }

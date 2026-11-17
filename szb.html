@@ -127,6 +127,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   button.pp:hover { outline: 2px solid var(--line); }
   .pk-jobb { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
   .pk-szerk { padding: 4px 10px; font-size: .8rem; }
+  .pk-torol:hover { color: var(--danger); border-color: var(--danger); }
   .pk.szerk { border-left-color: var(--warn); }
   .pk.uj { border-left-color: var(--accent); }
   .pm select.mezo { border-width: 1px; padding: 7px 10px; font-size: .9rem; }
@@ -737,7 +738,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
         var tobbi = f.map(function (h, i) { return h && g(r, i) ? "<tr><th>" + esc(h) + "</th><td>" + esc(g(r, i)) + "</td></tr>" : ""; }).join("");
         if (P.szerk === x.idx) return szerkKartya(x, O, f);
         return '<article class="pk' + (kesz ? " kesz" : "") + '" data-idx="' + x.idx + '"><header><div><b>' + esc(g(r, O.ugyfel) || "Névtelen ügyfél") + "</b><span>" + esc(x.d ? x.d.toLocaleDateString("hu-HU", { year: "numeric", month: "short", day: "numeric" }) : g(r, O.datum)) +
-          (g(r, O.tipus) ? " · " + esc(g(r, O.tipus)) : "") + '</span></div><div class="pk-jobb"><span class="allapot' + (kesz ? " ok" : "") + '">' + (kesz ? "✓ TA megvalósult" : "Nyitott") + '</span><button type="button" class="gomb halk pk-szerk" data-szerk="1">✏️ Szerkesztés</button></div></header>' +
+          (g(r, O.tipus) ? " · " + esc(g(r, O.tipus)) : "") + '</span></div><div class="pk-jobb"><span class="allapot' + (kesz ? " ok" : "") + '">' + (kesz ? "✓ TA megvalósult" : "Nyitott") + '</span><button type="button" class="gomb halk pk-szerk" data-szerk="1">✏️ Szerkesztés</button>' + (S.en && S.en.szerep !== "munkatars" ? '<button type="button" class="gomb halk pk-szerk pk-torol" data-torol="1" title="Ügyfél törlése">🗑 Törlés</button>' : "") + '</div></header>' +
           '<div class="ppk">' + pont("Hitelesítve", O.hitel) + pont("Tanácsadás időpont", O.taIdo) + pont("Portál admin", O.portal) +
             (O.ajanlas > -1 ? '<span class="pp' + (szamv(g(r, O.ajanlas)) ? " ok" : " nincs") + '">Ajánlás: ' + (esc(g(r, O.ajanlas)) || "0") + (g(r, O.mtAjanlas) ? " + " + esc(g(r, O.mtAjanlas)) + " mt." : "") + "</span>" : "") +
             pont("Fixálva", O.fix) + pont("Kapcsolati tőke", O.kt) + minEll(O.minEll) + pont("Kidolgozva", O.kidolg) + pontRO("TA megvalósult", O.taMeg) + pont("CSOB", O.csob) + "</div>" +
@@ -997,6 +998,17 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     }
     var kartya = e.target.closest("[data-idx]"); if (!kartya) return;
     var idx = +kartya.dataset.idx, r = d.sorok[idx];
+    var tg = e.target.closest("[data-torol]");
+    if (tg) {
+      var nev = String(r[P.O.ugyfel] || "").trim() || "ezt az ügyfelet";
+      var nAlk = alkalmaiK(d, idx, P.O).length;
+      if (!confirm("Biztosan törlöd: " + nev + "?\n\nAz elemzés végleg törlődik az „Összes” lapról és a munkatárs lapjáról" + (nAlk ? ", a " + nAlk + " rögzített tanácsadásával együtt" : "") + ". Ez nem vonható vissza.")) return;
+      tg.disabled = true; tg.textContent = "Törlés…";
+      api("elemzesTorol", { munkatars_id: mtId, sor: d.sorszamok[idx], kulcs: d.kulcsok[idx], ugyfel: String(r[P.O.ugyfel] || "").trim() })
+        .then(function () { P.szerk = null; P.alk = null; toast(nev + " törölve"); pipeBetolt(mtId, true); })
+        .catch(function (err) { tg.disabled = false; tg.textContent = "🗑 Törlés"; toast(err.message); });
+      return;
+    }
     if (e.target.closest("[data-alk-uj]")) { P.alk = idx; P.alkEr = ""; rajzolPipe(mtId); var ad = $("alkDatum"); if (ad) ad.closest(".alk-urlap").scrollIntoView({ behavior: "smooth", block: "nearest" }); return; }
     if (e.target.closest("[data-alk-megse]")) { P.alk = null; rajzolPipe(mtId); return; }
     var er = e.target.closest("[data-alk-er]");
