@@ -826,6 +826,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     function idx(cim) { var c = nrm(cim); for (var i = 0; i < f.length; i++) if (hely[i] === "u" && nrm(f[i]) === c) return i; return -1; }
     function hasznal(i, q) {
       if (i < 0 || kesz[i] || i === O.datum || i === O.munk || hely[i] !== "u" || !f[i]) return;
+      if (/melyik témákat/i.test(f[i])) return;   // már nem kérdezzük
       if (igenyek.indexOf(i) > -1) {   // az első konkrét igénynél jön az összes, egymás alatt
         igenyek.forEach(function (j) { kesz[j] = 1; });
         lep.push({ tipus: "igenyek", mezok: igenyek.slice(), cim: "Konkrét igények", sugo: "Írd be egymás alá; amelyik nincs, maradjon üresen." });
@@ -842,7 +843,8 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     var ugyQ = form.filter(function (q) { return nrm(q.cim) === nrm(f[O.ugyfel]); })[0];
     hasznal(O.ugyfel, Object.assign({}, ugyQ || {}, { tipus: "szoveg", kotelezo: true }));
     form.forEach(function (q) { hasznal(idx(q.cim), q); });
-    f.forEach(function (h, i) { if (hely[i] === "u") hasznal(i, kovetkeztet(d, i)); });
+    // Ha az űrlap nem olvasható, a táblázat oszlopai alapján; ha olvasható, csak az űrlapban lévő kérdések (a törölt kérdés oszlopa megmarad a táblázatban, de nem kérdezzük).
+    if (!form.length) f.forEach(function (h, i) { if (hely[i] === "u") hasznal(i, kovetkeztet(d, i)); });
     return lep;
   }
   function varIndit(mtId, gomb) {
