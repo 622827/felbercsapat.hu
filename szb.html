@@ -793,7 +793,8 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     return { tipus: "szoveg" };
   }
   function varLepesek(d, O) {
-    var f = d.fejlec, hely = d.helyek || [], kesz = {}, lep = [], form = (P.urlap && P.urlap.kerdesek) || [];
+    var f = d.fejlec, kesz = {}, lep = [], form = (P.urlap && P.urlap.kerdesek) || [];
+    var hely = d.helyek || f.map(function (h, i) { return i < (d.urlapOszlop || 22) ? "u" : (d.sajatLap ? "s" : ""); });   // régi szerver: nincs „helyek”
     function idx(cim) { var c = nrm(cim); for (var i = 0; i < f.length; i++) if (hely[i] === "u" && nrm(f[i]) === c) return i; return -1; }
     function hasznal(i, q) { if (i < 0 || kesz[i] || i === O.datum || i === O.munk || hely[i] !== "u" || !f[i]) return; kesz[i] = 1; lep.push(Object.assign({ o: i, cim: f[i], tipus: "szoveg", valaszok: [] }, q)); }
     var ugyQ = form.filter(function (q) { return nrm(q.cim) === nrm(f[O.ugyfel]); })[0];
