@@ -32,6 +32,7 @@ const LAPOK = {
   'Feladatok': ['id', 'munkatars_id', 'szoveg', 'hatarido', 'kesz', 'letrehozva', 'kesz_ido', 'szerzo'],
   'Telefonpartyk': ['id', 'nev', 'datum', 'helyek', 'letrehozva', 'szerzo'],
   'Telefonparty': ['party_id', 'kulcs', 'nev', 'csapat', 'db', 'modositva', 'szerzo'],
+  'Prezik': ['id', 'munkatars_id', 'datum', 'jelolt', 'telefon', 'forras', 'eredmeny', 'jegyzet', 'letrehozva', 'szerzo', 'modositva'],
   'Célok': ['munkatars_id', 'honap', 'cel', 'vallalas', 'modositva', 'szerzo'],
   'Értesítések': ['id', 'tipus', 'munkatars_id', 'munkatars_nev', 'ugyfel', 'kulcs', 'cimzettek', 'letrehozva', 'szerzo', 'kesz', 'kesz_ido', 'kesz_szerzo']
 };
@@ -67,6 +68,8 @@ function kezel_(k) {
     case 'urlap': return urlap_();
     case 'alkalomUj': return zarral_(function () { return alkalomUj_(en, k); });
     case 'alkalomTorol': return zarral_(function () { return alkalomTorol_(en, k); });
+    case 'preziMent': return zarral_(function () { return preziMent_(en, k); });
+    case 'preziTorol': return zarral_(function () { return preziTorol_(en, k.id); });
     case 'elemzesTorol': return zarral_(function () { return elemzesTorol_(en, k); });
     case 'jegyzetMent': return zarral_(function () { return jegyzetMent_(en, k); });
     case 'jegyzetTorol': return zarral_(function () { return jegyzetTorol_(en, k.id); });
@@ -730,7 +733,49 @@ function adatok_(en) {
   sorok_('Felhasználók').forEach(function (f) { if (kell[f.email]) nevek[f.email] = f.nev || ''; });
   let sajat = null;
   if (en.szerep === 'vezeto') { const sid = sajatId_(en); sajat = sorok_('Munkatársak').filter(function (x) { return x.id === sid && x.aktiv !== 'nem'; }).map(tisztit)[0] || null; }
-  return { en: enAdat_(en), sajat: sajat, munkatarsak: lathatoMunkatarsak_(en).map(tisztit), jegyzetek: jegyzetek, feladatok: feladatok, nevek: nevek, ertesitesek: sajatErtesitesek_(en), ido: most_() };
+  // Csapatépítés: a látható munkatársak és a saját (vezető) prezijei.
+  const sajatI = sajat ? sajat.id : '';
+  const prezik = sorok_('Prezik').filter(function (x) { return ids[x.munkatars_id] || (sajatI && x.munkatars_id === sajatI); }).map(tisztit);
+  prezik.forEach(function (x) { if (x.szerzo && !nevek[x.szerzo]) kell[x.szerzo] = true; });
+  sorok_('Felhasználók').forEach(function (f) { if (kell[f.email]) nevek[f.email] = f.nev || ''; });
+  return { en: enAdat_(en), sajat: sajat, munkatarsak: lathatoMunkatarsak_(en).map(tisztit), jegyzetek: jegyzetek, feladatok: feladatok, prezik: prezik, nevek: nevek, ertesitesek: sajatErtesitesek_(en), ido: most_() };
+}
+
+/* ================= csapatépítés: megvalósult prezik ================= */
+
+/** Vezető vagy vezetőjelölt: VJ, VR…, GST, BL pozíció, vagy a „Csapatvezetők” csoport tagja. */
+function vezetoPoz_(m) { return /^(VJ|VR\d*|GST|BL)$/i.test(String(m.pozicio || '').trim()) || /vezet/i.test(String(m.csapat || '')); }
+/**
+ * Prezi rögzítése/módosítása. k: { id?, munkatars_id, datum: 'ÉÉÉÉ-HH-NN', jelolt, telefon, forras, eredmeny: Csatlakozik|Gondolkodik|Nem|'', jegyzet }
+ * Aki a munkatársat látja (és a vezető a saját lapjára), csak vezető/vezetőjelölt lapjára.
+ */
+function preziMent_(en, k) {
+  const regi = k.id ? sorok_('Prezik').filter(function (x) { return x.id === k.id; })[0] : null;
+  if (k.id && !regi) hiba_('Ez a prezi már nem létezik.');
+  const mtId = regi ? regi.munkatars_id : k.munkatars_id;
+  pipelineJog_(en, mtId);
+  const m = sorok_('Munkatársak').filter(function (x) { return x.id === mtId; })[0];
+  if (!m) hiba_('A munkatárs nem található.');
+  if (!vezetoPoz_(m)) hiba_('Csapatépítést csak vezető vagy vezetőjelölt lapjára lehet rögzíteni.');
+  const datum = String(k.datum || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) hiba_('Add meg a prezi dátumát.');
+  const jelolt = String(k.jelolt || '').trim().slice(0, 120);
+  if (!jelolt) hiba_('Add meg, kinek tartottad a prezit.');
+  const eredmeny = ['Csatlakozik', 'Gondolkodik', 'Nem'].indexOf(k.eredmeny) > -1 ? k.eredmeny : '';
+  const adat = { datum: datum, jelolt: jelolt, telefon: String(k.telefon || '').trim().slice(0, 40), forras: String(k.forras || '').trim().slice(0, 120), eredmeny: eredmeny, jegyzet: String(k.jegyzet || '').trim().slice(0, 2000) };
+  if (regi) { adat.modositva = most_(); frissit_('Prezik', regi._sor, adat); return { ok: true, id: regi.id }; }
+  const id = ujId_();
+  adat.id = id; adat.munkatars_id = mtId; adat.letrehozva = most_(); adat.szerzo = en.email; adat.modositva = '';
+  hozzaad_('Prezik', adat);
+  return { ok: true, id: id };
+}
+function preziTorol_(en, id) {
+  const x = sorok_('Prezik').filter(function (p) { return p.id === id; })[0];
+  if (!x) return { ok: true };
+  pipelineJog_(en, x.munkatars_id);
+  if (en.szerep === 'munkatars' && x.szerzo !== en.email) hiba_('Csak a saját rögzítésedet törölheted.');
+  torol_('Prezik', x._sor);
+  return { ok: true };
 }
 
 function jegyzetMent_(en, k) {

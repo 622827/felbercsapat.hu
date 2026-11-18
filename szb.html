@@ -74,7 +74,23 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   .allapot { font-size: .85rem; font-weight: 600; padding: 6px 12px; border-radius: 99px; background: var(--panel); color: var(--muted); }
   .allapot.ok { background: var(--accent-soft); color: var(--ink); }
   .lap > .fej + .fulek { margin-top: -10px; }
-  .fulek { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .fulek { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  /* csapatépítés */
+  .prz-urlap { background: var(--panel); border-radius: 16px; padding: 16px; display: grid; gap: 12px; }
+  .prz-racs { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+  .prz-lista { display: grid; gap: 8px; }
+  .prz { background: var(--panel); border-radius: 14px; padding: 10px 14px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; border-left: 4px solid var(--line); }
+  .prz.csatl { border-left-color: var(--accent); }
+  .prz.gond { border-left-color: var(--warn); }
+  .prz.nem { border-left-color: var(--danger); }
+  .prz b { font-size: 1rem; }
+  .prz .prz-al { color: var(--muted); font-size: .82rem; }
+  .prz .prz-jegyzet { grid-column: 1 / -1; margin: 2px 0 0; font-size: .88rem; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .prz .prz-er { align-self: start; font-size: .78rem; font-weight: 700; padding: 3px 10px; border-radius: 99px; background: var(--track); color: var(--muted); }
+  .prz.csatl .prz-er { background: var(--accent-soft); color: var(--ink); }
+  .prz.gond .prz-er { background: var(--warn-soft); color: var(--warn); }
+  .prz.nem .prz-er { background: rgba(255,138,122,.18); color: var(--danger); }
+  .prz .muv { grid-column: 1 / -1; display: flex; gap: 12px; }
   .fulek button { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 16px 12px; border-radius: 16px; border: 2px solid var(--line); background: var(--panel); font-weight: 700; font-size: 1.05rem; cursor: pointer; color: var(--muted); }
   .fulek button span { font-size: 1.3rem; }
   .fulek button:hover { color: var(--ink); border-color: var(--muted); }
@@ -386,7 +402,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   function betolt() {
     if (S.betolt) return Promise.resolve(); S.betolt = true;
     return api("adatok").then(function (d) {
-      S.en = d.en; S.sajat = d.sajat || null; S.mt = d.munkatarsak; S.jegy = d.jegyzetek; S.fel = d.feladatok; S.nevek = d.nevek || {}; S.ertesitesek = d.ertesitesek || [];
+      S.en = d.en; S.sajat = d.sajat || null; S.mt = d.munkatarsak; S.jegy = d.jegyzetek; S.fel = d.feladatok; S.prezik = d.prezik || []; S.nevek = d.nevek || {}; S.ertesitesek = d.ertesitesek || [];
       if (S.en.szerep === "munkatars" && !S.sel && S.mt[0]) S.sel = S.mt[0].id;
       rajzolMinden();
     }).catch(function (e) { $("heti").textContent = e.message; }).then(function () { S.betolt = false; });
@@ -411,7 +427,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     rajzolLista();
     if (S.nezet !== "mt") return;
     if (!$("feladatForm") || (aktualis() === null)) rajzolReszletVaz();
-    else { rajzolJegyzetek(); rajzolFeladatok(); rajzolAllapot(); }
+    else { rajzolJegyzetek(); rajzolFeladatok(); rajzolAllapot(); if (S.ful === "csapat") rajzolPrezik(S.sel); }
     if (S.sel) $("app").classList.add("reszletben");
   }
 
@@ -478,12 +494,27 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   function rajzolReszletVaz() {
     var m = aktualis(), main = $("reszlet");
     if (!m) { main.innerHTML = '<div class="kezdo"><div><h2>Válassz munkatársat</h2><p>Bal oldalt kattints egy névre: ott írhatod az SZB jegyzetet és a megbeszélt feladatokat.</p></div></div>'; return; }
+    if (vezetoPoz(m) && lsGet("szb_ful") === "csapat") S.ful = "csapat";   // a választott fül vezetőnél visszaáll
+    if (S.ful === "csapat" && !vezetoPoz(m)) S.ful = "pipeline";
     if (S.sajatMod) {
+      var vp = vezetoPoz(m), sf = vp && S.ful === "csapat" ? "csapat" : "pipeline";
       main.innerHTML = '<div class="lap"><button class="vissza" id="vissza" type="button">← Munkatársak</button>' +
-        '<div class="fej"><div><h2>' + esc(m.nev) + '</h2><p>Saját elemzés összegző – a saját elemzéseid</p></div></div>' +
-        '<section><div id="pipe" class="pipe"><p class="ures">Elemzés összegző betöltése…</p></div></section></div>';
+        '<div class="fej"><div><h2>' + esc(m.nev) + '</h2><p>Saját oldal – a saját elemzéseid' + (vp ? " és csapatépítésed" : "") + "</p></div></div>" +
+        (vp ? '<div class="fulek" role="tablist" aria-label="Saját menü"><button type="button" role="tab" data-ful="pipeline" aria-selected="' + (sf === "pipeline") + '"><span aria-hidden="true">📈</span>Elemzés összegző</button>' +
+          '<button type="button" role="tab" data-ful="csapat" aria-selected="' + (sf === "csapat") + '"><span aria-hidden="true">🤝</span>Csapatépítés</button></div>' : "") +
+        '<div id="fulPipeline" class="ful"' + (sf === "pipeline" ? "" : " hidden") + '><section><div id="pipe" class="pipe"><p class="ures">Elemzés összegző betöltése…</p></div></section></div>' +
+        '<div id="fulCsapat" class="ful"' + (sf === "csapat" ? "" : " hidden") + '><div id="csapatEpites"></div></div></div>';
       $("vissza").onclick = function () { $("app").classList.remove("reszletben"); S.sel = null; S.sajatMod = false; rajzolLista(); };
-      pipeBetolt(m.id); return;
+      var fk = main.querySelector(".fulek");
+      if (fk) fk.addEventListener("click", function (e) {
+        var b = e.target.closest("[data-ful]"); if (!b) return;
+        S.ful = b.dataset.ful; lsSet("szb_ful", S.ful);
+        this.querySelectorAll("[data-ful]").forEach(function (x) { x.setAttribute("aria-selected", String(x === b)); });
+        $("fulPipeline").hidden = S.ful !== "pipeline"; $("fulCsapat").hidden = S.ful !== "csapat";
+        if (S.ful === "pipeline") pipeBetolt(m.id); else rajzolPrezik(m.id);
+      });
+      if (sf === "pipeline") pipeBetolt(m.id); else rajzolPrezik(m.id);
+      return;
     }
     var vazlat = lsGet("szb_vazlat_" + m.id);
     main.innerHTML = '<div class="lap">' +
@@ -493,7 +524,9 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
         '</div><span class="allapot" id="allapot"></span></div>' +
       '<div class="fulek" role="tablist" aria-label="Munkatárs menü">' +
         '<button type="button" role="tab" data-ful="pipeline" aria-selected="' + (S.ful === "pipeline") + '"><span aria-hidden="true">📈</span>Elemzés összegző</button>' +
-        '<button type="button" role="tab" data-ful="szb" aria-selected="' + (S.ful === "szb") + '"><span aria-hidden="true">📝</span>' + (mtars() ? "Teendők" : "Kontroll SZB") + "</button></div>" +
+        '<button type="button" role="tab" data-ful="szb" aria-selected="' + (S.ful === "szb") + '"><span aria-hidden="true">📝</span>' + (mtars() ? "Teendők" : "Kontroll SZB") + "</button>" +
+        (vezetoPoz(m) ? '<button type="button" role="tab" data-ful="csapat" aria-selected="' + (S.ful === "csapat") + '"><span aria-hidden="true">🤝</span>Csapatépítés</button>' : "") + "</div>" +
+      '<div id="fulCsapat" class="ful"' + (S.ful === "csapat" ? "" : " hidden") + '><div id="csapatEpites"></div></div>' +
       '<div id="fulValaszt" class="ures"' + (S.ful ? " hidden" : "") + '>Válaszd ki fent, mit nyitsz meg: <b>Elemzés összegző</b> vagy <b>Kontroll SZB</b>.</div>' +
       '<div id="fulPipeline" class="ful"' + (S.ful === "pipeline" ? "" : " hidden") + '><section><div id="pipe" class="pipe"><p class="ures">Elemzés összegző betöltése…</p></div></section></div>' +
       '<div id="fulSzb" class="ful"' + (S.ful === "szb" ? "" : " hidden") + '>' +
@@ -511,10 +544,12 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       var b = e.target.closest("[data-ful]"); if (!b) return;
       S.ful = b.dataset.ful; lsSet("szb_ful", S.ful);
       this.querySelectorAll("[data-ful]").forEach(function (x) { x.setAttribute("aria-selected", String(x === b)); });
-      $("fulValaszt").hidden = true; $("fulPipeline").hidden = S.ful !== "pipeline"; $("fulSzb").hidden = S.ful !== "szb";
+      $("fulValaszt").hidden = true; $("fulPipeline").hidden = S.ful !== "pipeline"; $("fulSzb").hidden = S.ful !== "szb"; $("fulCsapat").hidden = S.ful !== "csapat";
       if (S.ful === "pipeline") pipeBetolt(m.id);
+      if (S.ful === "csapat") rajzolPrezik(m.id);
     });
     if (S.ful === "pipeline") pipeBetolt(m.id);
+    if (S.ful === "csapat") rajzolPrezik(m.id);
     var v = $("vissza"); if (v) v.onclick = function () { $("app").classList.remove("reszletben"); S.sel = null; try { history.replaceState(null, "", "#"); } catch (e) {} rajzolLista(); };
     if ($("jegyzetMezok")) $("jegyzetMezok").addEventListener("input", function (e) { if (e.target.tagName === "TEXTAREA") { szbNoveszt(e.target); lsSet("szb_vazlat_" + m.id, JSON.stringify(szbErtekek($("jegyzetMezok")))); } });
     if ($("jegyzetMezok")) $("jegyzetMezok").querySelectorAll("textarea").forEach(szbNoveszt);
@@ -531,6 +566,84 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       this.querySelectorAll("button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
     });
     rajzolJegyzetek(); rajzolFeladatok(); rajzolAllapot();
+  }
+
+  /* ---------- csapatépítés: megvalósult prezik ---------- */
+  function vezetoPoz(m) { return !!m && (/^(VJ|VR\d*|GST|BL)$/i.test(String(m.pozicio || "").trim()) || /vezet/i.test(String(m.csapat || ""))); }
+  var PR = { szerk: null, er: "" };
+  function isoDatum(s) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ""); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; }
+  function preziLista(id) {
+    return (S.prezik || []).filter(function (x) { return x.munkatars_id === id; })
+      .sort(function (a, b) { return String(b.datum).localeCompare(String(a.datum)) || String(b.letrehozva).localeCompare(String(a.letrehozva)); });
+  }
+  function rajzolPrezik(mtId) {
+    var el = $("csapatEpites"); if (!el) return;
+    var l = preziLista(mtId), akt = termHo(new Date());
+    var ebben = l.filter(function (x) { return termHo(isoDatum(x.datum)) === akt; });
+    var sz = PR.szerk ? l.filter(function (x) { return x.id === PR.szerk; })[0] : null;
+    if (PR.szerk && !sz) PR.szerk = null;
+    var v = sz || { datum: maIso(), jelolt: "", telefon: "", forras: "", eredmeny: "", jegyzet: "" };
+    if (!PR.erAllitva) PR.er = v.eredmeny || "";
+    function csempe(cim, ertek, al) { return '<div class="pcs"><span>' + cim + "</span><b>" + ertek + "</b>" + (al ? "<small>" + al + "</small>" : "") + "</div>"; }
+    var akA = termHoAdat(akt);
+    var html = '<div class="pcsempek" style="margin-bottom:14px">' +
+      csempe("Prezi – " + esc(akA.nev.replace(/^\d+\. /, "")), ebben.length, esc(akA.idoszak)) +
+      csempe("Csatlakozik", ebben.filter(function (x) { return x.eredmeny === "Csatlakozik"; }).length, "ebben a termelési hónapban") +
+      csempe("Gondolkodik", ebben.filter(function (x) { return x.eredmeny === "Gondolkodik"; }).length, "") +
+      csempe("Összes prezi", l.length, "") + "</div>";
+    html += '<section><h3>' + (sz ? "Prezi szerkesztése" : "Megvalósult prezi rögzítése") + '</h3><form class="prz-urlap" id="przForm"><div class="prz-racs">' +
+      '<label class="pm"><span>Dátum</span><input type="date" class="mezo" id="przDatum" value="' + esc(v.datum) + '"></label>' +
+      '<label class="pm"><span>Kinek tartottad? *</span><input class="mezo" id="przJelolt" value="' + esc(v.jelolt) + '" placeholder="Név"></label>' +
+      '<label class="pm"><span>Telefonszám</span><input class="mezo" id="przTel" inputmode="tel" value="' + esc(v.telefon) + '"></label>' +
+      '<label class="pm"><span>Honnan jött? (ajánló, forrás)</span><input class="mezo" id="przForras" value="' + esc(v.forras) + '"></label></div>' +
+      '<div class="pm"><span>Eredmény</span><div class="var-opt">' + ["Csatlakozik", "Gondolkodik", "Nem"].map(function (e) {
+        return '<button type="button" class="var-o" data-pr-er="' + e + '" aria-pressed="' + (PR.er === e) + '">' + (e === "Csatlakozik" ? "✓ " : e === "Nem" ? "✗ " : "… ") + e + "</button>";
+      }).join("") + "</div></div>" +
+      '<label class="pm"><span>Jegyzet</span><textarea class="mezo" id="przJegyzet" rows="2" placeholder="Mi volt a benyomás, mi a következő lépés…">' + esc(v.jegyzet) + "</textarea></label>" +
+      '<div class="sor"><span class="hiba" id="przHiba"></span>' + (sz ? '<button type="button" class="gomb halk jobbra" data-pr-megse="1">Mégse</button>' : '<span class="jobbra"></span>') +
+      '<button type="submit" class="gomb" id="przMent">' + (sz ? "Mentés" : "Prezi rögzítése") + "</button></div></form></section>";
+    if (!l.length) html += '<section><h3>Prezik</h3><p class="ures">Még nincs rögzített prezi.</p></section>';
+    else {
+      var elozo = null;
+      html += "<section><h3>Prezik</h3><div class=\"prz-lista\">" + l.map(function (x) {
+        var tk = termHo(isoDatum(x.datum)), fej = "";
+        if (tk !== elozo) { elozo = tk; var a = tk === null ? { nev: "Dátum nélkül", idoszak: "" } : termHoAdat(tk), db = l.filter(function (y) { return termHo(isoDatum(y.datum)) === tk; }).length;
+          fej = '<h4 class="tho"><b>' + esc(a.nev) + "</b><span>" + esc((a.idoszak ? a.idoszak + " · " : "") + db + " prezi") + "</span></h4>"; }
+        var cls = x.eredmeny === "Csatlakozik" ? " csatl" : x.eredmeny === "Gondolkodik" ? " gond" : x.eredmeny === "Nem" ? " nem" : "";
+        var torolheto = !mtars() || x.szerzo === S.en.email;
+        return fej + '<article class="prz' + cls + '" data-prz="' + esc(x.id) + '"><div><b>' + esc(x.jelolt) + '</b><div class="prz-al">' + esc(hosszu(x.datum)) +
+          (x.forras ? " · " + esc(x.forras) : "") + (x.telefon ? " · " + esc(x.telefon) : "") + (x.szerzo ? " · rögzítette: " + esc(szerzoNev(x.szerzo)) : "") + "</div></div>" +
+          (x.eredmeny ? '<span class="prz-er">' + esc(x.eredmeny) + "</span>" : "<span></span>") +
+          (x.jegyzet ? '<p class="prz-jegyzet">' + esc(x.jegyzet) + "</p>" : "") +
+          '<div class="muv"><button class="link" type="button" data-pr-szerk="' + esc(x.id) + '">Szerkesztés</button>' + (torolheto ? '<button class="link" type="button" data-pr-torol="' + esc(x.id) + '">Törlés</button>' : "") + "</div></article>";
+      }).join("") + "</div></section>";
+    }
+    el.innerHTML = html;
+    $("przForm").onsubmit = function (e) {
+      e.preventDefault();
+      var h = $("przHiba"), b = $("przMent"), jel = $("przJelolt").value.trim(), dat = $("przDatum").value;
+      if (!dat) { h.textContent = "Add meg a dátumot."; return; }
+      if (!jel) { h.textContent = "Add meg, kinek tartottad a prezit."; $("przJelolt").focus(); return; }
+      b.disabled = true; b.textContent = "Mentés…"; h.textContent = "";
+      var adat = { munkatars_id: mtId, datum: dat, jelolt: jel, telefon: $("przTel").value.trim(), forras: $("przForras").value.trim(), eredmeny: PR.er, jegyzet: $("przJegyzet").value.trim() };
+      if (sz) adat.id = sz.id;
+      api("preziMent", adat).then(function () { PR.szerk = null; PR.er = ""; PR.erAllitva = false; toast(sz ? "Prezi mentve" : "Prezi rögzítve"); return betolt(); })
+        .then(function () { if (S.ful === "csapat") rajzolPrezik(mtId); })
+        .catch(function (err) { h.textContent = err.message; b.disabled = false; b.textContent = sz ? "Mentés" : "Prezi rögzítése"; });
+    };
+    el.onclick = function (e) {
+      var er = e.target.closest("[data-pr-er]");
+      if (er) { PR.er = PR.er === er.dataset.prEr ? "" : er.dataset.prEr; PR.erAllitva = true; el.querySelectorAll("[data-pr-er]").forEach(function (x) { x.setAttribute("aria-pressed", String(x.dataset.prEr === PR.er)); }); return; }
+      if (e.target.closest("[data-pr-megse]")) { PR.szerk = null; PR.er = ""; PR.erAllitva = false; rajzolPrezik(mtId); return; }
+      var sk = e.target.closest("[data-pr-szerk]");
+      if (sk) { PR.szerk = sk.dataset.prSzerk; PR.erAllitva = false; rajzolPrezik(mtId); el.querySelector("#przForm").scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+      var tr = e.target.closest("[data-pr-torol]");
+      if (tr) {
+        if (!confirm("Biztosan törlöd ezt a prezit?")) return;
+        api("preziTorol", { id: tr.dataset.prTorol }).then(function () { toast("Prezi törölve"); return betolt(); }).then(function () { if (S.ful === "csapat") rajzolPrezik(mtId); })
+          .catch(function (err) { toast(err.message); });
+      }
+    };
   }
 
   /* ---------- SZB jegyzet kérdésenként ---------- */
