@@ -301,7 +301,8 @@ function virtSorOlvas_(L, sor) {
 
 /**
  * Eredményjelző a pipeline-ból: minden aktív munkatárs elemzéseinek számai (ügyféladat nélkül).
- * Soronként: [dátum 'ÉÉÉÉ-HH-NN', TA időpont 0/1, ajánlás, munkatársi ajánlás, egység kilátás, TA megvalósult 0/1, megkötött ES, spec ES].
+ * Soronként: [dátum 'ÉÉÉÉ-HH-NN', TA időpont 0/1, ajánlás, munkatársi ajánlás, egység kilátás, TA megvalósult 0/1, megkötött ES, spec ES,
+ *             típus: 'I' igényfelmérés (vagy üres) | 'S' szerviz | 'P' specialista időpont].
  */
 function pipelineOsszesito_(en) {
   const mt = sorok_('Munkatársak').filter(function (m) { return m.aktiv !== 'nem'; });
@@ -321,7 +322,8 @@ function pipelineOsszesito_(en) {
       const O = {
         datum: oszlop(f, /^időbélyeg/i), ugyfel: oszlop(f, /ügyfél neve/i), munk: oszlop(f, /^munkatárs/i), taIdo: oszlop(f, /tanácsadás időpont/i),
         ajanlas: oszlop(f, /^hány db/i), mtAjanlas: oszlop(f, /munkatársi ajánlás/i), kilatas: oszlop(f, /kilátás/i),
-        taMeg: oszlop(f, /megval[oó]s[uú]lt/i), megkotott: oszlop(f, /megkötött es/i), specEs: oszlop(f, /spec\.?\s*es/i)
+        taMeg: oszlop(f, /megval[oó]s[uú]lt/i), megkotott: oszlop(f, /megkötött es/i), specEs: oszlop(f, /spec\.?\s*es/i),
+        tipus: oszlop(f, /igényfelmérés vagy szerviz/i)
       };
       function g(r, i) { return i > -1 ? r[i] : ''; }
       for (let i = 1; i < e.length; i++) {
@@ -330,7 +332,8 @@ function pipelineOsszesito_(en) {
         if (!lap && !(O.munk > -1 && nevNorm_(r[O.munk]) === cel)) continue;
         const d = /^(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})/.exec(String(g(r, O.datum)));
         sorok.push([d ? d[1] + '-' + ('0' + d[2]).slice(-2) + '-' + ('0' + d[3]).slice(-2) : '', igen(g(r, O.taIdo)), szam(g(r, O.ajanlas)), szam(g(r, O.mtAjanlas)),
-          szam(g(r, O.kilatas)), igen(g(r, O.taMeg)), szam(g(r, O.megkotott)), szam(g(r, O.specEs))]);
+          szam(g(r, O.kilatas)), igen(g(r, O.taMeg)), szam(g(r, O.megkotott)), szam(g(r, O.specEs)),
+          /szerviz/i.test(String(g(r, O.tipus))) ? 'S' : /specialista/i.test(String(g(r, O.tipus))) ? 'P' : 'I']);
       }
     }
     return { id: m.id, nev: m.nev, csapat: m.csapat || '', pozicio: m.pozicio || '', sorok: sorok };
