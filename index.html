@@ -943,7 +943,11 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
    * A csapatfa az aktuális hónap csapataiból épül: legfelül a BL, alatta a csapatvezetők és a BL saját csapattagjai,
    * a vezetők alatt a csapattagjaik. Ha valaki valójában más alatt van, itt írd át: "Név": "Felettese neve".
    */
-  var FA_SZULO = {};
+  var FA_SZULO = {
+    "Szabó Boglárka": "Majoros Dávid",
+    "Szabó Levente": "Majoros Dávid",
+    "Kovács S. József": "Nagy Mila"
+  };
   function faNev(n) { return String(n || "").replace(/\s*-\s*/g, "-").replace(/\s+/g, " ").trim(); }
   function csapatfa(d) {
     var h = d.honapok[S.honap] || d.honapok[alapHonap(d.honapok)];
@@ -976,7 +980,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       var e = emberek[n];
       return "<li>" + kartya(n, true) + (e.gyerek.length ? '<ul class="fa-lista">' + e.gyerek.map(ag).join("") + "</ul>" : "") + "</li>";
     }
-    var gy = emberek[gyoker], levelek = gy.gyerek.filter(function (n) { return !emberek[n].gyerek.length && !emberek[n].vezeto; }), agak = gy.gyerek.filter(function (n) { return emberek[n].gyerek.length || emberek[n].vezeto; });
+    var gy = emberek[gyoker], levelek = gy.gyerek.filter(function (n) { return !emberek[n].vezeto; }), agak = gy.gyerek.filter(function (n) { return emberek[n].vezeto; });
     var oszlopok = (levelek.length ? ['<div class="fa-oszlop"><p class="fa-cim">' + esc(gy.csapat) + '</p><ul class="fa-lista fa-elso">' + levelek.map(ag).join("") + "</ul></div>"] : [])
       .concat(agak.map(function (n) { return '<div class="fa-oszlop"><p class="fa-cim">' + esc(emberek[n].csapat) + '</p><ul class="fa-lista fa-elso">' + ag(n) + "</ul></div>"; }));
     var db = sorrend.length;
