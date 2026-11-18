@@ -821,7 +821,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
           (g(r, O.tipus) ? " · " + esc(g(r, O.tipus)) : "") + '</span></div><div class="pk-jobb"><span class="allapot' + (kesz ? " ok" : "") + '">' + (kesz ? "✓ TA megvalósult" : "Nyitott") + '</span><button type="button" class="gomb halk pk-szerk" data-szerk="1">✏️ Szerkesztés</button>' + (S.en && S.en.szerep !== "munkatars" ? '<button type="button" class="gomb halk pk-szerk pk-torol" data-torol="1" title="Ügyfél törlése">🗑 Törlés</button>' : "") + '</div></header>' +
           '<div class="ppk">' + pont("Hitelesítve", O.hitel) + pont("Tanácsadás időpont", O.taIdo) + pont("Portál admin", O.portal) +
             (O.ajanlas > -1 ? '<span class="pp' + (szamv(g(r, O.ajanlas)) ? " ok" : " nincs") + '">Ajánlás: ' + (esc(g(r, O.ajanlas)) || "0") + (g(r, O.mtAjanlas) ? " + " + esc(g(r, O.mtAjanlas)) + " mt." : "") + "</span>" : "") +
-            pont("Fixálva", O.fix) + pont("Kapcsolati tőke", O.kt) + minEll(O.minEll) + pont("Kidolgozva", O.kidolg) + pontRO("TA megvalósult", O.taMeg) + pont("CSOB", O.csob) + "</div>" +
+            pont("Fixálva", O.fix) + pont("Kapcsolati tőke", O.kt) + minEll(O.minEll) + pont("Kidolgozva", O.kidolg) + pontRO("TA megvalósult", O.taMeg) + (szamv(g(r, O.megkotott)) > 0 ? pont("CSOB", O.csob) : "") + "</div>" +
           (szamok ? '<div class="pszam">' + szamok + "</div>" : "") +
           (g(r, O.cel) ? '<p class="pcel"><span>Cél:</span> ' + esc(g(r, O.cel)) + "</p>" : "") +
           (ig.length ? '<ul class="pig">' + ig.map(function (t) { return "<li>" + esc(t) + "</li>"; }).join("") + "</ul>" : "") +
