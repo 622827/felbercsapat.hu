@@ -139,6 +139,18 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   table.pt td { overflow-wrap: anywhere; }
   section h3 { margin: 0 0 10px; font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
   .szerkeszto { background: var(--panel); border-radius: 16px; padding: 16px; display: grid; gap: 12px; }
+  .szbk { display: grid; gap: 12px; }
+  .szbk-k { display: grid; gap: 5px; }
+  .szbk-k > span { font-weight: 600; font-size: .92rem; }
+  .szbk-k textarea { min-height: 0; resize: vertical; font: inherit; font-size: .95rem; line-height: 1.4; overflow: hidden; }
+  .szbk-k.al { margin-left: 14px; padding-left: 12px; border-left: 3px solid var(--accent-soft); }
+  .szbk-k.al > span { font-weight: 500; }
+  .szbk-csop { margin: 4px 0 -4px; font-weight: 700; color: var(--accent); }
+  .szbv { display: grid; gap: 10px; margin-top: 6px; }
+  .szbv-k b { display: block; font-size: .82rem; color: var(--muted); font-weight: 600; margin-bottom: 2px; }
+  .szbv-k .szoveg { margin: 0; }
+  .szbv-k.al { margin-left: 14px; padding-left: 12px; border-left: 3px solid var(--accent-soft); }
+  .szbv .szbk-csop { margin: 2px 0 -4px; font-size: .9rem; }
   textarea { width: 100%; min-height: 170px; resize: vertical; border: 1px solid var(--line); background: var(--bg); border-radius: 12px; padding: 12px 14px; line-height: 1.55; }
   .sor { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
   .sor label { color: var(--muted); font-size: .85rem; }
@@ -320,6 +332,8 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   function lsGet(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
   function lsSet(k, v) { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) {} }
   function admin() { return S.en && S.en.szerep === "admin"; }
+  /** A munkatárs a róla írt SZB jegyzeteket nem látja, csak a feladatait (teendőit). */
+  function mtars() { return !!(S.en && S.en.szerep === "munkatars"); }
   function szerzoNev(email) { return !email ? "" : (S.en && email === S.en.email ? "te" : (S.nevek && S.nevek[email]) || email.split("@")[0]); }
 
   /* ---------- API ---------- */
@@ -391,7 +405,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     rajzolErtesitesek();
     rajzolLista();
     if (S.nezet !== "mt") return;
-    if (!$("jegyzetForm") || (aktualis() === null)) rajzolReszletVaz();
+    if (!$("feladatForm") || (aktualis() === null)) rajzolReszletVaz();
     else { rajzolJegyzetek(); rajzolFeladatok(); rajzolAllapot(); }
     if (S.sel) $("app").classList.add("reszletben");
   }
@@ -424,7 +438,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   function rajzolLista() {
     var q = $("kereso").value.trim().toLowerCase(), csop = {}, sor = [];
     var kesz = S.mt.filter(function (m) { return eHeten(utolsoSZB(m.id)); }).length;
-    $("heti").textContent = S.mt.length ? (hetSzam(new Date()) + ". hét · e heti SZB: " + kesz + " / " + S.mt.length) : (admin() ? "Még nincs munkatárs" : "Nincs hozzád rendelt munkatárs");
+    $("heti").textContent = mtars() ? hetSzam(new Date()) + ". hét" : S.mt.length ? (hetSzam(new Date()) + ". hét · e heti SZB: " + kesz + " / " + S.mt.length) : (admin() ? "Még nincs munkatárs" : "Nincs hozzád rendelt munkatárs");
     $("hetiSav").style.width = (S.mt.length ? kesz / S.mt.length * 100 : 0) + "%";
     S.mt.slice().sort(function (a, b) { return (+a.sorrend || 999) - (+b.sorrend || 999) || a.nev.localeCompare(b.nev, "hu"); }).forEach(function (m) {
       if (q && m.nev.toLowerCase().indexOf(q) < 0) return;
@@ -438,7 +452,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       return '<div class="csapat"><h2>' + esc(c) + "</h2>" + csop[c].map(function (m) {
         var u = utolsoSZB(m.id), ok = eHeten(u), ny = feladatai(m.id).filter(function (f) { return f.kesz !== "igen"; }).length;
         return '<button class="mt" data-id="' + esc(m.id) + '" aria-current="' + (m.id === S.sel && S.nezet === "mt") + '"><span class="pont' + (ok ? " ok" : "") + '" aria-label="' + (ok ? "E heti SZB megvolt" : "E heti SZB még nincs meg") + '">' + (ok ? "✓" : "") + "</span>" +
-          "<span><b>" + esc(m.nev) + "</b><small>" + (u ? "Utolsó SZB: " + rovid(u) : "Még nem volt SZB") + "</small></span>" + (ny ? '<span class="db" title="Nyitott feladatok">' + ny + "</span>" : "<span></span>") + "</button>";
+          "<span><b>" + esc(m.nev) + "</b><small>" + (mtars() ? (ny ? ny + " nyitott teendő" : "Nincs nyitott teendő") : u ? "Utolsó SZB: " + rovid(u) : "Még nem volt SZB") + "</small></span>" + (ny ? '<span class="db" title="Nyitott feladatok">' + ny + "</span>" : "<span></span>") + "</button>";
       }).join("") + "</div>";
     }).join("");
   }
@@ -474,15 +488,16 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
         '</div><span class="allapot" id="allapot"></span></div>' +
       '<div class="fulek" role="tablist" aria-label="Munkatárs menü">' +
         '<button type="button" role="tab" data-ful="pipeline" aria-selected="' + (S.ful === "pipeline") + '"><span aria-hidden="true">📈</span>Elemzés összegző</button>' +
-        '<button type="button" role="tab" data-ful="szb" aria-selected="' + (S.ful === "szb") + '"><span aria-hidden="true">📝</span>Kontroll SZB</button></div>' +
+        '<button type="button" role="tab" data-ful="szb" aria-selected="' + (S.ful === "szb") + '"><span aria-hidden="true">📝</span>' + (mtars() ? "Teendők" : "Kontroll SZB") + "</button></div>" +
       '<div id="fulValaszt" class="ures"' + (S.ful ? " hidden" : "") + '>Válaszd ki fent, mit nyitsz meg: <b>Elemzés összegző</b> vagy <b>Kontroll SZB</b>.</div>' +
       '<div id="fulPipeline" class="ful"' + (S.ful === "pipeline" ? "" : " hidden") + '><section><div id="pipe" class="pipe"><p class="ures">Elemzés összegző betöltése…</p></div></section></div>' +
       '<div id="fulSzb" class="ful"' + (S.ful === "szb" ? "" : " hidden") + '>' +
+      (mtars() ? "" :
       '<section><h3>Új SZB jegyzet</h3><form class="szerkeszto" id="jegyzetForm">' +
-        '<textarea id="jegyzetSzoveg" aria-label="SZB jegyzet" placeholder="Milyen volt a múlt hét? Mi a terv a jövő hétre? Bármi, amit meg akarsz jegyezni…">' + esc(vazlat) + "</textarea>" +
+        '<div id="jegyzetMezok">' + szbMezok(szbVazlat(vazlat)) + "</div>" +
         '<div class="sor"><label for="jegyzetDatum">SZB dátuma</label><input type="date" id="jegyzetDatum" value="' + maIso() + '"><span class="hiba" id="jegyzetHiba"></span><button class="gomb jobbra" type="submit" id="jegyzetMent">Mentés</button></div></form></section>' +
-      '<section><h3>Jegyzetek</h3><div class="jegyzetek" id="jegyzetLista"></div></section>' +
-      '<section><h3>Feladatok – miben állapodtunk meg</h3>' +
+      '<section><h3>Jegyzetek</h3><div class="jegyzetek" id="jegyzetLista"></div></section>') +
+      '<section><h3>' + (mtars() ? "Teendőid – miben állapodtatok meg" : "Feladatok – miben állapodtunk meg") + "</h3>" +
         '<form id="feladatForm"><div class="ujfeladat"><input type="text" class="mezo" id="feladatSzoveg" placeholder="Pl. 5 új ügyfélidőpont jövő péntekig" aria-label="Új feladat" style="border-width:1px;padding:9px 12px">' +
         '<input type="date" id="feladatHatarido" aria-label="Határidő"><button class="gomb" type="submit">Hozzáadás</button></div>' +
         '<div class="gyors" id="gyors"><button type="button" data-g="holnap">Holnap</button><button type="button" data-g="pentek">Péntek</button><button type="button" data-g="jovohet">Jövő hét</button><button type="button" data-g="kovszb">Következő SZB</button><button type="button" data-g="">Nincs határidő</button></div></form>' +
@@ -496,8 +511,9 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     });
     if (S.ful === "pipeline") pipeBetolt(m.id);
     var v = $("vissza"); if (v) v.onclick = function () { $("app").classList.remove("reszletben"); S.sel = null; try { history.replaceState(null, "", "#"); } catch (e) {} rajzolLista(); };
-    $("jegyzetSzoveg").addEventListener("input", function () { lsSet("szb_vazlat_" + m.id, this.value); });
-    $("jegyzetForm").addEventListener("submit", function (e) { e.preventDefault(); mentJegyzet(m.id); });
+    if ($("jegyzetMezok")) $("jegyzetMezok").addEventListener("input", function (e) { if (e.target.tagName === "TEXTAREA") { szbNoveszt(e.target); lsSet("szb_vazlat_" + m.id, JSON.stringify(szbErtekek($("jegyzetMezok")))); } });
+    if ($("jegyzetMezok")) $("jegyzetMezok").querySelectorAll("textarea").forEach(szbNoveszt);
+    if ($("jegyzetForm")) $("jegyzetForm").addEventListener("submit", function (e) { e.preventDefault(); mentJegyzet(m.id); });
     $("feladatForm").addEventListener("submit", function (e) { e.preventDefault(); ujFeladat(m.id); });
     $("gyors").addEventListener("click", function (e) {
       var b = e.target.closest("button"); if (!b) return;
@@ -512,8 +528,70 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     rajzolJegyzetek(); rajzolFeladatok(); rajzolAllapot();
   }
 
+  /* ---------- SZB jegyzet kérdésenként ---------- */
+  var SZB_K = [
+    { k: "fej", c: "Mi jár a fejedben?" },
+    { k: "mult", c: "Milyen volt a múlt hét?" },
+    { k: "admin", c: "Adminisztráció megvan mindenről?" },
+    { csop: "Elemzés összegzőt nézzük át!" },
+    { k: "nemta", c: "Kivel nem lett TA?", al: true },
+    { k: "kidolg", c: "Ki nincs még kidolgozva?", al: true },
+    { k: "minell", c: "Min.ell. hívások?", al: true },
+    { k: "egyeztet", c: "Ki az, akivel kell még egyeztetni, vagy van valamilyen teendő?", al: true },
+    { k: "het", c: "Milyen lesz ez a hét? (IF, TA, SZE, Tréning, Telefonálás)" },
+    { k: "idopont", c: "Beszéljük át a heti időpontokat." },
+    { k: "tovabb", c: "Továbbhaladás: tréning, feladott anyag" },
+    { k: "osszes", c: "Hogy állsz eddig összesen? Van-e valamilyen elakadás, amiben tudok segíteni?" },
+    { k: "egyeb", c: "Egyéb megjegyzés" }
+  ];
+  var SZB_JEL = "▸ ";
+  /** Mentett szöveg → { kulcs: válasz }. A kérdés nélküli (régi) szöveg az „Egyéb megjegyzés”-be kerül. */
+  function szbBont(szoveg) {
+    var o = {}, akt = "egyeb", sorok = String(szoveg || "").split("\n"), buf = {};
+    function cim2k(c) { c = c.trim(); for (var i = 0; i < SZB_K.length; i++) if (SZB_K[i].c === c) return SZB_K[i].k; return "x:" + c; }
+    sorok.forEach(function (sor) {
+      if (sor.indexOf(SZB_JEL) === 0) { akt = cim2k(sor.slice(SZB_JEL.length)); return; }
+      (buf[akt] = buf[akt] || []).push(sor);
+    });
+    Object.keys(buf).forEach(function (k) { var t = buf[k].join("\n").trim(); if (t) o[k] = o[k] ? o[k] + "\n" + t : t; });
+    return o;
+  }
+  function szbStrukturalt(szoveg) { return String(szoveg || "").indexOf(SZB_JEL) > -1; }
+  function szbOsszerak(v) {
+    var r = [];
+    SZB_K.forEach(function (q) { if (q.k && v[q.k] && v[q.k].trim()) r.push(SZB_JEL + q.c + "\n" + v[q.k].trim()); });
+    Object.keys(v).forEach(function (k) { if (k.indexOf("x:") === 0 && v[k].trim()) r.push(SZB_JEL + k.slice(2) + "\n" + v[k].trim()); });
+    return r.join("\n\n");
+  }
+  function szbErtekek(el) { var o = {}; el.querySelectorAll("textarea[data-szk]").forEach(function (t) { o[t.dataset.szk] = t.value; }); return o; }
+  /** A vázlat (localStorage): régen sima szöveg, most JSON. */
+  function szbVazlat(v) { if (!v) return {}; try { var o = JSON.parse(v); if (o && typeof o === "object") return o; } catch (e) {} return { egyeb: v }; }
+  function szbMezok(v) {
+    v = v || {};
+    var h = '<div class="szbk">';
+    SZB_K.forEach(function (q) {
+      if (q.csop) { h += '<p class="szbk-csop">' + esc(q.csop) + "</p>"; return; }
+      h += '<label class="szbk-k' + (q.al ? " al" : "") + '"><span>' + esc(q.c) + '</span><textarea rows="2" data-szk="' + q.k + '">' + esc(v[q.k] || "") + "</textarea></label>";
+    });
+    Object.keys(v).forEach(function (k) { if (k.indexOf("x:") === 0) h += '<label class="szbk-k"><span>' + esc(k.slice(2)) + '</span><textarea rows="2" data-szk="' + esc(k) + '">' + esc(v[k]) + "</textarea></label>"; });
+    return h + "</div>";
+  }
+  function szbNoveszt(t) { t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight + 2, 420) + "px"; }
+  function szbMegjelenit(szoveg) {
+    if (!szbStrukturalt(szoveg)) return '<p class="szoveg">' + esc(szoveg) + "</p>";
+    var v = szbBont(szoveg), h = '<div class="szbv">', csopKiirva = false;
+    SZB_K.forEach(function (q, i) {
+      if (q.csop || !v[q.k]) return;
+      if (q.al && !csopKiirva) { h += '<p class="szbk-csop">' + esc(SZB_K[3].csop) + "</p>"; csopKiirva = true; }
+      h += '<div class="szbv-k' + (q.al ? " al" : "") + '"><b>' + esc(q.c) + '</b><p class="szoveg">' + esc(v[q.k]) + "</p></div>";
+    });
+    Object.keys(v).forEach(function (k) { if (k.indexOf("x:") === 0) h += '<div class="szbv-k"><b>' + esc(k.slice(2)) + '</b><p class="szoveg">' + esc(v[k]) + "</p></div>"; });
+    return h + "</div>";
+  }
+
   function rajzolAllapot() {
     var el = $("allapot"); if (!el || !S.sel) return;
+    if (mtars()) { el.hidden = true; return; }
     var u = utolsoSZB(S.sel), ok = eHeten(u);
     el.className = "allapot" + (ok ? " ok" : "");
     el.textContent = ok ? "✓ E heti SZB megvolt" : (u ? "Utolsó SZB: " + rovid(u) : "Még nem volt SZB");
@@ -529,7 +607,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       var t = S.torol === j.id;
       return '<article class="jegyzet' + (i === 0 ? " friss" : "") + '" data-id="' + esc(j.id) + '"><header><b>' + esc(hosszu(j.datum)) + "</b><span>" + hetSzam(datum(j.datum)) + ". hét</span>" +
         "<span>Mentve: " + esc(ido(j.mentve)) + (j.szerzo ? " · " + esc(szerzoNev(j.szerzo)) : "") + (j.modositva ? " · módosítva" : "") + "</span></header>" +
-        '<p class="szoveg">' + esc(j.szoveg) + "</p>" +
+        szbMegjelenit(j.szoveg) +
         (sajat(j) ? '<div class="muv">' + (t ? '<span class="hiba">Biztosan törlöd ezt a jegyzetet?</span><button class="gomb vesz" data-a="torolIgen">Törlés</button><button class="gomb halk" data-a="torolNem">Mégse</button>'
           : '<button class="link" data-a="szerk">Szerkesztés</button><button class="link" data-a="torol">Törlés</button>') + "</div>" : "") + "</article>";
     }).join("") + (lista.length > 3 ? '<button class="gomb halk" id="mindJegyzet" type="button">' + (S.minden ? "Csak a legutóbbi 3" : "Korábbi jegyzetek (" + (lista.length - 3) + ")") + "</button>" : "");
@@ -557,12 +635,14 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     var j = S.jegy.filter(function (x) { return x.id === id; })[0]; if (!j) return;
     S.szerk = id;
     var art = document.querySelector('.jegyzet[data-id="' + CSS.escape(id) + '"]');
-    art.innerHTML = '<div class="szerkeszto"><textarea id="szerkSzoveg" aria-label="Jegyzet szerkesztése">' + esc(j.szoveg) + '</textarea><div class="sor"><label for="szerkDatum">SZB dátuma</label><input type="date" id="szerkDatum" value="' + esc(j.datum) + '">' +
+    art.innerHTML = '<div class="szerkeszto"><div id="szerkMezok">' + szbMezok(szbBont(j.szoveg)) + '</div><div class="sor"><label for="szerkDatum">SZB dátuma</label><input type="date" id="szerkDatum" value="' + esc(j.datum) + '">' +
       '<button class="gomb halk jobbra" type="button" id="szerkMegse">Mégse</button><button class="gomb" type="button" id="szerkMent">Mentés</button></div></div>';
-    $("szerkSzoveg").focus();
+    $("szerkMezok").querySelectorAll("textarea").forEach(szbNoveszt);
+    $("szerkMezok").addEventListener("input", function (e) { if (e.target.tagName === "TEXTAREA") szbNoveszt(e.target); });
+    var elsoM = $("szerkMezok").querySelector("textarea"); if (elsoM) elsoM.focus();
     $("szerkMegse").onclick = function () { S.szerk = null; rajzolJegyzetek(); };
     $("szerkMent").onclick = function () {
-      var t = $("szerkSzoveg").value.trim(); if (!t) return; this.disabled = true;
+      var t = szbOsszerak(szbErtekek($("szerkMezok"))); if (!t) { toast("Írj legalább egy kérdéshez valamit."); return; } this.disabled = true;
       api("jegyzetMent", { id: id, szoveg: t, datum: $("szerkDatum").value || j.datum }).then(function () { S.szerk = null; toast("Jegyzet mentve"); return betolt(); })
         .catch(function (e) { toast(e.message); $("szerkMent").disabled = false; });
     };
@@ -592,11 +672,11 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     return api(muvelet, adat).then(function () { if (uzenet) toast(uzenet); return betolt(); }, function (e) { toast(e.message); return betolt(); });
   }
   function mentJegyzet(mtId) {
-    var t = $("jegyzetSzoveg").value.trim(), d = $("jegyzetDatum").value || maIso(), btn = $("jegyzetMent");
-    if (!t) { $("jegyzetHiba").textContent = "Írj valamit a jegyzetbe."; return; }
+    var t = szbOsszerak(szbErtekek($("jegyzetMezok"))), d = $("jegyzetDatum").value || maIso(), btn = $("jegyzetMent");
+    if (!t) { $("jegyzetHiba").textContent = "Írj legalább egy kérdéshez valamit."; return; }
     $("jegyzetHiba").textContent = ""; btn.disabled = true; btn.textContent = "Mentés…";
     api("jegyzetMent", { munkatars_id: mtId, szoveg: t, datum: d }).then(function () {
-      if (S.sel === mtId) $("jegyzetSzoveg").value = "";
+      if (S.sel === mtId && $("jegyzetMezok")) { $("jegyzetMezok").innerHTML = szbMezok({}); }
       lsSet("szb_vazlat_" + mtId, ""); toast("Mentve: " + rovid(d)); return betolt();
     }).catch(function (e) { $("jegyzetHiba").textContent = e.message; })
       .then(function () { var b = $("jegyzetMent"); if (b) { b.disabled = false; b.textContent = "Mentés"; } });
