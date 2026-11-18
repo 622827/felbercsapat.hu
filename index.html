@@ -469,6 +469,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       if (d && d.error === "auth") { FBR.lock(); return; }
       if (!d || d.error || !d.honapok) throw new Error((d && d.message) || "Hibás válasz");
       var lapValt = S.lap !== d.lap;
+      pozicioJavit(d);
       S.data = d; S.lap = d.lap;
       if (lapValt || S.honap < 0 || S.honap >= d.honapok.length) S.honap = alapHonap(d.honapok);
       rajzol();
@@ -544,6 +545,17 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     });
   }
 
+  /*
+   * Pozíció felülírása, ha a CÉLOK táblázat A oszlopában még a régi szerepel (pl. vezetőjelöltek).
+   * "Név": "Pozíció" – ha a táblázatban is javítva lesz, ez nem árt, akkor törölhető.
+   */
+  var POZICIO_JAVITAS = { "Nagy Mila": "VJ", "Majoros Dávid": "VJ", "Szolnoki Imre": "VJ", "Szekér Anna": "VJ" };
+  function pozicioJavit(d) {
+    var j = {}; Object.keys(POZICIO_JAVITAS).forEach(function (n) { j[faNev(n).toLowerCase()] = POZICIO_JAVITAS[n]; });
+    (d.honapok || []).forEach(function (h) { h.csapatok.forEach(function (c) { c.tagok.forEach(function (t) {
+      var p = j[faNev(t.nev).toLowerCase()]; if (p) t.poz = p;
+    }); }); });
+  }
   function alapHonap(hk) {
     var most = HONAPOK[new Date().getMonth()];
     for (var i = 0; i < hk.length; i++) if (String(hk[i].nev).toLowerCase() === most) return i;
