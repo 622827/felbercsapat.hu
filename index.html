@@ -119,6 +119,36 @@ var API = "";
   .pl-dat { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: .9rem; }
   .pl-dat input { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; font: inherit; color-scheme: dark; }
   .pl-nulla { opacity: .5; }
+  /* csapatfa */
+  .fa { --vonal: var(--line); }
+  .fa-gyoker { display: flex; justify-content: center; position: relative; padding-bottom: 26px; }
+  .fa-gyoker::after { content: ""; position: absolute; left: 50%; bottom: 0; width: 2px; height: 26px; background: var(--vonal); }
+  .fa-k { background: var(--card); border-radius: 14px; padding: 10px 14px; box-shadow: 0 6px 20px rgba(0,0,0,.18); display: grid; gap: 4px; min-width: 0; border: 2px solid transparent; }
+  .fa-k.vez { border-color: var(--accent); }
+  .fa-k.nagy { padding: 14px 22px; text-align: center; justify-items: center; }
+  .fa-k.nagy b { font-size: 1.2rem; }
+  .fa-k b { overflow-wrap: anywhere; }
+  .fa-chipek { display: flex; flex-wrap: wrap; gap: 4px; }
+  .fa-chipek .chip { margin: 0; }
+  .fa-es { font-size: .75rem; color: var(--muted); }
+  .fa-agak { display: grid; grid-template-columns: repeat(var(--n), minmax(0, 1fr)); gap: 16px; position: relative; padding-top: 22px; }
+  .fa-agak::before { content: ""; position: absolute; top: 0; height: 2px; background: var(--vonal); left: calc(50% / var(--n)); right: calc(50% / var(--n)); }
+  .fa-oszlop { position: relative; min-width: 0; }
+  .fa-oszlop::before { content: ""; position: absolute; top: -22px; left: 50%; width: 2px; height: 22px; background: var(--vonal); }
+  .fa-cim { margin: 0 0 8px; text-align: center; color: var(--muted); font-size: .75rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  .fa-lista { list-style: none; margin: 0; padding: 0; }
+  .fa-lista .fa-lista { margin: 8px 0 0 10px; padding-left: 18px; border-left: 2px solid var(--vonal); }
+  .fa-lista li { position: relative; margin-bottom: 8px; }
+  .fa-lista .fa-lista > li::before { content: ""; position: absolute; left: -18px; top: 22px; width: 16px; height: 2px; background: var(--vonal); }
+  .fa-lista .fa-lista > li:last-child { margin-bottom: 0; }
+  @media (max-width: 900px) {
+    .fa-agak { grid-template-columns: 1fr 1fr; }
+    .fa-agak::before { display: none; }
+    .fa-oszlop::before { display: none; }
+    .fa-gyoker::after { display: none; }
+    .fa-gyoker { padding-bottom: 16px; }
+  }
+  @media (max-width: 560px) { .fa-agak { grid-template-columns: 1fr; } }
   .status button#plCelGomb { color: var(--accent); border-color: var(--accent); }
   .pl-cel { margin-bottom: 16px; border: 2px solid var(--accent); }
   .pl-cel h3 { margin: 16px 0 6px; font-size: 1rem; }
@@ -477,14 +507,15 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
 
   function rajzol() {
     var d = S.data, rh = rekordHonap(d);
-    var nezet = S.nezet === "havi" || S.nezet === "negyedev" || S.nezet === "pipeline" ? S.nezet : (rh ? "rekord" : "negyedev");
+    var nezet = S.nezet === "havi" || S.nezet === "negyedev" || S.nezet === "pipeline" || S.nezet === "csapatfa" ? S.nezet : (rh ? "rekord" : "negyedev");
     controls.innerHTML =
       '<div class="tabs" role="tablist" aria-label="Nézet">' +
         (rh ? '<button role="tab" data-n="rekord" aria-selected="' + (nezet === "rekord") + '">🏆 Év végi rekord</button>' : "") +
         '<button role="tab" data-n="negyedev" aria-selected="' + (nezet === "negyedev") + '">Negyedév</button>' +
         '<button role="tab" data-n="havi" aria-selected="' + (nezet === "havi") + '">Havi</button>' +
-        '<button role="tab" data-n="pipeline" aria-selected="' + (nezet === "pipeline") + '">📈 Elemzés összegző</button></div>' +
-      (d.lapok && d.lapok.length > 1 && nezet !== "pipeline" ? '<select class="q" id="lap" aria-label="Negyedév">' + d.lapok.map(function (l) { return '<option' + (l === d.lap ? " selected" : "") + ">" + esc(l) + "</option>"; }).join("") + "</select>" : "") +
+        '<button role="tab" data-n="pipeline" aria-selected="' + (nezet === "pipeline") + '">📈 Elemzés összegző</button>' +
+        '<button role="tab" data-n="csapatfa" aria-selected="' + (nezet === "csapatfa") + '">🌳 Csapatfa</button></div>' +
+      (d.lapok && d.lapok.length > 1 && nezet !== "pipeline" && nezet !== "csapatfa" ? '<select class="q" id="lap" aria-label="Negyedév">' + d.lapok.map(function (l) { return '<option' + (l === d.lap ? " selected" : "") + ">" + esc(l) + "</option>"; }).join("") + "</select>" : "") +
       (nezet === "havi" ? '<div class="tabs" role="tablist" aria-label="Hónap">' + d.honapok.map(function (m, i) {
         return '<button role="tab" data-i="' + i + '" aria-selected="' + (i === S.honap) + '">' + esc(m.nev) + "</button>";
       }).join("") + "</div>" : "");
@@ -503,7 +534,11 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     }
 
     var html;
-    if (nezet === "pipeline") {
+    if (nezet === "csapatfa") {
+      app.innerHTML = csapatfa(d);
+      document.getElementById("frissit").onclick = function () { betolt(S.lap); };
+      return;
+    } else if (nezet === "pipeline") {
       var pn = pipelineNezet();
       if (pn.vezerlo) controls.insertAdjacentHTML("beforeend", pn.vezerlo);
       app.innerHTML = pn.html; pipelineEsemenyek();
@@ -901,6 +936,55 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     var sel = document.getElementById("plIdo"); if (sel) sel.onchange = function () { PL.idoszak = sel.value; rajzol(); };
     ["plTol", "plIg"].forEach(function (id) { var el = document.getElementById(id); if (el) el.onchange = function () { PL[id === "plTol" ? "tol" : "ig"] = el.value; rajzol(); }; });
     var f = document.getElementById("frissit"); if (f) f.onclick = function () { plLetolt(); };
+  }
+
+  /* ---------- csapatfa ---------- */
+  /*
+   * A csapatfa az aktuális hónap csapataiból épül: legfelül a BL, alatta a csapatvezetők és a BL saját csapattagjai,
+   * a vezetők alatt a csapattagjaik. Ha valaki valójában más alatt van, itt írd át: "Név": "Felettese neve".
+   */
+  var FA_SZULO = {};
+  function faNev(n) { return String(n || "").replace(/\s*-\s*/g, "-").replace(/\s+/g, " ").trim(); }
+  function csapatfa(d) {
+    var h = d.honapok[S.honap] || d.honapok[alapHonap(d.honapok)];
+    var emberek = {}, sorrend = [], gyoker = null;
+    h.csapatok.forEach(function (c) {
+      var vez = c.tagok.filter(function (t) { return t.vezeto && t.nev; })[0];
+      c.tagok.forEach(function (t) {
+        if (!t.nev) return;
+        var n = faNev(t.nev);
+        if (emberek[n]) return;
+        emberek[n] = { nev: n, poz: t.poz || "", szint: t.szint || "", vezeto: !!t.vezeto, csapat: c.nev, es: t.egyseg ? t.egyseg.ossz : null, vez: vez ? faNev(vez.nev) : "", gyerek: [] };
+        sorrend.push(n);
+        if (t.vezeto && /^BL/i.test(t.poz || "") && !gyoker) gyoker = n;
+      });
+    });
+    if (!gyoker) gyoker = sorrend.filter(function (n) { return emberek[n].vezeto; })[0] || sorrend[0];
+    sorrend.forEach(function (n) {
+      if (n === gyoker) return;
+      var e = emberek[n], sz = FA_SZULO[n] ? faNev(FA_SZULO[n]) : (e.vezeto || e.vez === n || !e.vez ? gyoker : e.vez);
+      if (!emberek[sz] || sz === n) sz = gyoker;
+      emberek[sz].gyerek.push(n);
+    });
+    function kartya(n, kicsi) {
+      var e = emberek[n];
+      return '<div class="fa-k' + (e.vezeto ? " vez" : "") + (kicsi ? "" : " nagy") + '"><b>' + esc(e.nev) + "</b>" +
+        '<span class="fa-chipek">' + (e.poz ? '<span class="chip' + (e.vezeto ? " lead" : "") + '">' + esc(e.poz) + "</span>" : "") + (e.szint ? '<span class="chip">' + esc(e.szint) + "</span>" : "") + "</span>" +
+        (e.es != null ? '<span class="fa-es">' + szam(e.es) + " ES · " + esc(h.nev) + "</span>" : "") + "</div>";
+    }
+    function ag(n) {
+      var e = emberek[n];
+      return "<li>" + kartya(n, true) + (e.gyerek.length ? '<ul class="fa-lista">' + e.gyerek.map(ag).join("") + "</ul>" : "") + "</li>";
+    }
+    var gy = emberek[gyoker], levelek = gy.gyerek.filter(function (n) { return !emberek[n].gyerek.length && !emberek[n].vezeto; }), agak = gy.gyerek.filter(function (n) { return emberek[n].gyerek.length || emberek[n].vezeto; });
+    var oszlopok = (levelek.length ? ['<div class="fa-oszlop"><p class="fa-cim">' + esc(gy.csapat) + '</p><ul class="fa-lista fa-elso">' + levelek.map(ag).join("") + "</ul></div>"] : [])
+      .concat(agak.map(function (n) { return '<div class="fa-oszlop"><p class="fa-cim">' + esc(emberek[n].csapat) + '</p><ul class="fa-lista fa-elso">' + ag(n) + "</ul></div>"; }));
+    var db = sorrend.length;
+    return '<div class="status"><span id="allapot">Csapat: ' + esc(h.nev) + " · " + db + ' fő</span><button id="frissit" type="button">↻ Frissítés</button></div>' +
+      '<h2 class="elso">Csapatfa</h2>' +
+      '<div class="fa"><div class="fa-gyoker">' + kartya(gyoker, false) + "</div>" +
+      '<div class="fa-agak" style="--n:' + oszlopok.length + '">' + oszlopok.join("") + "</div></div>" +
+      '<p class="k-sub" style="margin-top:18px">A felépítés az eredményjelző csapatbeosztásából készül (' + esc(d.lap) + ", " + esc(h.nev) + "). Ha valami nem stimmel, szólj, és javítjuk.</p>";
   }
 
   /* ---------- indítás ---------- */
