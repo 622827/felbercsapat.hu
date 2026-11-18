@@ -864,10 +864,10 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
         o.n++; o.taIdo += r[1]; o.ajanlas += r[2]; o.mtAjanlas += r[3]; o.kilatas += r[4]; o.taMeg += r[5]; o.megkotott += r[6]; o.spec += r[7];
         var dt = pDatum(r[0]); if (dt && kezd && hetSzam) { var h = Math.floor((dt - kezd) / (7 * NAP)); if (h >= 0 && h < hetSzam) hetek[h] += r[6]; }
       });
-      var cs = m.csapat || "Csapat nélkül", c = csapatok[cs];
+      var cs = csapatNev(m), c = csapatok[cs];
       if (!c) { c = csapatok[cs] = { nev: cs, o: ures(), tagok: [] }; csSor.push(c); }
       KULCSOK.forEach(function (k) { c.o[k] += o[k]; ossz[k] += o[k]; });
-      var e = { id: m.id, nev: m.nev, csapat: m.csapat, poz: m.pozicio, o: o }; c.tagok.push(e); emberek.push(e);
+      var e = { id: m.id, nev: m.nev, csapat: cs, poz: m.pozicio, o: o }; c.tagok.push(e); emberek.push(e);
     });
     // cél és vállalás (termelési havonta, az admin adja meg); egyedi időszaknál a teljesen benne lévő hónapoké összeadva
     var celHonapok = [];
@@ -955,6 +955,26 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
    * Heti táblázat (mint a CÉLOK táblázat): csapatonként ki hány igényfelmérést (elemzést) és szervizt csinált hetente.
    * Az igényfelmérés és a szerviz is 1-nek számít; a specialista időpont nem.
    */
+  /**
+   * A munkatárs csapata az eredményjelző (CÉLOK) aktuális havi beosztása szerint – így a csapatvezető a saját csapatához
+   * számít, nem a Kontroll SZB „Csapatvezetők” csoportjához. Ha ott nem szerepel, a Kontroll SZB-beli csapata.
+   */
+  function csapatNev(m) {
+    if (!csapatNev.terkep && S.data) {
+      var t = {}, h = S.data.honapok[alapHonap(S.data.honapok)], sor = [], vez = {};
+      (h ? h.csapatok : []).forEach(function (c) { sor.push(c.nev); c.tagok.forEach(function (x) { if (x.nev) { t[faNev(x.nev).toLowerCase()] = c.nev; if (x.vezeto) vez[faNev(x.nev).toLowerCase()] = 1; } }); });
+      csapatNev.terkep = t; csapatNev.adat = S.data; csapatNev.sorrend = sor; csapatNev.vezetok = vez;
+    }
+    if (csapatNev.adat !== S.data) { csapatNev.terkep = null; return csapatNev(m); }
+    var cs = (csapatNev.terkep || {})[faNev(m.nev).toLowerCase()];
+    if (cs) return cs;
+    if (/vezet/i.test(m.csapat || "")) {   // „Csapatvezetők”: a vezetéknevéről elnevezett csapat, ha van ilyen
+      var vez = String(m.nev || "").split(" ")[0].toLowerCase(), hit = Object.keys(csapatNev.terkep || {}).map(function (k) { return csapatNev.terkep[k]; })
+        .filter(function (c) { return c.toLowerCase().indexOf(vez) === 0; })[0];
+      if (hit) return hit;
+    }
+    return m.csapat || "Csapat nélkül";
+  }
   function hetiTablazat(mt, bent, kezd, veg, cimke) {
     var hetDb = kezd && veg ? Math.ceil((veg - kezd) / (7 * NAP)) : 0;
     if (hetDb > 8) hetDb = 0;   // hosszú egyedi időszaknál csak az összesen
@@ -968,10 +988,14 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
         o.ossz++; if (r[8] === "S") o.s++; else o.i++;
         var dt = pDatum(r[0]); if (dt && hetDb) { var h = Math.floor((dt - kezd) / (7 * NAP)); if (h >= 0 && h < hetDb) o.h[h]++; }
       });
-      var cs = m.csapat || "Csapat nélkül";
+      var cs = csapatNev(m);
       if (!csop[cs]) { csop[cs] = { nev: cs, o: ures(), tagok: [] }; sorrend.push(cs); }
       csop[cs].tagok.push({ nev: m.nev, poz: m.pozicio, o: o }); hozza(csop[cs].o, o); hozza(bl, o);
     });
+    var cSor = csapatNev.sorrend || [];
+    function hely(c) { var i = cSor.indexOf(c); return i < 0 ? 999 : i; }
+    sorrend.sort(function (a, b) { return hely(a) - hely(b); });
+    sorrend.forEach(function (c) { csop[c].tagok.sort(function (a, b) { var va = (csapatNev.vezetok || {})[faNev(a.nev).toLowerCase()] ? 0 : 1, vb = (csapatNev.vezetok || {})[faNev(b.nev).toLowerCase()] ? 0 : 1; return va - vb; }); });
     function cimH(k) {
       var a = new Date(kezd.getTime() + k * 7 * NAP), b = new Date(Math.min(a.getTime() + 6 * NAP, veg.getTime() - NAP));
       function r(x) { return x.toLocaleDateString("hu-HU", { month: "short", day: "numeric" }); }
