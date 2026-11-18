@@ -549,7 +549,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
    * Pozíció felülírása, ha a CÉLOK táblázat A oszlopában még a régi szerepel (pl. vezetőjelöltek).
    * "Név": "Pozíció" – ha a táblázatban is javítva lesz, ez nem árt, akkor törölhető.
    */
-  var POZICIO_JAVITAS = { "Nagy Mila": "VJ", "Majoros Dávid": "VJ", "Szolnoki Imre": "VJ", "Szekér Anna": "VJ" };
+  var POZICIO_JAVITAS = { "Horváth-Varga Péter": "Spec", "Nagy Mila": "VJ", "Majoros Dávid": "VJ", "Szolnoki Imre": "VJ", "Szekér Anna": "VJ" };
   function pozicioJavit(d) {
     var j = {}; Object.keys(POZICIO_JAVITAS).forEach(function (n) { j[faNev(n).toLowerCase()] = POZICIO_JAVITAS[n]; });
     (d.honapok || []).forEach(function (h) { h.csapatok.forEach(function (c) { c.tagok.forEach(function (t) {
