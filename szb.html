@@ -950,7 +950,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     }, 30);
   }
   function varKartya(O, d) {
-    var V = P.v, q = V.lep[V.lepes], n = V.lep.length, utolso = V.lepes === n - 1, body = "", v = V.val[q.o];
+    var V = P.v, L = varLathato(), q = L[V.lepes], n = L.length, utolso = V.lepes === n - 1, body = "", v = V.val[q.o];
     function opciok(tobb) {
       var lista = q.valaszok || [], kij = tobb ? (v || []) : [v], egyeb = "";
       if (q.egyeb) { var e = kij.filter(function (x) { return x && lista.indexOf(x) < 0; })[0]; egyeb = e || ""; }
@@ -960,7 +960,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
         (q.egyeb ? '<label class="var-egyeb">Egyéb: <input class="mezo" data-var-egyeb="1" value="' + esc(egyeb) + '"></label>' : "");
     }
     if (q.tipus === "igenyek") {
-      body = '<div class="var-igenyek">' + q.mezok.map(function (o, i) {
+      body = '<div class="var-igenyek">' + igenyMezok(q).map(function (o, i) {
         return '<label class="pm"><span>' + esc(d.fejlec[o]) + '</span><textarea class="mezo" rows="2" data-var-o="' + o + '">' + esc(V.val[o] || "") + "</textarea></label>";
       }).join("") + "</div>";
     } else if (q.tipus === "valaszt") body = opciok(false);
@@ -977,7 +977,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   }
   /** Az aktuális lépés értékeinek eltárolása; kötelezőnél üres → hibaüzenet (false). */
   function varMent(ellenoriz) {
-    var V = P.v, q = V.lep[V.lepes], k = document.querySelector(".pk.var"); if (!k || !q) return true;
+    var V = P.v, q = varLathato()[V.lepes], k = document.querySelector(".pk.var"); if (!k || !q) return true;
     if (q.tipus === "igenyek") { k.querySelectorAll("[data-var-o]").forEach(function (m) { V.val[+m.dataset.varO] = m.value.trim(); }); return true; }
     var ertek;
     if (q.tipus === "valaszt" || q.tipus === "tobb") {
@@ -993,14 +993,24 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   }
   function varLep(mtId, irany) {
     if (!varMent(irany > 0)) return;
-    if (irany > 0 && P.v.lepes === P.v.lep.length - 1) { var g = document.querySelector("[data-uj-ment]"); if (g) varBekuld(mtId, g); return; }
-    P.v.lepes = Math.max(0, Math.min(P.v.lep.length - 1, P.v.lepes + irany));
+    var n = varLathato().length;
+    if (irany > 0 && P.v.lepes === n - 1) { var g = document.querySelector("[data-uj-ment]"); if (g) varBekuld(mtId, g); return; }
+    P.v.lepes = Math.max(0, Math.min(n - 1, P.v.lepes + irany));
     rajzolPipe(mtId); varFokusz();
   }
+  /** Szerviznél csak ezek a kérdések: ügyfél neve, típus, portál admin, ajánlások, munkatársi ajánlások, 3 konkrét igény. */
+  function szerviz() { var V = P.v, O = P.O; return !!(V && O && /szerviz/i.test(String(V.val[O.tipus] || ""))); }
+  function varLathato() {
+    var V = P.v, O = P.O; if (!szerviz()) return V.lep;
+    return V.lep.filter(function (q) { return q.o === O.ugyfel || q.o === O.tipus || q.tipus === "igenyek" || /portál|^hány db|munkatársi ajánlás/i.test(q.cim || ""); });
+  }
+  function igenyMezok(q) { return szerviz() ? q.mezok.slice(0, 3) : q.mezok; }
   function varBekuld(mtId, gomb) {
     if (!varMent(true)) return;
-    var V = P.v, O = P.O, mz = [];
+    var V = P.v, O = P.O, mz = [], kell = {};
+    varLathato().forEach(function (q) { if (q.tipus === "igenyek") igenyMezok(q).forEach(function (o) { kell[o] = 1; }); else kell[q.o] = 1; });
     Object.keys(V.val).forEach(function (k) {
+      if (!kell[k]) return;   // pl. szerviznél a kihagyott kérdések korábban beírt válaszai nem mentődnek
       var v = V.val[k], s2 = Array.isArray(v) ? v.join(", ") : String(v || "").trim();
       if (s2) mz.push({ o: +k, ertek: s2 });
     });
@@ -1063,7 +1073,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       if (e.target.closest("[data-uj-megse]")) { P.uj = null; P.v = null; rajzolPipe(mtId); return; }
       var opt = e.target.closest("[data-var-v]");
       if (opt) {
-        var q = P.v.lep[P.v.lepes], most = opt.getAttribute("aria-pressed") === "true";
+        var q = varLathato()[P.v.lepes], most = opt.getAttribute("aria-pressed") === "true";
         if (q.tipus === "valaszt") {
           ujk.querySelectorAll("[data-var-v]").forEach(function (b) { b.setAttribute("aria-pressed", String(b === opt)); });
           var eg = ujk.querySelector("[data-var-egyeb]"); if (eg) eg.value = "";
