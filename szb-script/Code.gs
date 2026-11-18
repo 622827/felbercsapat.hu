@@ -719,7 +719,8 @@ function ertesitesKesz_(en, id) {
 function adatok_(en) {
   const ids = lathatoIdk_(en);
   function tisztit(x) { const o = {}; Object.keys(x).forEach(function (k) { if (k !== '_sor') o[k] = x[k]; }); return o; }
-  const jegyzetek = sorok_('Jegyzetek').filter(function (j) { return ids[j.munkatars_id]; }).map(tisztit);
+  // A munkatárs a róla írt SZB jegyzeteket nem látja, csak a feladatait.
+  const jegyzetek = en.szerep === 'munkatars' ? [] : sorok_('Jegyzetek').filter(function (j) { return ids[j.munkatars_id]; }).map(tisztit);
   const feladatok = sorok_('Feladatok').filter(function (f) { return ids[f.munkatars_id]; }).map(tisztit);
   const kell = {}, nevek = {};
   jegyzetek.concat(feladatok).forEach(function (x) { if (x.szerzo) kell[x.szerzo] = true; });
@@ -730,6 +731,7 @@ function adatok_(en) {
 }
 
 function jegyzetMent_(en, k) {
+  if (en.szerep === 'munkatars') hiba_('SZB jegyzetet csak vezető vagy admin írhat.');
   const szoveg = String(k.szoveg || '').trim();
   if (!szoveg) hiba_('Üres jegyzetet nem lehet menteni.');
   const datum = /^\d{4}-\d{2}-\d{2}$/.test(k.datum || '') ? k.datum : most_().slice(0, 10);
@@ -748,6 +750,7 @@ function jegyzetMent_(en, k) {
 }
 
 function jegyzetTorol_(en, id) {
+  if (en.szerep === 'munkatars') hiba_('SZB jegyzetet csak vezető vagy admin törölhet.');
   const j = sorok_('Jegyzetek').filter(function (x) { return x.id === id; })[0];
   if (!j) return { ok: true };
   kell_(en, j.munkatars_id);
