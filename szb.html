@@ -127,6 +127,11 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   button.pp:hover { outline: 2px solid var(--line); }
   .pk-jobb { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
   .pk-szerk { padding: 4px 10px; font-size: .8rem; }
+  .pk-es { text-align: right; line-height: 1; }
+  .pk header .pk-es b { display: block; font-size: 2.4rem; font-weight: 800; letter-spacing: -.03em; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .pk header .pk-es b small { font-size: .45em; margin-left: 3px; font-weight: 700; letter-spacing: 0; }
+  .pk header .pk-es span { display: block; font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; margin-top: 3px; }
+  .pk header .pk-es.nulla b { color: var(--muted); opacity: .5; font-size: 1.5rem; }
   .pk-torol:hover { color: var(--danger); border-color: var(--danger); }
   .pk.szerk { border-left-color: var(--warn); }
   .pk.uj { border-left-color: var(--accent); }
@@ -813,12 +818,13 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
           return '<span class="pp ro ' + cls + '" title="A tanácsadás rögzítésével pipálódik ki">' + (igen(v) ? "✓ " : "") + esc(cim) + "</span>";
         }
         var ig = igenyek.map(function (i) { return g(r, i); }).filter(String);
-        var szamok = [[O.kilatas, "Egység kilátás"], [O.megkotott, "Megkötött"], [O.specEs, "Spec"]].filter(function (p) { return p[0] > -1 && g(r, p[0]) && inlOszl.indexOf(p[0]) < 0; })
+        var megk = szamv(g(r, O.megkotott));
+        var szamok = [[O.kilatas, "Egység kilátás"], [O.specEs, "Spec"]].filter(function (p) { return p[0] > -1 && g(r, p[0]) && inlOszl.indexOf(p[0]) < 0; })
           .map(function (p) { return "<span>" + p[1] + ": <b>" + esc(g(r, p[0])) + " ES</b></span>"; }).join("");
         var tobbi = f.map(function (h, i) { return h && g(r, i) ? "<tr><th>" + esc(h) + "</th><td>" + esc(g(r, i)) + "</td></tr>" : ""; }).join("");
         if (P.szerk === x.idx) return szerkKartya(x, O, f);
         return '<article class="pk' + (kesz ? " kesz" : "") + '" data-idx="' + x.idx + '"><header><div><b>' + esc(g(r, O.ugyfel) || "Névtelen ügyfél") + "</b><span>" + esc(x.d ? x.d.toLocaleDateString("hu-HU", { year: "numeric", month: "short", day: "numeric" }) : g(r, O.datum)) +
-          (g(r, O.tipus) ? " · " + esc(g(r, O.tipus)) : "") + '</span></div><div class="pk-jobb"><span class="allapot' + (kesz ? " ok" : "") + '">' + (kesz ? "✓ TA megvalósult" : "Nyitott") + '</span><button type="button" class="gomb halk pk-szerk" data-szerk="1">✏️ Szerkesztés</button>' + (S.en && S.en.szerep !== "munkatars" ? '<button type="button" class="gomb halk pk-szerk pk-torol" data-torol="1" title="Ügyfél törlése">🗑 Törlés</button>' : "") + '</div></header>' +
+          (g(r, O.tipus) ? " · " + esc(g(r, O.tipus)) : "") + '</span></div><div class="pk-jobb">' + (O.megkotott > -1 ? '<div class="pk-es' + (megk > 0 ? "" : " nulla") + '"><b>' + (megk > 0 ? esc(String(Math.round(megk * 100) / 100).replace(".", ",")) : "0") + "<small>ES</small></b><span>megkötött</span></div>" : "") + '<span class="allapot' + (kesz ? " ok" : "") + '">' + (kesz ? "✓ TA megvalósult" : "Nyitott") + '</span><button type="button" class="gomb halk pk-szerk" data-szerk="1">✏️ Szerkesztés</button>' + (S.en && S.en.szerep !== "munkatars" ? '<button type="button" class="gomb halk pk-szerk pk-torol" data-torol="1" title="Ügyfél törlése">🗑 Törlés</button>' : "") + '</div></header>' +
           '<div class="ppk">' + pont("Hitelesítve", O.hitel) + pont("Tanácsadás időpont", O.taIdo) + pont("Portál admin", O.portal) +
             (O.ajanlas > -1 ? '<span class="pp' + (szamv(g(r, O.ajanlas)) ? " ok" : " nincs") + '">Ajánlás: ' + (esc(g(r, O.ajanlas)) || "0") + (g(r, O.mtAjanlas) ? " + " + esc(g(r, O.mtAjanlas)) + " mt." : "") + "</span>" : "") +
             pont("Fixálva", O.fix) + pont("Kapcsolati tőke", O.kt) + minEll(O.minEll) + pont("Kidolgozva", O.kidolg) + pontRO("TA megvalósult", O.taMeg) + (szamv(g(r, O.megkotott)) > 0 ? pont("CSOB", O.csob) : "") + "</div>" +
