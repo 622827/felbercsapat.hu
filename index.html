@@ -62,6 +62,8 @@ var API = "";
   .tabs { display: inline-flex; background: var(--card); border-radius: 999px; padding: 4px; gap: 2px; }
   .tabs button { border: 0; background: transparent; padding: 8px 16px; border-radius: 999px; cursor: pointer; font-weight: 600; color: var(--muted); }
   .tabs button[aria-selected="true"] { background: var(--accent); color: var(--bg); }
+  .tabs { max-width: 100%; flex-wrap: wrap; }
+  @media (max-width: 700px) { .tabs { border-radius: 20px; } .tabs button { padding: 8px 12px; } }
   select.q { background: var(--card); border: 0; border-radius: 999px; padding: 10px 14px; font-weight: 600; cursor: pointer; }
   .kilep { background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 9px 14px; cursor: pointer; color: var(--muted); font-weight: 600; }
   .kilep:hover { color: var(--ink); border-color: var(--muted); }
@@ -119,6 +121,20 @@ var API = "";
   .pl-dat { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: .9rem; }
   .pl-dat input { background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; font: inherit; color-scheme: dark; }
   .pl-nulla { opacity: .5; }
+  /* heti igényfelmérés-táblázat (a CÉLOK táblázat mintájára) */
+  .ht-keret { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -6px; }
+  table.ht { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: .9rem; min-width: 560px; }
+  table.ht th, table.ht td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: center; white-space: nowrap; }
+  table.ht thead th { font-size: .75rem; color: var(--muted); font-weight: 700; vertical-align: bottom; }
+  table.ht thead th span { display: block; font-weight: 500; font-size: .7rem; }
+  table.ht tbody th { text-align: left; font-weight: 600; position: sticky; left: 0; background: var(--card); z-index: 1; }
+  table.ht thead th:first-child { text-align: left; position: sticky; left: 0; background: var(--card); z-index: 1; }
+  table.ht tbody th small { margin-left: 8px; font-size: .68rem; color: var(--muted); font-weight: 700; }
+  table.ht .ht-ossz { font-weight: 700; background: rgba(255,255,255,.04); }
+  table.ht td.ht-0 { color: var(--muted); opacity: .55; }
+  table.ht tr.ht-bl th, table.ht tr.ht-bl td { background: var(--accent); color: var(--bg); font-weight: 700; opacity: 1; }
+  table.ht tr.ht-cs th, table.ht tr.ht-cs td { background: var(--card2); font-weight: 700; opacity: 1; color: var(--ink); }
+  table.ht tr.ht-t th { padding-left: 22px; font-weight: 500; }
   /* csapatfa – fa-elrendezés */
   .org-keret { overflow-x: auto; overflow-y: hidden; padding: 4px 0 12px; -webkit-overflow-scrolling: touch; }
   .org-belso { transform-origin: top left; margin: 0 auto; width: max-content; min-width: 100%; }
@@ -932,7 +948,49 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       }).join("") + "</ol>" : '<p class="k-sub">Ebben az időszakban még nincs adat.</p>') + "</section>";
     }
     html += '<div class="grid lower">' + top("megkotott", "Leadott egység toplista", "ES") + top("n", "Elemzés toplista", "db") + top("taMeg", "TA megvalósult toplista", "db") + "</div>";
+    html += hetiTablazat(mt, bent, kezd, veg, cimke);
     return { vezerlo: vezerlo, html: html };
+  }
+  /**
+   * Heti táblázat (mint a CÉLOK táblázat): csapatonként ki hány igényfelmérést (elemzést) és szervizt csinált hetente.
+   * Az igényfelmérés és a szerviz is 1-nek számít; a specialista időpont nem.
+   */
+  function hetiTablazat(mt, bent, kezd, veg, cimke) {
+    var hetDb = kezd && veg ? Math.ceil((veg - kezd) / (7 * NAP)) : 0;
+    if (hetDb > 8) hetDb = 0;   // hosszú egyedi időszaknál csak az összesen
+    function ures() { var o = { h: [], ossz: 0, i: 0, s: 0 }; for (var k = 0; k < hetDb; k++) o.h.push(0); return o; }
+    function hozza(c, x) { for (var k = 0; k < hetDb; k++) c.h[k] += x.h[k]; c.ossz += x.ossz; c.i += x.i; c.s += x.s; }
+    var csop = {}, sorrend = [], bl = ures();
+    mt.forEach(function (m) {
+      var o = ures();
+      m.sorok.forEach(function (r) {
+        if (!bent(r) || r[8] === "P") return;
+        o.ossz++; if (r[8] === "S") o.s++; else o.i++;
+        var dt = pDatum(r[0]); if (dt && hetDb) { var h = Math.floor((dt - kezd) / (7 * NAP)); if (h >= 0 && h < hetDb) o.h[h]++; }
+      });
+      var cs = m.csapat || "Csapat nélkül";
+      if (!csop[cs]) { csop[cs] = { nev: cs, o: ures(), tagok: [] }; sorrend.push(cs); }
+      csop[cs].tagok.push({ nev: m.nev, poz: m.pozicio, o: o }); hozza(csop[cs].o, o); hozza(bl, o);
+    });
+    function cimH(k) {
+      var a = new Date(kezd.getTime() + k * 7 * NAP), b = new Date(Math.min(a.getTime() + 6 * NAP, veg.getTime() - NAP));
+      function r(x) { return x.toLocaleDateString("hu-HU", { month: "short", day: "numeric" }); }
+      return (k + 1) + ". hét<span>" + r(a) + " – " + r(b) + "</span>";
+    }
+    function cella(v) { return "<td" + (v ? "" : ' class="ht-0"') + ">" + v + "</td>"; }
+    function sor(cls, nev, o, al) {
+      return '<tr class="' + cls + '"><th>' + nev + (al ? "<small>" + esc(al) + "</small>" : "") + "</th>" + o.h.map(cella).join("") +
+        '<td class="ht-ossz">' + o.ossz + "</td>" + cella(o.i) + cella(o.s) + "</tr>";
+    }
+    var fej = "<tr><th>Igényfelmérés + szerviz</th>" + (function () { var x = ""; for (var k = 0; k < hetDb; k++) x += "<th>" + cimH(k) + "</th>"; return x; })() +
+      '<th class="ht-ossz">Összesen</th><th>ebből IF</th><th>ebből szerviz</th></tr>';
+    var test = sor("ht-bl", "Felber BL", bl) + sorrend.map(function (c) {
+      var cs = csop[c];
+      return sor("ht-cs", esc(cs.nev), cs.o) + cs.tagok.map(function (t) { return sor("ht-t", esc(t.nev), t.o, t.poz); }).join("");
+    }).join("");
+    return '<h2>Heti igényfelmérések és szervizek</h2><section class="card reveal"><p class="k-sub" style="margin-top:0">' + esc(cimke) +
+      " · az igényfelmérés (elemzés) és a szerviz is 1-nek számít, a specialista időpont nem.</p>" +
+      '<div class="ht-keret"><table class="ht"><thead>' + fej + "</thead><tbody>" + test + "</tbody></table></div></section>";
   }
   function hoKulcs(k) { return Math.floor(k / 12) + "-" + String(k % 12 + 1).padStart(2, "0"); }
   function celSzerkeszto(csSor, honapNev) {
