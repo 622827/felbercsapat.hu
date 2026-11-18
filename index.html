@@ -139,6 +139,12 @@ var API = "";
   .fa-lista { list-style: none; margin: 0; padding: 0; }
   .fa-lista .fa-lista { margin: 8px 0 0 10px; padding-left: 18px; border-left: 2px solid var(--vonal); }
   .fa-lista li { position: relative; margin-bottom: 8px; }
+  /* a BL közvetlen csapattagjai: egy szinten, a felső vonalról ágaznak le */
+  .fa-lista.fa-testver { margin-left: 10px; padding-left: 18px; border-left: 2px solid var(--vonal); }
+  .fa-lista.fa-testver > li::before { content: ""; position: absolute; left: -18px; top: 22px; width: 16px; height: 2px; background: var(--vonal); }
+  .fa-oszlop:has(.fa-testver)::before { left: 10px; height: 50px; }
+  .fa-agak:has(> .fa-oszlop:first-child .fa-testver)::before { left: 10px; }
+  .fa-oszlop:has(.fa-testver) .fa-cim { text-align: left; padding-left: 28px; }
   .fa-lista .fa-lista > li::before { content: ""; position: absolute; left: -18px; top: 22px; width: 16px; height: 2px; background: var(--vonal); }
   .fa-lista .fa-lista > li:last-child { margin-bottom: 0; }
   @media (max-width: 900px) {
@@ -981,7 +987,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       return "<li>" + kartya(n, true) + (e.gyerek.length ? '<ul class="fa-lista">' + e.gyerek.map(ag).join("") + "</ul>" : "") + "</li>";
     }
     var gy = emberek[gyoker], levelek = gy.gyerek.filter(function (n) { return !emberek[n].vezeto; }), agak = gy.gyerek.filter(function (n) { return emberek[n].vezeto; });
-    var oszlopok = (levelek.length ? ['<div class="fa-oszlop"><p class="fa-cim">' + esc(gy.csapat) + '</p><ul class="fa-lista fa-elso">' + levelek.map(ag).join("") + "</ul></div>"] : [])
+    var oszlopok = (levelek.length ? ['<div class="fa-oszlop"><p class="fa-cim">' + esc(gy.csapat) + '</p><ul class="fa-lista fa-elso fa-testver">' + levelek.map(ag).join("") + "</ul></div>"] : [])
       .concat(agak.map(function (n) { return '<div class="fa-oszlop"><p class="fa-cim">' + esc(emberek[n].csapat) + '</p><ul class="fa-lista fa-elso">' + ag(n) + "</ul></div>"; }));
     var db = sorrend.length;
     return '<div class="status"><span id="allapot">Csapat: ' + esc(h.nev) + " · " + db + ' fő</span><button id="frissit" type="button">↻ Frissítés</button></div>' +
