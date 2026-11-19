@@ -153,6 +153,11 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   table.pt-ossz tfoot th { border-top: 2px solid var(--line); border-bottom: 0; font-weight: 800; }
   table.pt-ossz tfoot th.meg { color: var(--accent); }
   table.pt-ossz .halv { color: var(--muted); opacity: .6; }
+  table.pt-ossz .x { width: 1%; text-align: center; }
+  table.pt-ossz td.x input { width: 20px; height: 20px; cursor: pointer; accent-color: var(--danger); }
+  table.pt-ossz tr.athuzva td:not(.x) { text-decoration: line-through; color: var(--muted); opacity: .7; }
+  table.pt-ossz tr.athuzva td.meg { color: var(--muted); }
+  table.pt-ossz tfoot small { font-weight: 500; color: var(--muted); font-size: .75rem; }
   .pk-es { text-align: right; line-height: 1; }
   .pk header .pk-es b { display: block; font-size: 2.4rem; font-weight: 800; letter-spacing: -.03em; color: var(--accent); font-variant-numeric: tabular-nums; }
   .pk header .pk-es b small { font-size: .45em; margin-left: 3px; font-weight: 700; letter-spacing: 0; }
@@ -972,14 +977,18 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
         })();
       }).join("") + "</div>" + (szurt.length > P.mutat ? '<button class="gomb halk" type="button" id="pTobb">Továbbiak (' + (szurt.length - P.mutat) + ")</button>" : "");
       // Összesítő táblázat a szűrt ügyfelekről (az időszak, állapot és keresés szerint, lapozás nélkül)
-      var sKil = 0, sMeg = 0;
-      html += '<section class="ptabla"><h3>Ügyfelek összesítve (' + szurt.length + ")</h3>" + '<div class="tabla"><table class="pt-ossz"><thead><tr><th>Ügyfél neve</th><th class="szam">ES kilátás</th><th class="szam">ES megkötve</th><th>Teendők</th></tr></thead><tbody>' +
+      var sKil = 0, sMeg = 0, athuzott = d.athuzott || [], nAt = 0;
+      function szamH(v) { return String(Math.round(v * 100) / 100).replace(".", ","); }
+      html += '<section class="ptabla"><h3>Ügyfelek összesítve (' + szurt.length + ")</h3>" + '<div class="tabla"><table class="pt-ossz"><thead><tr><th>Ügyfél neve</th><th class="szam">ES kilátás</th><th class="szam">ES megkötve</th><th>Teendők</th><th class="x" title="Áthúzás: nem számít a kilátásba">✕</th></tr></thead><tbody>' +
         szurt.map(function (x) {
-          var kil = szamv(g(x.r, O.kilatas)), meg = szamv(g(x.r, O.megkotott)); sKil += kil; sMeg += meg;
-          function es(v, i) { return i < 0 ? "–" : v ? String(Math.round(v * 100) / 100).replace(".", ",") : '<span class="halv">0</span>'; }
-          return "<tr><td>" + esc(g(x.r, O.ugyfel) || "Névtelen ügyfél") + '</td><td class="szam">' + es(kil, O.kilatas) + '</td><td class="szam' + (meg ? " meg" : "") + '">' + es(meg, O.megkotott) + "</td><td>" + (esc(g(x.r, O.teendo)) || '<span class="halv">–</span>') + "</td></tr>";
+          var kil = szamv(g(x.r, O.kilatas)), meg = szamv(g(x.r, O.megkotott)), at = athuzott.indexOf(d.kulcsok[x.idx] + "|" + String(g(x.r, O.ugyfel)).trim()) > -1;
+          if (at) nAt++; else sKil += kil;
+          sMeg += meg;
+          function es(v, i) { return i < 0 ? "–" : v ? szamH(v) : '<span class="halv">0</span>'; }
+          return '<tr' + (at ? ' class="athuzva"' : "") + "><td>" + esc(g(x.r, O.ugyfel) || "Névtelen ügyfél") + '</td><td class="szam">' + es(kil, O.kilatas) + '</td><td class="szam' + (meg ? " meg" : "") + '">' + es(meg, O.megkotott) + "</td><td>" + (esc(g(x.r, O.teendo)) || '<span class="halv">–</span>') + "</td>" +
+            '<td class="x"><input type="checkbox" data-athuz="' + x.idx + '"' + (at ? " checked" : "") + ' aria-label="' + esc(g(x.r, O.ugyfel)) + ' áthúzása"></td></tr>';
         }).join("") +
-        '</tbody><tfoot><tr><th>Összesen</th><th class="szam">' + String(Math.round(sKil * 100) / 100).replace(".", ",") + ' ES</th><th class="szam meg">' + String(Math.round(sMeg * 100) / 100).replace(".", ",") + " ES</th><th></th></tr></tfoot></table></div></section>";
+        '</tbody><tfoot><tr><th>Összesen' + (nAt ? '<small> (' + nAt + " áthúzott nélkül)</small>" : "") + '</th><th class="szam">' + szamH(sKil) + ' ES</th><th class="szam meg">' + szamH(sMeg) + " ES</th><th></th><th></th></tr></tfoot></table></div></section>";
     }
     el.innerHTML = html;
     $("pIdo").value = P.idoszak;
@@ -993,6 +1002,16 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     var t = $("pTobb"); if (t) t.onclick = function () { P.mutat += 30; rajzolPipe(mtId); };
     el.onclick = function (e) { pipeKattint(mtId, e); };
     el.onchange = function (e) {
+      var ax = e.target.closest("[data-athuz]");
+      if (ax) {
+        var d3 = P.cache[mtId], ix = +ax.dataset.athuz, ug = String(d3.sorok[ix][P.O.ugyfel] || "").trim(), kul = d3.kulcsok[ix] + "|" + ug, be = ax.checked;
+        var regiL = (d3.athuzott || []).slice();
+        d3.athuzott = be ? regiL.concat([kul]) : regiL.filter(function (k) { return k !== kul; });
+        rajzolPipe(mtId);
+        api("athuzas", { munkatars_id: mtId, kulcs: d3.kulcsok[ix], ugyfel: ug, be: be }).then(function (res) { if (res && res.athuzott) { d3.athuzott = res.athuzott; } })
+          .catch(function (err) { d3.athuzott = regiL; rajzolPipe(mtId); toast(err.message); });
+        return;
+      }
       var m = e.target.closest("[data-inl]"); if (!m) return;
       var k = m.closest("[data-idx]"), d2 = P.cache[mtId]; if (!k || !d2) return;
       var idx = +k.dataset.idx, o = +m.dataset.inl, regi = String(d2.sorok[idx][o] || ""), v = m.value.trim(), lab = m.closest(".pm");

@@ -32,6 +32,7 @@ const LAPOK = {
   'Feladatok': ['id', 'munkatars_id', 'szoveg', 'hatarido', 'kesz', 'letrehozva', 'kesz_ido', 'szerzo'],
   'Telefonpartyk': ['id', 'nev', 'datum', 'helyek', 'letrehozva', 'szerzo'],
   'Telefonparty': ['party_id', 'kulcs', 'nev', 'csapat', 'db', 'modositva', 'szerzo'],
+  'Áthúzások': ['munkatars_id', 'kulcs', 'ugyfel', 'ido', 'szerzo'],
   'Prezik': ['id', 'munkatars_id', 'datum', 'jelolt', 'telefon', 'forras', 'eredmeny', 'jegyzet', 'letrehozva', 'szerzo', 'modositva'],
   'Célok': ['munkatars_id', 'honap', 'cel', 'vallalas', 'modositva', 'szerzo'],
   'Értesítések': ['id', 'tipus', 'munkatars_id', 'munkatars_nev', 'ugyfel', 'kulcs', 'cimzettek', 'letrehozva', 'szerzo', 'kesz', 'kesz_ido', 'kesz_szerzo']
@@ -69,6 +70,7 @@ function kezel_(k) {
     case 'urlap': return urlap_();
     case 'alkalomUj': return zarral_(function () { return alkalomUj_(en, k); });
     case 'alkalomTorol': return zarral_(function () { return alkalomTorol_(en, k); });
+    case 'athuzas': return zarral_(function () { return athuzas_(en, k); });
     case 'preziMent': return zarral_(function () { return preziMent_(en, k); });
     case 'preziTorol': return zarral_(function () { return preziTorol_(en, k.id); });
     case 'elemzesTorol': return zarral_(function () { return elemzesTorol_(en, k); });
@@ -212,7 +214,23 @@ function pipeline_(en, mtId, friss) {
   pipelineJog_(en, mtId);
   const m = sorok_('Munkatársak').filter(function (x) { return x.id === mtId; })[0];
   if (!m) hiba_('A munkatárs nem található.');
-  return gyorsTar_('pipe_v1_' + mtId, function () { return pipelineAdat_(m); }, friss);
+  const adat = gyorsTar_('pipe_v1_' + mtId, function () { return pipelineAdat_(m); }, friss);
+  adat.athuzott = athuzottak_(mtId);
+  return adat;
+}
+/** Az összesítő táblázatban áthúzott ügyfelek (kulcs|ügyfél) – nem számítanak a kilátás összegébe. */
+function athuzottak_(mtId) {
+  return sorok_('Áthúzások').filter(function (x) { return x.munkatars_id === mtId; }).map(function (x) { return x.kulcs + '|' + String(x.ugyfel).trim(); });
+}
+/** k: { munkatars_id, kulcs, ugyfel, be: true|false } */
+function athuzas_(en, k) {
+  pipelineJog_(en, k.munkatars_id);
+  const kulcs = String(k.kulcs || ''), ugyfel = String(k.ugyfel || '').trim();
+  if (!kulcs) hiba_('Hiányzik az ügyfél azonosítója.');
+  const meglevo = sorok_('Áthúzások').filter(function (x) { return x.munkatars_id === k.munkatars_id && x.kulcs === kulcs && String(x.ugyfel).trim() === ugyfel; });
+  if (k.be && !meglevo.length) hozzaad_('Áthúzások', { munkatars_id: k.munkatars_id, kulcs: kulcs, ugyfel: ugyfel, ido: most_(), szerzo: en.email });
+  if (!k.be) meglevo.map(function (x) { return x._sor; }).sort(function (a, b) { return b - a; }).forEach(function (s2) { torol_('Áthúzások', s2); });
+  return { ok: true, athuzott: athuzottak_(k.munkatars_id) };
 }
 function pipelineAdat_(m) {
   const ss = SpreadsheetApp.openById(ELEMZES_TABLAZAT_ID);
