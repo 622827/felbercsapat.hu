@@ -971,6 +971,17 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     var n = idoszakban.length, taIgen = idoszakban.filter(function (x) { return igen(g(x.r, O.taIdo)); }).length;
     function osszeg(i) { return idoszakban.reduce(function (s, x) { return s + szamv(g(x.r, i)); }, 0); }
     var megval = idoszakban.filter(function (x) { return igen(g(x.r, O.taMeg)); }).length;
+    /** Megkötött ES az időszakban: a tanácsadással leadott ES a tanácsadás dátuma szerint, a régi (kézzel beírt) rész az elemzés dátuma szerint. */
+    function esSz(v) { return parseFloat(String(v || "").replace(/\s/g, "").replace(",", ".")) || 0; }
+    function alkBent(dt) {
+      if (!dt) return false;
+      if (egyedi) { if (!tolD && !igD) return true; return (!tolD || dt >= tolD) && (!igD || dt < igD); }
+      return valTk === null || termHo(dt) === valTk;
+    }
+    function megkIdoszak() {
+      var s1 = idoszakban.reduce(function (sum, x) { return sum + Math.max(0, szamv(g(x.r, O.megkotott)) - alkalmaiK(d, x.idx, O).reduce(function (t, a) { return t + esSz(a.es); }, 0)); }, 0);
+      return s1 + (d.alkalmak || []).filter(function (a) { return esSz(a.es) && alkBent(isoDatum(a.datum)); }).reduce(function (t, a) { return t + esSz(a.es); }, 0);
+    }
     function csempe(cim, ertek, al) { return '<div class="pcs"><span>' + cim + "</span><b>" + ertek + "</b>" + (al ? "<small>" + al + "</small>" : "") + "</div>"; }
     var html = '<div class="pipe-fej"><div class="sor">' +
       '<select id="pIdo" aria-label="Termelési hónap">' + tkLista.map(function (k) { var a = termHoAdat(k); return '<option value="t' + k + '">' + esc(a.nev + " (" + a.idoszak + ")" + (k === aktTk ? " – aktuális" : "")) + "</option>"; }).join("") +
@@ -984,7 +995,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
         (O.ajanlas > -1 ? csempe("Ajánlások", Math.round(osszeg(O.ajanlas)) + (O.mtAjanlas > -1 ? " + " + Math.round(osszeg(O.mtAjanlas)) : ""), O.mtAjanlas > -1 ? "ügyfél + munkatársi" : "") : "") +
         (O.kilatas > -1 ? csempe("Egység kilátás", Math.round(osszeg(O.kilatas)).toLocaleString("hu-HU") + " ES") : "") +
         (O.taMeg > -1 ? csempe("TA megvalósult", megval, n ? Math.round(megval / n * 100) + "%" : "") : "") +
-        (O.megkotott > -1 ? csempe("Megkötött ES", Math.round(osszeg(O.megkotott)).toLocaleString("hu-HU") + " ES", O.specEs > -1 ? "spec: " + Math.round(osszeg(O.specEs)).toLocaleString("hu-HU") + " ES" : "") : "") + "</div>";
+        (O.megkotott > -1 ? csempe("Megkötött ES", (Math.round(megkIdoszak() * 100) / 100).toLocaleString("hu-HU") + " ES", O.specEs > -1 ? "spec: " + Math.round(osszeg(O.specEs)).toLocaleString("hu-HU") + " ES" : "") : "") + "</div>";
     if (P.uj === mtId && P.v && P.v.mtId === mtId) html += varKartya(O, d);
     if (!d.sorok.length) html += '<p class="ures">Ennek a munkatársnak még nincs elemzése az Elemzés összegzőben.</p>';
     else if (!szurt.length) html += '<p class="ures">Nincs a szűrésnek megfelelő elemzés.</p>';

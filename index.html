@@ -862,7 +862,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       plLetolt(); return { html: '<div class="grid kpis"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>' };
     }
     var mt = PL.adat.munkatarsak, aktTk = termHo(new Date()), tkLista = [aktTk];
-    mt.forEach(function (m) { m.sorok.forEach(function (r) { var k = termHo(pDatum(r[0])); if (k !== null && tkLista.indexOf(k) < 0) tkLista.push(k); }); });
+    mt.forEach(function (m) { m.sorok.concat(m.leadasok || []).forEach(function (r) { var k = termHo(pDatum(r[0])); if (k !== null && tkLista.indexOf(k) < 0) tkLista.push(k); }); });
     tkLista.sort(function (a, b) { return b - a; });
     if (PL.idoszak === "aktualis" || (PL.idoszak !== "egyedi" && tkLista.indexOf(+PL.idoszak.slice(1)) < 0)) PL.idoszak = "t" + aktTk;
     var egyedi = PL.idoszak === "egyedi", valTk = egyedi ? null : +PL.idoszak.slice(1), cimke, kezd, veg;
@@ -894,6 +894,12 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
         if (!bent(r)) return;
         o.n++; o.taIdo += r[1]; o.ajanlas += r[2]; o.mtAjanlas += r[3]; o.kilatas += r[4]; o.taMeg += r[5]; o.megkotott += r[6]; o.spec += r[7];
         var dt = pDatum(r[0]); if (dt && kezd && hetSzam) { var h = Math.floor((dt - kezd) / (7 * NAP)); if (h >= 0 && h < hetSzam) hetek[h] += r[6]; }
+      });
+      // a tanácsadással leadott ES a tanácsadás dátumának termelési hónapjához/hetéhez számít
+      (m.leadasok || []).forEach(function (x) {
+        if (!bent([x[0]])) return;
+        o.megkotott += x[1];
+        var dt = pDatum(x[0]); if (dt && kezd && hetSzam) { var h = Math.floor((dt - kezd) / (7 * NAP)); if (h >= 0 && h < hetSzam) hetek[h] += x[1]; }
       });
       var cs = csapatNev(m), c = csapatok[cs];
       if (!c) { c = csapatok[cs] = { nev: cs, o: ures(), tagok: [] }; csSor.push(c); }
@@ -1145,7 +1151,6 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
    * a vezetők alatt a csapattagjaik. Ha valaki valójában más alatt van, itt írd át: "Név": "Felettese neve".
    */
   var FA_SZULO = {
-    "Szabó Boglárka": "Majoros Dávid",
     "Szabó Levente": "Majoros Dávid",
     "Kovács S. József": "Nagy Mila"
   };
