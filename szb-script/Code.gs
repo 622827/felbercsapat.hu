@@ -21,7 +21,7 @@ const MUNKAMENET_NAP = 60;
 /* Google-belépés („Bejelentkezés Google-fiókkal”). Az OAuth-ügyfélazonosító nem titkos, a weboldalon is ugyanez szerepel
    (index.html: GOOGLE_CLIENT_ID). Ha meg van adva, a munkatársak csak a Google-fiókjukkal léphetnek be: a jelszavas belépés
    és a korábbi, jelszóval nyitott munkamenetek csak az adminnak maradnak meg (vészhelyzetre). Üresen a régi működés marad. */
-const GOOGLE_CLIENT_ID = '';
+const GOOGLE_CLIENT_ID = '999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googleusercontent.com';
 
 /* Google-csoport szinkron: a csoport tagjai automatikusan felhasználók lesznek (óránként). */
 const CSOPORT_EMAIL = 'felber-csapat@googlegroups.com';
