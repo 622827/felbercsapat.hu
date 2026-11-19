@@ -411,13 +411,13 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   });
   /** Belépni csak a főoldalon (eredményjelző) kell: onnan jön a Kontroll SZB-be is a belépés. */
   function fooldalra() {
-    ["fbr_token", "fbr_nev", "fbr_szb", "szb_token"].forEach(function (k) { lsSet(k, ""); });
-    location.replace("./");
+    ["fbr_token", "fbr_nev", "fbr_szb", "szb_token", "fbr_g"].forEach(function (k) { lsSet(k, ""); });
+    try { sessionStorage.setItem("fbr_vissza", "szb.html"); } catch (e) {} location.replace("./");
   }
   function kilep(csendes) {
     if (!csendes && S.token) api("kilepes").catch(function () {});
     if ((AUTO || lsGet("fbr_token")) && !csendes) { // a főoldali belépésből is kilépünk
-      ["fbr_token", "fbr_nev", "fbr_szb", "szb_token"].forEach(function (k) { lsSet(k, ""); });
+      ["fbr_token", "fbr_nev", "fbr_szb", "szb_token", "fbr_g"].forEach(function (k) { lsSet(k, ""); });
       location.href = "./"; return;
     }
     S.token = ""; S.en = null; lsSet(TK, ""); fooldalra();
@@ -559,7 +559,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     main.innerHTML = '<div class="lap">' +
       (S.mt.length > 1 ? '<button class="vissza" id="vissza" type="button">← Munkatársak</button>' : "") +
       '<div class="fej"><div><h2>' + esc(m.nev) + "</h2><p>" + (m.pozicio ? '<span class="chip">' + esc(m.pozicio) + "</span>" : "") + esc(m.csapat || "") + '</p>' +
-        (S.mt.length <= 1 ? '<p class="fiok" style="margin-top:6px">Belépve: <b>' + esc(S.en.nev || S.en.email) + '</b> ' + (AUTO ? "" : '<button class="link" type="button" data-a="jelszo">Jelszócsere</button> ') + '<button class="link" type="button" data-a="kilep">Kilépés</button></p>' : "") +
+        (S.mt.length <= 1 ? '<p class="fiok" style="margin-top:6px">Belépve: <b>' + esc(S.en.nev || S.en.email) + '</b> ' + (AUTO || lsGet("fbr_g") ? "" : '<button class="link" type="button" data-a="jelszo">Jelszócsere</button> ') + '<button class="link" type="button" data-a="kilep">Kilépés</button></p>' : "") +
         '</div><span class="allapot" id="allapot"></span></div>' +
       '<div class="fulek" role="tablist" aria-label="Munkatárs menü">' +
         (m.csakSzb ? "" : '<button type="button" role="tab" data-ful="pipeline" aria-selected="' + (S.ful === "pipeline") + '"><span aria-hidden="true">📈</span>Ügyfeleim</button>') +
@@ -1556,7 +1556,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
 
   /* ---------- indítás ---------- */
   if (!SZB_API) { mutat("nincsApi"); return; }
-  if (AUTO) $("jelszoGomb").hidden = true; // a jelszót a főoldali belépés kezeli
+  if (AUTO || lsGet("fbr_g")) $("jelszoGomb").hidden = true; // a jelszót a főoldali belépés kezeli; Google-belépésnél nincs jelszó
   if (!S.token && AUTO) { autoBelep().then(function (ok) { if (ok) indul(); else fooldalra(); }); }
   else if (!S.token) { fooldalra(); return; }
   else indul();

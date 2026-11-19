@@ -18,6 +18,11 @@ const ADMIN_NEV = 'Felber BL';
 const TABLAZAT_ID = '1B2O2rRRkYUL2wUVTjNCba5mtNP_ZcOTHf8dQ4lZh9yM';
 const MUNKAMENET_NAP = 60;
 
+/* Google-belépés („Bejelentkezés Google-fiókkal”). Az OAuth-ügyfélazonosító nem titkos, a weboldalon is ugyanez szerepel
+   (index.html: GOOGLE_CLIENT_ID). Ha meg van adva, a munkatársak csak a Google-fiókjukkal léphetnek be: a jelszavas belépés
+   és a korábbi, jelszóval nyitott munkamenetek csak az adminnak maradnak meg (vészhelyzetre). Üresen a régi működés marad. */
+const GOOGLE_CLIENT_ID = '';
+
 /* Google-csoport szinkron: a csoport tagjai automatikusan felhasználók lesznek (óránként). */
 const CSOPORT_EMAIL = 'felber-csapat@googlegroups.com';
 const ELEMZES_TABLAZAT_ID = '1zHKPw1AfyDcGJ47TjvjzGOTFfaruDY72oJzD5s4iI1U'; // „Elemzés összegző” táblázat
@@ -59,6 +64,8 @@ function doPost(e) {
 function kezel_(k) {
   MEMO_ = {};
   if (k.muvelet === 'belepes') return belepes_(k.email, k.jelszo);
+  if (k.muvelet === 'googleBelepes') return googleBelepes_(k.idToken);
+  if (k.muvelet === 'googleAllapot') return { google: !!GOOGLE_CLIENT_ID };
   const en = munkamenet_(k.token);
   switch (k.muvelet) {
     case 'kilepes': PropertiesService.getScriptProperties().deleteProperty('m_' + k.token); return { ok: true };
@@ -126,11 +133,55 @@ function belepes_(email, jelszo) {
     hiba_('Hibás e-mail-cím vagy jelszó.');
   }
   cache.remove(kulcs);
+  if (GOOGLE_CLIENT_ID && f.szerep !== 'admin') hiba_('Jelszóval már nem lehet belépni: lépj be a Google-fiókoddal.');
+  return munkamenetNyit_(f, false);
+}
+
+/** Új munkamenet; a válaszban az eredményjelző adatkulcsa is benne van (egy belépés mindkettőhöz). */
+function munkamenetNyit_(f, google) {
   const token = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
-  PropertiesService.getScriptProperties().setProperty('m_' + token, JSON.stringify({ email: email, lejar: Date.now() + MUNKAMENET_NAP * 864e5 }));
+  const m = { email: String(f.email).trim().toLowerCase(), lejar: Date.now() + MUNKAMENET_NAP * 864e5 };
+  if (google) m.g = 1;
+  PropertiesService.getScriptProperties().setProperty('m_' + token, JSON.stringify(m));
   takarit_();
-  // Az eredményjelző adatkulcsa: a főoldal ezzel fejti vissza az adat.enc.json-t (egy belépés mindkettőhöz).
-  return { token: token, en: enAdat_(f), adatKulcs: PropertiesService.getScriptProperties().getProperty('fbr_adatkulcs') || '' };
+  return { token: token, en: enAdat_(f), adatKulcs: PropertiesService.getScriptProperties().getProperty('fbr_adatkulcs') || '', google: !!google };
+}
+
+/** Gmail-címeknél a pont és a „+valami” nem számít (szeker.szilvy@… = szekerszilvy@…). */
+function emailNorm_(email) {
+  const e = String(email || '').trim().toLowerCase(), i = e.lastIndexOf('@');
+  if (i < 0) return e;
+  const dom = e.slice(i + 1);
+  if (dom !== 'gmail.com' && dom !== 'googlemail.com') return e;
+  return e.slice(0, i).split('+')[0].replace(/\./g, '') + '@gmail.com';
+}
+
+/**
+ * Belépés Google-fiókkal: a weboldal a Google-tól kapott azonosító tokent (ID token) küldi, ezt a Google
+ * tokeninfo végpontja ellenőrzi (aláírás, lejárat). Csak a mi ügyfélazonosítónknak kiadott, megerősített
+ * e-mail-című tokent fogadjuk el, és csak akkor, ha az e-mail-cím aktív felhasználó a Felhasználók lapon.
+ */
+function googleBelepes_(idToken) {
+  if (!GOOGLE_CLIENT_ID) hiba_('A Google-belépés még nincs beállítva.');
+  idToken = String(idToken || '');
+  if (!/^[\w-]+\.[\w-]+\.[\w-]+$/.test(idToken)) hiba_('Hibás Google-belépés, próbáld újra.');
+  const r = UrlFetchApp.fetch('https://oauth2.googleapis.com/tokeninfo?id_token=' + encodeURIComponent(idToken), { muteHttpExceptions: true });
+  if (r.getResponseCode() !== 200) hiba_('A Google-belépést nem sikerült ellenőrizni, próbáld újra.');
+  const t = JSON.parse(r.getContentText() || '{}');
+  const jo = t.aud === GOOGLE_CLIENT_ID &&
+    (t.iss === 'accounts.google.com' || t.iss === 'https://accounts.google.com') &&
+    String(t.email_verified) === 'true' && Number(t.exp) * 1000 > Date.now() && t.email;
+  if (!jo) hiba_('A Google-belépést nem sikerült ellenőrizni, próbáld újra.');
+  const email = emailNorm_(t.email);
+  const f = sorok_('Felhasználók').filter(function (x) { return emailNorm_(x.email) === email && x.aktiv !== 'nem'; })[0];
+  if (!f) hiba_('Ez a Google-fiók (' + String(t.email).toLowerCase() + ') nincs felvéve a csapat oldalára. Szólj Felber Dominiknak, vagy lépj be azzal a Gmail-címmel, amelyet a csapatnál megadtál.', 'nincs');
+  return munkamenetNyit_(f, true);
+}
+
+/** Egyszer le kell futtatni (▶ Futtatás) a Google-belépés bekapcsolása után: engedélyt kér a külső kéréshez (tokeninfo). */
+function googleEngedely() {
+  const r = UrlFetchApp.fetch('https://oauth2.googleapis.com/tokeninfo?id_token=x', { muteHttpExceptions: true });
+  Logger.log('Google-belépés: kapcsolat rendben (' + r.getResponseCode() + '). Ügyfélazonosító: ' + (GOOGLE_CLIENT_ID || 'NINCS MEGADVA'));
 }
 
 function munkamenet_(token) {
@@ -141,6 +192,8 @@ function munkamenet_(token) {
   if (adat.lejar < Date.now()) { props.deleteProperty('m_' + token); hiba_('Lépj be újra.', 'auth'); }
   const f = sorok_('Felhasználók').filter(function (x) { return x.email.toLowerCase() === adat.email && x.aktiv !== 'nem'; })[0];
   if (!f) { props.deleteProperty('m_' + token); hiba_('Lépj be újra.', 'auth'); }
+  // Google-belépés bekapcsolása után a régi, jelszóval nyitott munkamenetek (az adminét kivéve) érvényüket vesztik.
+  if (GOOGLE_CLIENT_ID && !adat.g && f.szerep !== 'admin') { props.deleteProperty('m_' + token); hiba_('Lépj be a Google-fiókoddal.', 'auth'); }
   return f;
 }
 
