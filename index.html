@@ -587,11 +587,11 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
 
   function rajzol() {
     var d = S.data, rh = rekordHonap(d);
-    var nezet = S.nezet === "havi" || S.nezet === "negyedev" || S.nezet === "pipeline" || S.nezet === "csapatfa" ? S.nezet : (rh ? "rekord" : "negyedev");
+    // A negyedéves nézet megszűnt: aki azt nézte utoljára, a rekordot (ha nincs, a havit) kapja.
+    var nezet = S.nezet === "havi" || S.nezet === "pipeline" || S.nezet === "csapatfa" || (S.nezet === "rekord" && rh) ? S.nezet : (rh ? "rekord" : "havi");
     controls.innerHTML =
       '<div class="tabs" role="tablist" aria-label="Nézet">' +
         (rh ? '<button role="tab" data-n="rekord" aria-selected="' + (nezet === "rekord") + '">🏆 Év végi rekord</button>' : "") +
-        '<button role="tab" data-n="negyedev" aria-selected="' + (nezet === "negyedev") + '">Negyedév</button>' +
         '<button role="tab" data-n="havi" aria-selected="' + (nezet === "havi") + '">Havi</button>' +
         '<button role="tab" data-n="pipeline" aria-selected="' + (nezet === "pipeline") + '">📈 Elemzés összegző</button>' +
         '<button role="tab" data-n="csapatfa" aria-selected="' + (nezet === "csapatfa") + '">🌳 Csapatfa</button></div>' +
