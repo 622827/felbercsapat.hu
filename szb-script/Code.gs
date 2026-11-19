@@ -353,12 +353,21 @@ function osszesitoAdat_() {
   function igen(v) { return /^(igen|true|yes|x|✓)/i.test(String(v || '').trim()) ? 1 : 0; }
   function szam(v) { const n = parseFloat(String(v || '').replace(/\s/g, '').replace(',', '.')); return isFinite(n) ? n : 0; }
   const osszesLap = lapok.filter(function (l) { return l.getName().trim() === 'Összes'; })[0] || null;
+  // Leadott ES a tanácsadások dátuma szerint: munkatárs|kulcs|ügyfél → [{ datum, es }]
+  const alk = {};
+  utoSorok_(ss).forEach(function (a) {
+    const es = parseFloat(String(a.es).replace(',', '.')) || 0; if (!es) return;
+    const k = a.munkatars_id + '|' + a.kulcs + '|' + String(a.ugyfel).trim();
+    (alk[k] = alk[k] || []).push({ datum: String(a.datum), es: es });
+  });
+  const idoCache = {};
+  function idok(lap) { const n = lap.getName(); return idoCache[n] || (idoCache[n] = lap.getRange(1, 1, Math.max(1, lap.getLastRow()), 1).getValues()); }
   const munkatarsak = mt.map(function (m) {
     const cel = nevNorm_(m.nev);
     const lap = lapok.filter(function (l) { return l.getName().trim() !== 'Összes' && nevNorm_(l.getName()) === cel; })[0] || null;
-    const forras = lap || osszesLap, sorok = [];
+    const forras = lap || osszesLap, sorok = [], leadasok = [];
     if (forras) {
-      const e = ertekek(forras), f = (e[0] || []).map(function (h) { return String(h).replace(/\s+/g, ' ').trim(); });
+      const e = ertekek(forras), nyers = idok(forras), f = (e[0] || []).map(function (h) { return String(h).replace(/\s+/g, ' ').trim(); });
       const O = {
         datum: oszlop(f, /^időbélyeg/i), ugyfel: oszlop(f, /ügyfél neve/i), munk: oszlop(f, /^munkatárs/i), taIdo: oszlop(f, /tanácsadás időpont/i),
         ajanlas: oszlop(f, /^hány db/i), mtAjanlas: oszlop(f, /munkatársi ajánlás/i), kilatas: oszlop(f, /kilátás/i),
@@ -371,12 +380,17 @@ function osszesitoAdat_() {
         if (String(r[0] || r[3] || '').trim() === '') continue;
         if (!lap && !(O.munk > -1 && nevNorm_(r[O.munk]) === cel)) continue;
         const d = /^(\d{4})\.\s*(\d{1,2})\.\s*(\d{1,2})/.exec(String(g(r, O.datum)));
+        // A megkötött ES-ből a tanácsadásokkal rögzített rész a tanácsadás dátumához számít (leadasok),
+        // a maradék (régi, kézzel beírt) az elemzés dátumához.
+        const al = alk[m.id + '|' + idoKulcs_(nyers[i] ? nyers[i][0] : '') + '|' + String(g(r, O.ugyfel)).trim()] || [];
+        let alSum = 0; al.forEach(function (x) { alSum += x.es; leadasok.push([x.datum, x.es]); });
+        const megk = Math.max(0, Math.round((szam(g(r, O.megkotott)) - alSum) * 100) / 100);
         sorok.push([d ? d[1] + '-' + ('0' + d[2]).slice(-2) + '-' + ('0' + d[3]).slice(-2) : '', igen(g(r, O.taIdo)), szam(g(r, O.ajanlas)), szam(g(r, O.mtAjanlas)),
-          szam(g(r, O.kilatas)), igen(g(r, O.taMeg)), szam(g(r, O.megkotott)), szam(g(r, O.specEs)),
+          szam(g(r, O.kilatas)), igen(g(r, O.taMeg)), megk, szam(g(r, O.specEs)),
           /szerviz/i.test(String(g(r, O.tipus))) ? 'S' : /specialista/i.test(String(g(r, O.tipus))) ? 'P' : 'I']);
       }
     }
-    return { id: m.id, nev: m.nev, csapat: m.csapat || '', pozicio: m.pozicio || '', sorok: sorok };
+    return { id: m.id, nev: m.nev, csapat: m.csapat || '', pozicio: m.pozicio || '', sorok: sorok, leadasok: leadasok };
   });
   return { lista: munkatarsak, ido: most_() };
 }
