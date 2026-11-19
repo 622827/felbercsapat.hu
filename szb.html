@@ -1172,8 +1172,12 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       kesz[i] = 1;
       var l = Object.assign({ o: i, cim: f[i], tipus: "szoveg", valaszok: [] }, q);
       if (/igényfelmérés vagy szerviz/i.test(l.cim)) {
-        l.tipus = "valaszt"; l.valaszok = (l.valaszok || []).slice();
-        if (!l.valaszok.some(function (v) { return /specialista/i.test(v); })) l.valaszok.push("Specialista időpont");
+        // az űrlapban ez lehet szöveges kérdés is: a három lehetőség mindig ott legyen
+        l.tipus = "valaszt"; l.egyeb = false; l.valaszok = (l.valaszok || []).slice();
+        [[/igényfelmérés/i, "Igényfelmérés"], [/szerv[ií]z/i, "Szerviz"], [/specialista/i, "Specialista időpont"]].forEach(function (x) {
+          if (!l.valaszok.some(function (v) { return x[0].test(v); })) l.valaszok.push(x[1]);
+        });
+        l.valaszok.sort(function (a, b) { function h(v) { return /igényfelmérés/i.test(v) ? 0 : /szerv/i.test(v) ? 1 : /specialista/i.test(v) ? 2 : 3; } return h(a) - h(b); });
       }
       lep.push(l);
     }
@@ -1323,12 +1327,25 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     var d0 = P.cache[mtId];
     var elozo = P.lanc[mtId + ":" + idx] || Promise.resolve();
     var p = elozo.catch(function () {}).then(function () {
-      var d = P.cache[mtId], ui = oszlop(d.fejlec, /ügyfél neve/i);
-      return api("pipelineMent", { munkatars_id: mtId, sor: d.sorszamok[idx], kulcs: d.kulcsok[idx], ugyfel: ui > -1 ? d.sorok[idx][ui] : "", valtozasok: valtozasok })
-        .then(function (res) {
-          var hossz = d.fejlec.length, uj = res.sor.slice(0, hossz); while (uj.length < hossz) uj.push("");
-          d.sorok[idx] = uj; d.kulcsok[idx] = res.kulcs; return res;
+      var d = P.cache[mtId], ui = oszlop(d.fejlec, /ügyfél neve/i), kulcs = d.kulcsok[idx], ugyfel = ui > -1 ? d.sorok[idx][ui] : "";
+      function kuld(dd, ix) {
+        return api("pipelineMent", { munkatars_id: mtId, sor: dd.sorszamok[ix], kulcs: dd.kulcsok[ix], ugyfel: ui > -1 ? dd.sorok[ix][ui] : "", valtozasok: valtozasok })
+          .then(function (res) {
+            var hossz = dd.fejlec.length, uj = res.sor.slice(0, hossz); while (uj.length < hossz) uj.push("");
+            dd.sorok[ix] = uj; dd.kulcsok[ix] = res.kulcs; return res;
+          });
+      }
+      return kuld(d, idx).catch(function (err) {
+        // A táblázatot közben közvetlenül szerkesztették (pl. sorrend), és a megjegyzett sorszám elavult:
+        // friss adatot kérünk, megkeressük ugyanazt az elemzést, és egyszer újra megpróbáljuk.
+        if (!/megváltozott|nem található|Frissítsd/i.test(err.message || "")) throw err;
+        return api("pipeline", { munkatars_id: mtId, friss: true }).then(function (fr) {
+          var ix = fr.kulcsok.map(function (k, i) { return k === kulcs && (ui < 0 || String(fr.sorok[i][ui]).trim() === String(ugyfel).trim()) ? i : -1; }).filter(function (i) { return i > -1; })[0];
+          if (ix === undefined) { P.cache[mtId] = fr; throw new Error("Ezt az ügyfelet a táblázatban közben módosították – frissítettem a listát, próbáld újra."); }
+          P.cache[mtId] = fr;
+          return kuld(fr, ix);
         });
+      });
     });
     P.lanc[mtId + ":" + idx] = p;
     return p;
