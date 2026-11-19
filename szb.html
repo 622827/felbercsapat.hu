@@ -1146,7 +1146,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     function idx(cim) { var c = nrm(cim); for (var i = 0; i < f.length; i++) if (hely[i] === "u" && nrm(f[i]) === c) return i; return -1; }
     function hasznal(i, q) {
       if (i < 0 || kesz[i] || i === O.datum || i === O.munk || hely[i] !== "u" || !f[i]) return;
-      if (/melyik témákat/i.test(f[i])) return;   // már nem kérdezzük
+      if (/melyik témákat|bankszámlá/i.test(f[i])) return;   // ezeket már nem kérdezzük (témák, hol bankol)
       if (igenyek.indexOf(i) > -1) {   // az első konkrét igénynél jön az összes, egymás alatt
         igenyek.forEach(function (j) { kesz[j] = 1; });
         lep.push({ tipus: "igenyek", mezok: igenyek.slice(), cim: "Konkrét igények", sugo: "Írd be egymás alá; amelyik nincs, maradjon üresen." });
