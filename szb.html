@@ -64,7 +64,10 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   .linkgomb { border: 0; background: none; color: var(--muted); font-weight: 600; font-size: .9rem; text-align: left; padding: 0; cursor: pointer; }
   .linkgomb:hover { color: var(--ink); }
 
-  main { min-width: 0; padding: 24px 16px 60px 32px; }
+  main { min-width: 0; padding: 64px 16px 60px 32px; }
+  .vissza-ej { position: fixed; top: 14px; right: 16px; z-index: 30; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px;
+    border: 1px solid var(--accent); color: var(--accent); background: var(--bg); font-weight: 700; font-size: .85rem; text-decoration: none; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+  .vissza-ej:hover { background: var(--accent-soft); color: var(--ink); }
   .lap { max-width: 860px; display: flex; flex-direction: column; gap: 28px; }
   .vissza { display: none; border: 0; background: none; color: var(--muted); font-weight: 600; padding: 0; cursor: pointer; justify-self: start; }
   .fej { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 8px 16px; }
@@ -278,7 +281,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
 
   @media (max-width: 760px) {
     .app { grid-template-columns: minmax(0, 1fr); }
-    main { padding: 18px 16px 60px; }
+    main { padding: 60px 16px 60px; }
     .app.reszletben aside { display: none; }
     .app:not(.reszletben) main { display: none; }
     .vissza { display: inline-block; }
@@ -332,11 +335,11 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
         <button class="linkgomb" id="fhGomb" type="button" style="margin-top:8px">👤 Felhasználók kezelése</button>
       </div>
       <div class="fiok"><span>Belépve: <b id="enNev"></b></span><button class="link" id="jelszoGomb" type="button">Jelszócsere</button><button class="link" id="kilepGomb" type="button">Kilépés</button></div>
-      <a href="./" style="font-size:.82rem">← Eredményjelző</a>
     </div>
   </aside>
   <main id="reszlet"></main>
 </div>
+<a class="vissza-ej" href="./">← Eredményjelző</a>
 <div id="toast" role="status" aria-live="polite"></div>
 
 <script>
@@ -440,6 +443,16 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   function utolsoSZB(id) { var j = jegyzetei(id); return j.length ? j[0].datum : null; }
   function aktualis() { if (S.sajatMod) return S.sajat && S.sajat.id === S.sel ? S.sajat : null; return S.mt.filter(function (m) { return m.id === S.sel; })[0] || null; }
 
+  /**
+   * Épp ír valaki, vagy félig kitöltött, el nem mentett mező van a lapon? Ilyenkor az automatikus frissítés kimarad,
+   * és nem rajzoljuk újra a lapot, hogy ne vesszen el, amit beírt.
+   */
+  function irasFolyik() {
+    var a = document.activeElement;
+    if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.id !== "kereso" && $("reszlet").contains(a)) return true;
+    if (P.v || (P.szerk !== null && P.szerk !== undefined) || (P.alk !== null && P.alk !== undefined) || PR.szerk || PR.int) return true;
+    return ["przJelolt", "przTel", "przForras", "przJegyzet", "feladatSzoveg"].some(function (id) { var e = $(id); return e && e.value.trim(); });
+  }
   function rajzolMinden() {
     $("enNev").textContent = S.en.nev || S.en.email;
     $("adminLent").hidden = !admin();
@@ -447,8 +460,9 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     rajzolErtesitesek();
     rajzolLista();
     if (S.nezet !== "mt") return;
-    if (!$("feladatForm") || (aktualis() === null)) rajzolReszletVaz();
-    else { rajzolJegyzetek(); rajzolFeladatok(); rajzolAllapot(); if (S.ful === "csapat") rajzolPrezik(S.sel); }
+    // a már kirajzolt lapot nem rajzoljuk újra (különben elveszne, amit épp írnak) – csak a listákat frissítjük
+    if (aktualis() === null || S.rajzolt !== (S.sajatMod ? "s:" : "m:") + S.sel || !$("reszlet").querySelector(".lap")) rajzolReszletVaz();
+    else { rajzolJegyzetek(); rajzolFeladatok(); rajzolAllapot(); if (S.ful === "csapat" && !irasFolyik()) rajzolPrezik(S.sel); }
     if (S.sel) $("app").classList.add("reszletben");
   }
 
@@ -514,6 +528,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   /* ---------- részlet ---------- */
   function rajzolReszletVaz() {
     var m = aktualis(), main = $("reszlet");
+    S.rajzolt = m ? (S.sajatMod ? "s:" : "m:") + m.id : null;
     if (!m) { main.innerHTML = '<div class="kezdo"><div><h2>Válassz munkatársat</h2><p>Bal oldalt kattints egy névre: ott írhatod az SZB jegyzetet és a megbeszélt feladatokat.</p></div></div>'; return; }
     S.ful = lsGet("szb_ful") || S.ful;   // a legutóbb választott fül (ha ennél a munkatársnál nincs, alább módosul)
     if (S.ful === "csapat" && !vezetoPoz(m)) S.ful = "pipeline";
@@ -1481,7 +1496,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   if (!S.token && AUTO) { autoBelep().then(function (ok) { if (ok) indul(); else fooldalra(); }); }
   else if (!S.token) { fooldalra(); return; }
   else indul();
-  setInterval(function () { if (!document.hidden && S.token && S.nezet === "mt" && !S.szerk) betolt(); }, 60000);
+  setInterval(function () { if (!document.hidden && S.token && S.nezet === "mt" && !S.szerk && !irasFolyik()) betolt(); }, 60000);
 })();
 </script>
 </body>
