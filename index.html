@@ -52,6 +52,13 @@ var API = "";
   .btn[disabled] { opacity: .6; cursor: wait; }
   #gate .btn { width: 100%; margin-top: 12px; font-size: 1.05rem; }
   #gate .err { color: var(--warn); min-height: 1.4em; margin: 12px 0 0; font-size: .95rem; }
+  #gate .g-gomb { display: flex; flex-direction: column; align-items: center; gap: 8px; min-height: 44px; }
+  #gate .g-gomb.tolt > div { opacity: .5; pointer-events: none; }
+  #gate .g-tolt { margin: 0; color: var(--muted); font-size: .95rem; }
+  #gate .admin-belep { margin-top: 18px; text-align: left; }
+  #gate .admin-belep summary { cursor: pointer; color: var(--muted); font-size: .85rem; text-align: center; list-style: none; }
+  #gate .admin-belep summary::-webkit-details-marker { display: none; }
+  #gate .admin-belep[open] summary { margin-bottom: 12px; }
 
   /* Fejléc */
   .wrap { max-width: 1180px; margin: 0 auto; }
@@ -310,22 +317,36 @@ var API = "";
   @media (prefers-reduced-motion: reduce) { .bar .fill, .reveal, .skeleton { transition: none; animation: none; } }
 </style>
 <script>
-/* Belépés személyes jelszóval.
-   A hozzaferes.json-ban minden felhasználónál az adatfájl kulcsa (és a Kontroll SZB belépési adatai)
-   a saját jelszavával titkosítva szerepel. Amelyik bejegyzést a beírt jelszó megnyitja, azzal lép be.
-   A böngésző az adatkulcsot tárolja, a jelszót nem. A Kontroll SZB-be ugyanezzel automatikusan belép. */
+/* Belépés.
+   Google-fiókkal (ha a GOOGLE_CLIENT_ID meg van adva): a Google azonosító tokenjét a Kontroll SZB Apps Script ellenőrzi,
+   és ha az e-mail-cím szerepel a Felhasználók lapon, munkamenetet nyit és visszaadja az adatfájl kulcsát.
+   Jelszóval csak az admin léphet be (vészhelyzetre), a munkatársak csak Google-fiókkal.
+   GOOGLE_CLIENT_ID nélkül a régi, személyes jelszavas belépés működik (hozzaferes.json).
+   A böngésző az adatkulcsot és a munkamenetet tárolja, a jelszót nem. */
 var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuROOIe6dsANr4RENPdxYf84GCZ7rJFRze708hE99ylqU/exec";
+var GOOGLE_CLIENT_ID = ""; // Google Cloud OAuth-ügyfélazonosító (…apps.googleusercontent.com) – ugyanez a szb-script/Code.gs-ben
 (function () {
-  var K = "fbr_token", root = document.documentElement;
+  var K = "fbr_token", root = document.documentElement, G = !!GOOGLE_CLIENT_ID;
+  // A Google-belépés csak HTTPS-en működik.
+  if (G && location.protocol === "http:" && /(^|\.)felbercsapat\.hu$/.test(location.hostname)) { location.replace("https://" + location.host + location.pathname + location.search + location.hash); return; }
   var tok = "";
   try { tok = localStorage.getItem(K) || ""; } catch (e) {}
   function ls(k, v) { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) {} }
+  function lg(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
+  var KULCSOK = ["fbr_token", "fbr_nev", "fbr_szb", "szb_token", "fbr_pl_v1", "fbr_g"];
   window.FBR = {
     token: function () { return tok; },
-    lock: function () { ["fbr_token", "fbr_nev", "fbr_szb", "szb_token", "fbr_pl_v1"].forEach(function (k) { ls(k, ""); }); tok = ""; root.classList.add("lock"); build(); }
+    google: G,
+    lock: function () {
+      KULCSOK.forEach(function (k) { ls(k, ""); }); tok = ""; root.classList.add("lock");
+      try { if (window.google && google.accounts) google.accounts.id.disableAutoSelect(); } catch (e) {}
+      build();
+    }
   };
   // Régebbi belépés, amelyhez még nem tartozik Kontroll SZB-belépés: egyszer újra be kell lépni.
-  if (tok) { var vanSzb = false; try { vanSzb = !!(localStorage.getItem("szb_token") || localStorage.getItem("fbr_szb")); } catch (e) {} if (!vanSzb) { ls(K, ""); tok = ""; } }
+  if (tok) { var vanSzb = !!(lg("szb_token") || lg("fbr_szb")); if (!vanSzb) { ls(K, ""); tok = ""; } }
+  // Google-belépés bekapcsolása után mindenkinek egyszer Google-fiókkal kell belépnie.
+  if (tok && G && !lg("fbr_g")) { KULCSOK.forEach(function (k) { ls(k, ""); }); tok = ""; }
   if (!tok) root.classList.add("lock");
   function belep(email, jelszo) {
     return fetch("hozzaferes.json?_=" + Date.now()).then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); }).then(function (h) {
@@ -339,39 +360,60 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       });
     });
   }
-  function szerverBelep(email, jelszo) {
-    return fetch(SZB_API, { method: "POST", body: JSON.stringify({ muvelet: "belepes", email: email, jelszo: jelszo }) }).then(function (r) { return r.json(); });
+  function szerver(adat) {
+    return fetch(SZB_API, { method: "POST", body: JSON.stringify(adat) }).then(function (r) { return r.json(); });
   }
-  /** Kontroll SZB munkamenet a tárolt belépési adatokkal (a szb.html is ezt hívja, ha lejár). */
+  function szerverBelep(email, jelszo) { return szerver({ muvelet: "belepes", email: email, jelszo: jelszo }); }
+  /** Kontroll SZB munkamenet a tárolt belépési adatokkal (a szb.html is ezt hívja, ha lejár). Google-belépésnél nincs ilyen. */
   window.FBR.szbBelep = function () {
-    var sz = null; try { sz = JSON.parse(localStorage.getItem("fbr_szb") || "null"); } catch (e) {}
+    var sz = null; try { sz = JSON.parse(lg("fbr_szb") || "null"); } catch (e) {}
     if (!sz || !SZB_API) return Promise.resolve(false);
-    return fetch(SZB_API, { method: "POST", body: JSON.stringify({ muvelet: "belepes", email: sz.email, jelszo: sz.jelszo }) })
-      .then(function (r) { return r.json(); })
+    return szerverBelep(sz.email, sz.jelszo)
       .then(function (d) { if (d && d.token) { ls("szb_token", d.token); return true; } return false; }, function () { return false; });
   };
+  /** Belépés után: vissza oda, ahonnan a belépésre küldtek (Kontroll SZB, Telefonparty), különben újratöltés. */
+  function tovabb() {
+    var v = ""; try { v = sessionStorage.getItem("fbr_vissza") || ""; sessionStorage.removeItem("fbr_vissza"); } catch (e) {}
+    if (/^(szb|telefonparty)\.html$/.test(v)) location.href = v; else location.reload();
+  }
+  /** Szerveres belépés (Google vagy admin-jelszó) eredményének eltárolása. */
+  function szerverSiker(d, google) {
+    ls("szb_token", d.token); ls("fbr_szb", ""); ls("fbr_nev", (d.en && d.en.nev) || ""); ls("fbr_g", google || G ? "1" : "");
+    if (!d.adatKulcs) { location.href = "szb.html"; return; }
+    ls(K, d.adatKulcs); tovabb();
+  }
   function build() {
     if (document.getElementById("gate")) return;
     if (!document.body) { document.addEventListener("DOMContentLoaded", build); return; }
     var g = document.createElement("div"); g.id = "gate";
-    g.innerHTML = '<figure class="csapatkep"><img src="ikon/csapat-1600.jpg" srcset="ikon/csapat-800.jpg 800w, ikon/csapat-1600.jpg 1600w" sizes="(max-width: 752px) calc(100vw - 32px), 720px" width="1600" height="1200" alt="A Felber csapat"></figure>' +
-      '<form autocomplete="on"><div class="bolt" aria-hidden="true"><span></span></div><h1>Felber csapat</h1><p>Lépj be az e-mail-címeddel és a jelszavaddal.</p>' +
-      '<input type="email" id="fbr-email" placeholder="E-mail-cím" aria-label="E-mail-cím" autocomplete="username" style="margin-bottom:10px">' +
+    var kep = '<figure class="csapatkep"><img src="ikon/csapat-1600.jpg" srcset="ikon/csapat-800.jpg 800w, ikon/csapat-1600.jpg 1600w" sizes="(max-width: 752px) calc(100vw - 32px), 720px" width="1600" height="1200" alt="A Felber csapat"></figure>';
+    var urlap = '<input type="email" id="fbr-email" placeholder="E-mail-cím" aria-label="E-mail-cím" autocomplete="username" style="margin-bottom:10px">' +
       '<input type="password" id="fbr-pw" placeholder="Jelszó" aria-label="Jelszó" autocomplete="current-password">' +
-      '<button class="btn" type="submit">Belépés</button><p class="err" role="alert"></p></form>';
+      '<button class="btn" type="submit">Belépés</button>';
+    if (G) {
+      g.innerHTML = kep + '<form autocomplete="on"><div class="bolt" aria-hidden="true"><span></span></div><h1>Felber csapat</h1>' +
+        '<p>Lépj be a Google-fiókoddal (Gmail-címeddel).</p><div id="g-gomb" class="g-gomb" aria-live="polite"><span class="g-tolt">Google-belépés betöltése…</span></div>' +
+        '<p class="err" role="alert"></p>' +
+        '<details class="admin-belep"><summary>Admin belépés jelszóval</summary>' + urlap + '</details></form>';
+    } else {
+      g.innerHTML = kep + '<form autocomplete="on"><div class="bolt" aria-hidden="true"><span></span></div><h1>Felber csapat</h1><p>Lépj be az e-mail-címeddel és a jelszavaddal.</p>' +
+        urlap + '<p class="err" role="alert"></p></form>';
+    }
     document.body.appendChild(g);
-    var f = g.querySelector("form"), em = g.querySelector("#fbr-email"), pw = g.querySelector("#fbr-pw"), btn = g.querySelector("button"), er = g.querySelector(".err");
-    setTimeout(function () { try { em.focus({ preventScroll: true }); } catch (e) { em.focus(); } }, 50);
+    var f = g.querySelector("form"), em = g.querySelector("#fbr-email"), pw = g.querySelector("#fbr-pw"), btn = g.querySelector("button.btn"), er = g.querySelector(".err");
+    if (!G) setTimeout(function () { try { em.focus({ preventScroll: true }); } catch (e) { em.focus(); } }, 50);
+    if (G) googleGomb(g.querySelector("#g-gomb"), er);
     f.addEventListener("submit", function (ev) {
       ev.preventDefault(); if (!em.value || !pw.value) return;
       btn.disabled = true; er.textContent = ""; btn.textContent = "Ellenőrzés…";
       var email = em.value.trim().toLowerCase(), jelszo = pw.value.trim();
       function hibas(uz) { er.textContent = uz || "Hibás e-mail-cím vagy jelszó."; btn.disabled = false; btn.textContent = "Belépés"; pw.select(); }
-      belep(email, jelszo.toLowerCase())
+      // Google-módban csak a szerver (admin) jelszavas belépése él; a hozzaferes.json-t nem használjuk.
+      (G ? Promise.resolve(null) : belep(email, jelszo.toLowerCase()))
         .then(function (t) {
           if (t) {
             ls(K, t.kulcs); ls("fbr_nev", t.nev); ls("fbr_szb", t.szb ? JSON.stringify(t.szb) : ""); ls("szb_token", "");
-            return window.FBR.szbBelep().then(function () { location.reload(); });
+            return window.FBR.szbBelep().then(tovabb);
           }
           // Kontroll SZB-szerver: ugyanazzal az e-mail-címmel és jelszóval az eredményjelző kulcsát is visszaadja.
           return szerverBelep(email, jelszo).then(function (d) {
@@ -379,13 +421,38 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
             return d;
           }).then(function (d) {
             if (!d || !d.token) return hibas(d && d.hiba);
-            ls("szb_token", d.token); ls("fbr_szb", ""); ls("fbr_nev", (d.en && d.en.nev) || "");
-            if (!d.adatKulcs) { location.href = "szb.html"; return; }
-            ls(K, d.adatKulcs); location.reload();
+            szerverSiker(d, false);
           });
         })
         .catch(function () { er.textContent = "Nem sikerült csatlakozni, próbáld újra."; btn.disabled = false; btn.textContent = "Belépés"; });
     });
+  }
+  /** „Bejelentkezés Google-fiókkal” gomb (Google Identity Services). */
+  function googleGomb(hely, er) {
+    function rajzol() {
+      google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID, ux_mode: "popup", context: "signin", itp_support: true,
+        callback: function (v) {
+          er.textContent = ""; hely.classList.add("tolt");
+          var jel = document.createElement("p"); jel.className = "g-tolt"; jel.textContent = "Ellenőrzés…"; hely.appendChild(jel);
+          function vege(uz) { er.textContent = uz; hely.classList.remove("tolt"); if (jel.parentNode) jel.parentNode.removeChild(jel); }
+          szerver({ muvelet: "googleBelepes", idToken: v && v.credential }).then(function (d) {
+            if (d && d.token) return szerverSiker(d, true);
+            if (d && d.kod === "auth") return vege("A szerver még nem ismeri a Google-belépést (az Apps Scriptet újra kell telepíteni).");
+            vege((d && d.hiba) || "A belépés nem sikerült, próbáld újra.");
+          }, function () { vege("Nem sikerült csatlakozni, próbáld újra."); });
+        }
+      });
+      hely.innerHTML = "";
+      var szel = Math.max(200, Math.min(320, (hely.clientWidth || 300)));
+      google.accounts.id.renderButton(hely, { type: "standard", theme: "filled_blue", size: "large", shape: "pill", text: "signin_with", logo_alignment: "left", locale: "hu", width: szel });
+    }
+    if (window.google && google.accounts && google.accounts.id) return rajzol();
+    var sc = document.createElement("script");
+    sc.src = "https://accounts.google.com/gsi/client"; sc.async = true;
+    sc.onload = function () { try { rajzol(); } catch (e) { er.textContent = "A Google-belépést nem sikerült betölteni."; } };
+    sc.onerror = function () { hely.innerHTML = ""; er.textContent = "A Google-belépést nem sikerült betölteni. Ellenőrizd a netkapcsolatot, és frissítsd az oldalt."; };
+    document.head.appendChild(sc);
   }
   if (!tok) build();
 })();
@@ -524,11 +591,13 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   function eloAdat(lap, ujra) {
     var tok = ""; try { tok = localStorage.getItem("szb_token") || ""; } catch (e) {}
     if (!SZB_API || (!tok && ujra)) return Promise.reject(new Error("nincs munkamenet"));
-    if (!tok) return FBR.szbBelep().then(function (ok) { if (!ok) throw new Error("nincs munkamenet"); return eloAdat(lap, true); });
+    // Google-belépésnél a lejárt / visszavont munkamenet kiléptet (pl. letiltott felhasználó); jelszavasnál újra belépünk.
+    function nincs(uz) { if (FBR.google) FBR.lock(); throw new Error(uz); }
+    if (!tok) return FBR.szbBelep().then(function (ok) { if (!ok) nincs("nincs munkamenet"); return eloAdat(lap, true); });
     return fetch(SZB_API, { method: "POST", body: JSON.stringify({ muvelet: "eredmeny", token: tok, lap: lap || "" }) })
       .then(function (r) { return r.json(); })
       .then(function (d) {
-        if (d && d.kod === "auth" && !ujra) return FBR.szbBelep().then(function (ok) { if (!ok) throw new Error("auth"); return eloAdat(lap, true); });
+        if (d && d.kod === "auth" && !ujra) return FBR.szbBelep().then(function (ok) { if (!ok) nincs("auth"); return eloAdat(lap, true); });
         if (!d || d.hiba || !d.honapok) throw new Error((d && d.hiba) || "hibás válasz");
         return d;
       });

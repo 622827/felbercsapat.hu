@@ -47,6 +47,35 @@ Beállítás (egyszer): a kód bemásolása után a `beallitas` függvényt kell
 a Google-csoport és a táblázatok olvasását, majd **új verziót** telepíteni (lásd lent). A futás naplójában
 látszik, kit vett fel.
 
+## Belépés Google-fiókkal (Gmail)
+
+Ha a `GOOGLE_CLIENT_ID` meg van adva (a `szb-script/Code.gs` elején és az `index.html`-ben ugyanaz az érték), a
+felbercsapat.hu-ra csak **„Bejelentkezés Google-fiókkal”** gombbal lehet belépni:
+
+- A Google a böngészőben azonosítja a felhasználót, a script pedig a Google-nél ellenőrzi a kapott tokent
+  (`googleBelepes`): csak a mi ügyfélazonosítónknak kiadott, megerősített e-mail-című tokent fogadja el.
+- Csak az léphet be, akinek az e-mail-címe **aktív** sor a „Felhasználók” lapon (a Google-csoport szinkronja
+  továbbra is automatikusan felveszi a tagokat). Gmail-címeknél a pont és a kis/nagybetű nem számít.
+- A jelszavas belépés és a korábbi, jelszóval nyitott munkamenetek **csak az adminnak** maradnak meg (vészhelyzetre,
+  a belépőoldalon az „Admin belépés jelszóval” alatt). Mindenki másnak egyszer Google-lel újra be kell lépnie.
+- Letiltás: a „Felhasználók” lapon `aktiv` = `nem` (vagy a felhasználó törlése) → a következő élő lekérésnél kilép.
+- Üres `GOOGLE_CLIENT_ID` mellett a régi, jelszavas belépés működik.
+
+### Beállítás (egyszer, kb. 10 perc)
+
+1. **HTTPS:** GitHub → a repó **Settings → Pages** → pipáld be az **Enforce HTTPS**-t (a Google-belépés csak HTTPS-en megy).
+2. **Google Cloud projekt:** https://console.cloud.google.com/ → fent a projektválasztóban **Új projekt** (pl. „Felber csapat”).
+3. **Google Auth Platform → Branding / OAuth-hozzájárulási képernyő:** típus **Külső (External)**, alkalmazásnév
+   „Felber csapat”, támogatási e-mail a sajátod, engedélyezett domain: `felbercsapat.hu`. Hatókört nem kell felvenni
+   (az alap e-mail/profil elég). A **Közönség (Audience)** résznél nyomd meg a **Közzététel (Publish app)** gombot,
+   hogy bárki beléphessen (ellenőrzés nem kell, mert csak alap adatot kérünk).
+4. **Ügyfelek (Clients) → Ügyfél létrehozása:** típus **Webalkalmazás**, név „felbercsapat.hu”,
+   **Engedélyezett JavaScript-források:** `https://felbercsapat.hu` (átirányítási URI nem kell) → **Létrehozás**.
+5. Másold ki az **Ügyfélazonosítót** (`…apps.googleusercontent.com`), és küldd el Claude-nak (nem titkos), vagy írd be
+   a `Code.gs`-ben a `GOOGLE_CLIENT_ID`-hez és az `index.html`-ben a `var GOOGLE_CLIENT_ID = "…";` sorba.
+6. Az Apps Scriptben a kód bemásolása után futtasd egyszer a **`googleEngedely`** függvényt (▶ Futtatás), és engedélyezd
+   a „külső szolgáltatáshoz csatlakozás” jogot, majd telepíts **új verziót**.
+
 ## Használat
 
 - Belépés: felbercsapat.hu → **Kontroll SZB** gomb (vagy közvetlenül: felbercsapat.hu/szb.html).
