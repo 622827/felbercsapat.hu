@@ -143,6 +143,16 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   button.pp:hover { outline: 2px solid var(--line); }
   .pk-jobb { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
   .pk-szerk { padding: 4px 10px; font-size: .8rem; }
+  .ptabla { margin-top: 22px; }
+  table.pt-ossz { width: 100%; border-collapse: collapse; font-size: .9rem; min-width: 520px; }
+  table.pt-ossz th, table.pt-ossz td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.pt-ossz thead th { font-size: .75rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+  table.pt-ossz .szam { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; width: 1%; }
+  table.pt-ossz td.meg { color: var(--accent); font-weight: 700; }
+  table.pt-ossz td:last-child { overflow-wrap: anywhere; white-space: pre-wrap; }
+  table.pt-ossz tfoot th { border-top: 2px solid var(--line); border-bottom: 0; font-weight: 800; }
+  table.pt-ossz tfoot th.meg { color: var(--accent); }
+  table.pt-ossz .halv { color: var(--muted); opacity: .6; }
   .pk-es { text-align: right; line-height: 1; }
   .pk header .pk-es b { display: block; font-size: 2.4rem; font-weight: 800; letter-spacing: -.03em; color: var(--accent); font-variant-numeric: tabular-nums; }
   .pk header .pk-es b small { font-size: .45em; margin-left: 3px; font-weight: 700; letter-spacing: 0; }
@@ -961,6 +971,15 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
           '<details><summary>Minden adat</summary><div class="tabla"><table class="fh pt"><tbody>' + tobbi + "</tbody></table></div></details></article>";
         })();
       }).join("") + "</div>" + (szurt.length > P.mutat ? '<button class="gomb halk" type="button" id="pTobb">Továbbiak (' + (szurt.length - P.mutat) + ")</button>" : "");
+      // Összesítő táblázat a szűrt ügyfelekről (az időszak, állapot és keresés szerint, lapozás nélkül)
+      var sKil = 0, sMeg = 0;
+      html += '<section class="ptabla"><h3>Ügyfelek összesítve (' + szurt.length + ")</h3>" + '<div class="tabla"><table class="pt-ossz"><thead><tr><th>Ügyfél neve</th><th class="szam">ES kilátás</th><th class="szam">ES megkötve</th><th>Teendők</th></tr></thead><tbody>' +
+        szurt.map(function (x) {
+          var kil = szamv(g(x.r, O.kilatas)), meg = szamv(g(x.r, O.megkotott)); sKil += kil; sMeg += meg;
+          function es(v, i) { return i < 0 ? "–" : v ? String(Math.round(v * 100) / 100).replace(".", ",") : '<span class="halv">0</span>'; }
+          return "<tr><td>" + esc(g(x.r, O.ugyfel) || "Névtelen ügyfél") + '</td><td class="szam">' + es(kil, O.kilatas) + '</td><td class="szam' + (meg ? " meg" : "") + '">' + es(meg, O.megkotott) + "</td><td>" + (esc(g(x.r, O.teendo)) || '<span class="halv">–</span>') + "</td></tr>";
+        }).join("") +
+        '</tbody><tfoot><tr><th>Összesen</th><th class="szam">' + String(Math.round(sKil * 100) / 100).replace(".", ",") + ' ES</th><th class="szam meg">' + String(Math.round(sMeg * 100) / 100).replace(".", ",") + " ES</th><th></th></tr></tfoot></table></div></section>";
     }
     el.innerHTML = html;
     $("pIdo").value = P.idoszak;
