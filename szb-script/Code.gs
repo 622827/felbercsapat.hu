@@ -340,7 +340,9 @@ function virtSorOlvas_(L, sor) {
 function pipelineOsszesito_(en, friss) {
   const munkatarsak = gyorsTar_('osz_v1', osszesitoAdat_, friss);
   const celok = sorok_('Célok').map(function (c) { return { munkatars_id: c.munkatars_id, honap: c.honap, cel: c.cel, vallalas: c.vallalas }; });
-  return { munkatarsak: munkatarsak.lista, celok: celok, admin: en.szerep === 'admin', ido: munkatarsak.ido };
+  // Rögzített prezik (csapatépítés) – csak dátum és jelölések, az interjú időpontok nem
+  const prezik = sorok_('Prezik').map(function (x) { return [x.munkatars_id, x.datum, x.jelolesek || '']; });
+  return { munkatarsak: munkatarsak.lista, celok: celok, prezik: prezik, admin: en.szerep === 'admin', ido: munkatarsak.ido };
 }
 function osszesitoAdat_() {
   const mt = sorok_('Munkatársak').filter(function (m) { return m.aktiv !== 'nem'; });
