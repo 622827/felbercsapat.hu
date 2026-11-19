@@ -91,6 +91,8 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   .prz.gond .prz-er { background: var(--warn-soft); color: var(--warn); }
   .prz.nem .prz-er { background: rgba(255,138,122,.18); color: var(--danger); }
   .prz .muv { grid-column: 1 / -1; display: flex; gap: 12px; }
+  .prz-cimkek { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; align-self: start; }
+  .prz .prz-jel { font-size: .78rem; font-weight: 700; padding: 3px 10px; border-radius: 99px; background: rgba(92,184,255,.18); color: var(--blue); }
   .fulek button { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 16px 12px; border-radius: 16px; border: 2px solid var(--line); background: var(--panel); font-weight: 700; font-size: 1.05rem; cursor: pointer; color: var(--muted); }
   .fulek button span { font-size: 1.3rem; }
   .fulek button:hover { color: var(--ink); border-color: var(--muted); }
@@ -588,7 +590,9 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
 
   /* ---------- csapatépítés: megvalósult prezik ---------- */
   function vezetoPoz(m) { return !!m && (/^(VJ|VR\d*|GST|BL)$/i.test(String(m.pozicio || "").trim()) || /vezet/i.test(String(m.csapat || ""))); }
-  var PR = { szerk: null, er: "" };
+  var PR = { szerk: null, er: "", jel: [] };
+  var PR_JEL = ["Interjú", "Híd", "Ajánlás"];
+  function jelLista(x) { return String(x || "").split(",").map(function (y) { return y.trim(); }).filter(Boolean); }
   function isoDatum(s) { var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(s || ""); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; }
   function preziLista(id) {
     return (S.prezik || []).filter(function (x) { return x.munkatars_id === id; })
@@ -601,13 +605,14 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     var sz = PR.szerk ? l.filter(function (x) { return x.id === PR.szerk; })[0] : null;
     if (PR.szerk && !sz) PR.szerk = null;
     var v = sz || { datum: maIso(), jelolt: "", telefon: "", forras: "", eredmeny: "", jegyzet: "" };
-    if (!PR.erAllitva) PR.er = v.eredmeny || "";
+    if (!PR.erAllitva) { PR.er = v.eredmeny || ""; PR.jel = jelLista(v.jelolesek); }
     function csempe(cim, ertek, al) { return '<div class="pcs"><span>' + cim + "</span><b>" + ertek + "</b>" + (al ? "<small>" + al + "</small>" : "") + "</div>"; }
     var akA = termHoAdat(akt);
     var html = '<div class="pcsempek" style="margin-bottom:14px">' +
       csempe("Prezi – " + esc(akA.nev.replace(/^\d+\. /, "")), ebben.length, esc(akA.idoszak)) +
       csempe("Csatlakozik", ebben.filter(function (x) { return x.eredmeny === "Csatlakozik"; }).length, "ebben a termelési hónapban") +
       csempe("Gondolkodik", ebben.filter(function (x) { return x.eredmeny === "Gondolkodik"; }).length, "") +
+      PR_JEL.map(function (j) { return csempe(j, ebben.filter(function (x) { return jelLista(x.jelolesek).indexOf(j) > -1; }).length, ""); }).join("") +
       csempe("Összes prezi", l.length, "") + "</div>";
     html += '<section><h3>' + (sz ? "Prezi szerkesztése" : "Megvalósult prezi rögzítése") + '</h3><form class="prz-urlap" id="przForm"><div class="prz-racs">' +
       '<label class="pm"><span>Dátum</span><input type="date" class="mezo" id="przDatum" value="' + esc(v.datum) + '"></label>' +
@@ -616,6 +621,9 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       '<label class="pm"><span>Honnan jött? (ajánló, forrás)</span><input class="mezo" id="przForras" value="' + esc(v.forras) + '"></label></div>' +
       '<div class="pm"><span>Eredmény</span><div class="var-opt">' + ["Csatlakozik", "Gondolkodik", "Nem"].map(function (e) {
         return '<button type="button" class="var-o" data-pr-er="' + e + '" aria-pressed="' + (PR.er === e) + '">' + (e === "Csatlakozik" ? "✓ " : e === "Nem" ? "✗ " : "… ") + e + "</button>";
+      }).join("") + "</div></div>" +
+      '<div class="pm"><span>Lett-e belőle? (több is jelölhető)</span><div class="var-opt">' + PR_JEL.map(function (j) {
+        return '<button type="button" class="var-o" data-pr-jel="' + j + '" aria-pressed="' + (PR.jel.indexOf(j) > -1) + '">' + (PR.jel.indexOf(j) > -1 ? "☑ " : "☐ ") + j + "</button>";
       }).join("") + "</div></div>" +
       '<label class="pm"><span>Jegyzet</span><textarea class="mezo" id="przJegyzet" rows="2" placeholder="Mi volt a benyomás, mi a következő lépés…">' + esc(v.jegyzet) + "</textarea></label>" +
       '<div class="sor"><span class="hiba" id="przHiba"></span>' + (sz ? '<button type="button" class="gomb halk jobbra" data-pr-megse="1">Mégse</button>' : '<span class="jobbra"></span>') +
@@ -631,7 +639,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
         var torolheto = !mtars() || x.szerzo === S.en.email;
         return fej + '<article class="prz' + cls + '" data-prz="' + esc(x.id) + '"><div><b>' + esc(x.jelolt) + '</b><div class="prz-al">' + esc(hosszu(x.datum)) +
           (x.forras ? " · " + esc(x.forras) : "") + (x.telefon ? " · " + esc(x.telefon) : "") + (x.szerzo ? " · rögzítette: " + esc(szerzoNev(x.szerzo)) : "") + "</div></div>" +
-          (x.eredmeny ? '<span class="prz-er">' + esc(x.eredmeny) + "</span>" : "<span></span>") +
+          '<span class="prz-cimkek">' + jelLista(x.jelolesek).map(function (j) { return '<span class="prz-jel">' + esc(j) + "</span>"; }).join("") + (x.eredmeny ? '<span class="prz-er">' + esc(x.eredmeny) + "</span>" : "") + "</span>" +
           (x.jegyzet ? '<p class="prz-jegyzet">' + esc(x.jegyzet) + "</p>" : "") +
           '<div class="muv"><button class="link" type="button" data-pr-szerk="' + esc(x.id) + '">Szerkesztés</button>' + (torolheto ? '<button class="link" type="button" data-pr-torol="' + esc(x.id) + '">Törlés</button>' : "") + "</div></article>";
       }).join("") + "</div></section>";
@@ -643,16 +651,23 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       if (!dat) { h.textContent = "Add meg a dátumot."; return; }
       if (!jel) { h.textContent = "Add meg, kinek tartottad a prezit."; $("przJelolt").focus(); return; }
       b.disabled = true; b.textContent = "Mentés…"; h.textContent = "";
-      var adat = { munkatars_id: mtId, datum: dat, jelolt: jel, telefon: $("przTel").value.trim(), forras: $("przForras").value.trim(), eredmeny: PR.er, jegyzet: $("przJegyzet").value.trim() };
+      var adat = { munkatars_id: mtId, datum: dat, jelolt: jel, telefon: $("przTel").value.trim(), forras: $("przForras").value.trim(), eredmeny: PR.er, jelolesek: PR.jel.slice(), jegyzet: $("przJegyzet").value.trim() };
       if (sz) adat.id = sz.id;
-      api("preziMent", adat).then(function () { PR.szerk = null; PR.er = ""; PR.erAllitva = false; toast(sz ? "Prezi mentve" : "Prezi rögzítve"); return betolt(); })
+      api("preziMent", adat).then(function () { PR.szerk = null; PR.er = ""; PR.jel = []; PR.erAllitva = false; toast(sz ? "Prezi mentve" : "Prezi rögzítve"); return betolt(); })
         .then(function () { if (S.ful === "csapat") rajzolPrezik(mtId); })
         .catch(function (err) { h.textContent = err.message; b.disabled = false; b.textContent = sz ? "Mentés" : "Prezi rögzítése"; });
     };
     el.onclick = function (e) {
       var er = e.target.closest("[data-pr-er]");
+      var jb = e.target.closest("[data-pr-jel]");
+      if (jb) {
+        var jn = jb.dataset.prJel; PR.erAllitva = true;
+        PR.jel = PR.jel.indexOf(jn) > -1 ? PR.jel.filter(function (x) { return x !== jn; }) : PR.jel.concat([jn]);
+        el.querySelectorAll("[data-pr-jel]").forEach(function (x) { var on = PR.jel.indexOf(x.dataset.prJel) > -1; x.setAttribute("aria-pressed", String(on)); x.textContent = (on ? "☑ " : "☐ ") + x.dataset.prJel; });
+        return;
+      }
       if (er) { PR.er = PR.er === er.dataset.prEr ? "" : er.dataset.prEr; PR.erAllitva = true; el.querySelectorAll("[data-pr-er]").forEach(function (x) { x.setAttribute("aria-pressed", String(x.dataset.prEr === PR.er)); }); return; }
-      if (e.target.closest("[data-pr-megse]")) { PR.szerk = null; PR.er = ""; PR.erAllitva = false; rajzolPrezik(mtId); return; }
+      if (e.target.closest("[data-pr-megse]")) { PR.szerk = null; PR.er = ""; PR.jel = []; PR.erAllitva = false; rajzolPrezik(mtId); return; }
       var sk = e.target.closest("[data-pr-szerk]");
       if (sk) { PR.szerk = sk.dataset.prSzerk; PR.erAllitva = false; rajzolPrezik(mtId); el.querySelector("#przForm").scrollIntoView({ behavior: "smooth", block: "start" }); return; }
       var tr = e.target.closest("[data-pr-torol]");

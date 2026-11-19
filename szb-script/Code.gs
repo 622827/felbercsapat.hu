@@ -33,7 +33,7 @@ const LAPOK = {
   'Telefonpartyk': ['id', 'nev', 'datum', 'helyek', 'letrehozva', 'szerzo'],
   'Telefonparty': ['party_id', 'kulcs', 'nev', 'csapat', 'db', 'modositva', 'szerzo'],
   'Áthúzások': ['munkatars_id', 'kulcs', 'ugyfel', 'ido', 'szerzo'],
-  'Prezik': ['id', 'munkatars_id', 'datum', 'jelolt', 'telefon', 'forras', 'eredmeny', 'jegyzet', 'letrehozva', 'szerzo', 'modositva'],
+  'Prezik': ['id', 'munkatars_id', 'datum', 'jelolt', 'telefon', 'forras', 'eredmeny', 'jegyzet', 'letrehozva', 'szerzo', 'modositva', 'jelolesek'],
   'Célok': ['munkatars_id', 'honap', 'cel', 'vallalas', 'modositva', 'szerzo'],
   'Értesítések': ['id', 'tipus', 'munkatars_id', 'munkatars_nev', 'ugyfel', 'kulcs', 'cimzettek', 'letrehozva', 'szerzo', 'kesz', 'kesz_ido', 'kesz_szerzo']
 };
@@ -803,7 +803,10 @@ function preziMent_(en, k) {
   const jelolt = String(k.jelolt || '').trim().slice(0, 120);
   if (!jelolt) hiba_('Add meg, kinek tartottad a prezit.');
   const eredmeny = ['Csatlakozik', 'Gondolkodik', 'Nem'].indexOf(k.eredmeny) > -1 ? k.eredmeny : '';
-  const adat = { datum: datum, jelolt: jelolt, telefon: String(k.telefon || '').trim().slice(0, 40), forras: String(k.forras || '').trim().slice(0, 120), eredmeny: eredmeny, jegyzet: String(k.jegyzet || '').trim().slice(0, 2000) };
+  const JEL = ['Interjú', 'Híd', 'Ajánlás'];
+  const jelolesek = (Array.isArray(k.jelolesek) ? k.jelolesek : []).filter(function (x, i, t) { return JEL.indexOf(x) > -1 && t.indexOf(x) === i; });
+  const adat = { datum: datum, jelolt: jelolt, telefon: String(k.telefon || '').trim().slice(0, 40), forras: String(k.forras || '').trim().slice(0, 120), eredmeny: eredmeny, jegyzet: String(k.jegyzet || '').trim().slice(0, 2000),
+    jelolesek: JEL.filter(function (x) { return jelolesek.indexOf(x) > -1; }).join(', ') };
   if (regi) { adat.modositva = most_(); frissit_('Prezik', regi._sor, adat); return { ok: true, id: regi.id }; }
   const id = ujId_();
   adat.id = id; adat.munkatars_id = mtId; adat.letrehozva = most_(); adat.szerzo = en.email; adat.modositva = '';
