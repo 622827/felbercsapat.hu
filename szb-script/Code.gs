@@ -27,7 +27,7 @@ const UTOKOVETES_FEJ = ['id', 'munkatars_id', 'ugyfel', 'kulcs', 'datum', 'eredm
 
 const LAPOK = {
   'Felhasználók': ['email', 'nev', 'szerep', 'munkatars_id', 'csapat', 'jelszo_hash', 'so', 'aktiv', 'letrehozva'],
-  'Munkatársak': ['id', 'nev', 'csapat', 'pozicio', 'sorrend', 'aktiv'],
+  'Munkatársak': ['id', 'nev', 'csapat', 'pozicio', 'sorrend', 'aktiv', 'felettes'],
   'Jegyzetek': ['id', 'munkatars_id', 'datum', 'szoveg', 'mentve', 'szerzo', 'modositva'],
   'Feladatok': ['id', 'munkatars_id', 'szoveg', 'hatarido', 'kesz', 'letrehozva', 'kesz_ido', 'szerzo'],
   'Telefonpartyk': ['id', 'nev', 'datum', 'helyek', 'letrehozva', 'szerzo'],
@@ -185,7 +185,12 @@ function lathatoMunkatarsak_(en) {
   const mt = sorok_('Munkatársak').filter(function (m) { return m.aktiv !== 'nem'; });
   if (en.szerep === 'admin') return mt;
   // A vezető a csapattagjait látja, a saját lapját nem (a róla írt SZB jegyzetek miatt). A saját Pipeline-ját külön kapja (sajatId_).
-  if (en.szerep === 'vezeto') { const sajat = sajatId_(en, mt); return mt.filter(function (m) { return m.csapat && m.csapat === en.csapat && m.id !== sajat; }); }
+  // A „felettes” oszlopban megadott vezető (pl. Szekér Szilviánál Mayer Réka) a Kontroll SZB-jét is látja és írhatja – csak azt (csakSzb).
+  if (en.szerep === 'vezeto') {
+    const sajat = sajatId_(en, mt), nev = nevNorm_(en.nev);
+    return mt.filter(function (m) { return m.id !== sajat && ((m.csapat && m.csapat === en.csapat) || (nev && m.felettes && nevNorm_(m.felettes) === nev)); })
+      .map(function (m) { if (!(m.csapat && m.csapat === en.csapat)) m.csakSzb = '1'; return m; });
+  }
   return mt.filter(function (m) { return m.id === en.munkatars_id; });
 }
 function lathatoIdk_(en) {
@@ -403,7 +408,10 @@ function celokMent_(en, k) {
 
 /** Pipeline olvasás/írás joga: aki a munkatársat látja; a vezető a saját lapját is. */
 function pipelineJog_(en, mtId) {
-  if (!(en.szerep === 'vezeto' && mtId && mtId === sajatId_(en))) kell_(en, mtId);
+  if (en.szerep === 'vezeto' && mtId && mtId === sajatId_(en)) return;
+  kell_(en, mtId);
+  // akit csak felettesként lát, annak csak a Kontroll SZB-jéhez fér hozzá
+  if (en.szerep === 'vezeto' && lathatoMunkatarsak_(en).some(function (m) { return m.id === mtId && m.csakSzb; })) hiba_('Ennek a munkatársnak csak a Kontroll SZB-jét látod.');
 }
 function elemzesLap_(ss, nev) {
   const cel = nevNorm_(nev);

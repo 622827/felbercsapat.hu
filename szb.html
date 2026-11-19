@@ -511,8 +511,9 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   function rajzolReszletVaz() {
     var m = aktualis(), main = $("reszlet");
     if (!m) { main.innerHTML = '<div class="kezdo"><div><h2>Válassz munkatársat</h2><p>Bal oldalt kattints egy névre: ott írhatod az SZB jegyzetet és a megbeszélt feladatokat.</p></div></div>'; return; }
-    if (vezetoPoz(m) && lsGet("szb_ful") === "csapat") S.ful = "csapat";   // a választott fül vezetőnél visszaáll
+    S.ful = lsGet("szb_ful") || S.ful;   // a legutóbb választott fül (ha ennél a munkatársnál nincs, alább módosul)
     if (S.ful === "csapat" && !vezetoPoz(m)) S.ful = "pipeline";
+    if (m.csakSzb) S.ful = "szb";   // felettesként csak a Kontroll SZB-je látszik
     if (S.sajatMod) {
       var vp = vezetoPoz(m), sf = vp && S.ful === "csapat" ? "csapat" : "pipeline";
       main.innerHTML = '<div class="lap"><button class="vissza" id="vissza" type="button">← Munkatársak</button>' +
@@ -540,9 +541,9 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
         (S.mt.length <= 1 ? '<p class="fiok" style="margin-top:6px">Belépve: <b>' + esc(S.en.nev || S.en.email) + '</b> ' + (AUTO ? "" : '<button class="link" type="button" data-a="jelszo">Jelszócsere</button> ') + '<button class="link" type="button" data-a="kilep">Kilépés</button></p>' : "") +
         '</div><span class="allapot" id="allapot"></span></div>' +
       '<div class="fulek" role="tablist" aria-label="Munkatárs menü">' +
-        '<button type="button" role="tab" data-ful="pipeline" aria-selected="' + (S.ful === "pipeline") + '"><span aria-hidden="true">📈</span>Elemzés összegző</button>' +
+        (m.csakSzb ? "" : '<button type="button" role="tab" data-ful="pipeline" aria-selected="' + (S.ful === "pipeline") + '"><span aria-hidden="true">📈</span>Elemzés összegző</button>') +
         '<button type="button" role="tab" data-ful="szb" aria-selected="' + (S.ful === "szb") + '"><span aria-hidden="true">📝</span>' + (mtars() ? "Teendők" : "Kontroll SZB") + "</button>" +
-        (vezetoPoz(m) ? '<button type="button" role="tab" data-ful="csapat" aria-selected="' + (S.ful === "csapat") + '"><span aria-hidden="true">🤝</span>Csapatépítés</button>' : "") + "</div>" +
+        (vezetoPoz(m) && !m.csakSzb ? '<button type="button" role="tab" data-ful="csapat" aria-selected="' + (S.ful === "csapat") + '"><span aria-hidden="true">🤝</span>Csapatépítés</button>' : "") + "</div>" +
       '<div id="fulCsapat" class="ful"' + (S.ful === "csapat" ? "" : " hidden") + '><div id="csapatEpites"></div></div>' +
       '<div id="fulValaszt" class="ures"' + (S.ful ? " hidden" : "") + '>Válaszd ki fent, mit nyitsz meg: <b>Elemzés összegző</b> vagy <b>Kontroll SZB</b>.</div>' +
       '<div id="fulPipeline" class="ful"' + (S.ful === "pipeline" ? "" : " hidden") + '><section><div id="pipe" class="pipe"><p class="ures">Elemzés összegző betöltése…</p></div></section></div>' +
