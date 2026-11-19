@@ -1389,8 +1389,13 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       if (esv && !/^\d+([.,]\d+)?$/.test(esv)) { hib.textContent = "Az ES szám legyen (pl. 40 vagy 12,5)."; return; }
       am.disabled = true; am.textContent = "Mentés…"; hib.textContent = "";
       var modId = P.alkSzerk;
-      (modId ? api("alkalomMod", { munkatars_id: mtId, id: modId, datum: datum, eredmeny: P.alkEr, es: esv, jegyzet: jegyzet })
-        : api("alkalomUj", { munkatars_id: mtId, sor: d.sorszamok[idx], kulcs: d.kulcsok[idx], ugyfel: String(r[P.O.ugyfel] || "").trim(), datum: datum, eredmeny: P.alkEr, es: esv, jegyzet: jegyzet }))
+      var ujAdat = { munkatars_id: mtId, sor: d.sorszamok[idx], kulcs: d.kulcsok[idx], ugyfel: String(r[P.O.ugyfel] || "").trim(), datum: datum, eredmeny: P.alkEr, es: esv, jegyzet: jegyzet };
+      (modId ? api("alkalomMod", { munkatars_id: mtId, id: modId, datum: datum, eredmeny: P.alkEr, es: esv, jegyzet: jegyzet }).catch(function (err) {
+          // régebbi szerver (még nincs újratelepítve): törlés + újrarögzítés ugyanazzal az eredménnyel
+          if (!/ismeretlen művelet/i.test(err.message || "")) throw err;
+          return api("alkalomTorol", { munkatars_id: mtId, id: modId }).then(function () { return api("alkalomUj", ujAdat); });
+        })
+        : api("alkalomUj", ujAdat))
         .then(function (res) { P.alk = null; P.alkSzerk = null; toast(modId ? "Tanácsadás módosítva" : P.alkEr === "Megvalósult" ? "Tanácsadás rögzítve – TA megvalósult" : "Tanácsadás rögzítve"); pipeKesz(mtId, res); })
         .catch(function (err) { var h2 = $("alkHiba"); if (h2) h2.textContent = err.message; am.disabled = false; am.textContent = "Mentés"; });
       return;
