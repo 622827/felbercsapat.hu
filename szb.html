@@ -487,7 +487,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       var c = m.csapat || "Egyéb"; if (!csop[c]) { csop[c] = []; sor.push(c); } csop[c].push(m);
     });
     $("csapatok").innerHTML = Object.keys(S.mt.reduce(function (o, m) { if (m.csapat) o[m.csapat] = 1; return o; }, {})).map(function (c) { return '<option value="' + esc(c) + '">'; }).join("");
-    var sajatGomb = S.sajat ? '<div class="csapat"><h2>Saját</h2><button class="mt" data-sajat="1" data-id="' + esc(S.sajat.id) + '" aria-current="' + (S.sajatMod && S.nezet === "mt") + '"><span class="pont ok" aria-hidden="true">📈</span><span><b>' + esc(S.sajat.nev) + '</b><small>Saját elemzés összegző</small></span><span></span></button></div>' : "";
+    var sajatGomb = S.sajat ? '<div class="csapat"><h2>Saját</h2><button class="mt" data-sajat="1" data-id="' + esc(S.sajat.id) + '" aria-current="' + (S.sajatMod && S.nezet === "mt") + '"><span class="pont ok" aria-hidden="true">📈</span><span><b>' + esc(S.sajat.nev) + '</b><small>Saját ügyfeleim</small></span><span></span></button></div>' : "";
     if (!S.mt.length && sajatGomb) { $("lista").innerHTML = sajatGomb; return; }
     if (!S.mt.length) { $("lista").innerHTML = '<p class="ures">' + (admin() ? "Vedd fel a munkatársakat lent a „+ Munkatárs hozzáadása” vagy a „Felhasználók kezelése” résznél." : "A vezetőd még nem rendelt hozzád munkatársi lapot.") + "</p>"; return; }
     $("lista").innerHTML = sajatGomb + sor.map(function (c) {
@@ -521,10 +521,10 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     if (S.sajatMod) {
       var vp = vezetoPoz(m), sf = vp && S.ful === "csapat" ? "csapat" : "pipeline";
       main.innerHTML = '<div class="lap"><button class="vissza" id="vissza" type="button">← Munkatársak</button>' +
-        '<div class="fej"><div><h2>' + esc(m.nev) + '</h2><p>Saját oldal – a saját elemzéseid' + (vp ? " és csapatépítésed" : "") + "</p></div></div>" +
-        (vp ? '<div class="fulek" role="tablist" aria-label="Saját menü"><button type="button" role="tab" data-ful="pipeline" aria-selected="' + (sf === "pipeline") + '"><span aria-hidden="true">📈</span>Elemzés összegző</button>' +
+        '<div class="fej"><div><h2>' + esc(m.nev) + '</h2><p>Saját oldal – a saját ügyfeleid' + (vp ? " és csapatépítésed" : "") + "</p></div></div>" +
+        (vp ? '<div class="fulek" role="tablist" aria-label="Saját menü"><button type="button" role="tab" data-ful="pipeline" aria-selected="' + (sf === "pipeline") + '"><span aria-hidden="true">📈</span>Ügyfeleim</button>' +
           '<button type="button" role="tab" data-ful="csapat" aria-selected="' + (sf === "csapat") + '"><span aria-hidden="true">🤝</span>Csapatépítés</button></div>' : "") +
-        '<div id="fulPipeline" class="ful"' + (sf === "pipeline" ? "" : " hidden") + '><section><div id="pipe" class="pipe"><p class="ures">Elemzés összegző betöltése…</p></div></section></div>' +
+        '<div id="fulPipeline" class="ful"' + (sf === "pipeline" ? "" : " hidden") + '><section><div id="pipe" class="pipe"><p class="ures">Ügyfelek betöltése…</p></div></section></div>' +
         '<div id="fulCsapat" class="ful"' + (sf === "csapat" ? "" : " hidden") + '><div id="csapatEpites"></div></div></div>';
       $("vissza").onclick = function () { $("app").classList.remove("reszletben"); S.sel = null; S.sajatMod = false; rajzolLista(); };
       var fk = main.querySelector(".fulek");
@@ -545,12 +545,12 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
         (S.mt.length <= 1 ? '<p class="fiok" style="margin-top:6px">Belépve: <b>' + esc(S.en.nev || S.en.email) + '</b> ' + (AUTO ? "" : '<button class="link" type="button" data-a="jelszo">Jelszócsere</button> ') + '<button class="link" type="button" data-a="kilep">Kilépés</button></p>' : "") +
         '</div><span class="allapot" id="allapot"></span></div>' +
       '<div class="fulek" role="tablist" aria-label="Munkatárs menü">' +
-        (m.csakSzb ? "" : '<button type="button" role="tab" data-ful="pipeline" aria-selected="' + (S.ful === "pipeline") + '"><span aria-hidden="true">📈</span>Elemzés összegző</button>') +
+        (m.csakSzb ? "" : '<button type="button" role="tab" data-ful="pipeline" aria-selected="' + (S.ful === "pipeline") + '"><span aria-hidden="true">📈</span>Ügyfeleim</button>') +
         '<button type="button" role="tab" data-ful="szb" aria-selected="' + (S.ful === "szb") + '"><span aria-hidden="true">📝</span>' + (mtars() ? "Teendők" : "Kontroll SZB") + "</button>" +
         (vezetoPoz(m) && !m.csakSzb ? '<button type="button" role="tab" data-ful="csapat" aria-selected="' + (S.ful === "csapat") + '"><span aria-hidden="true">🤝</span>Csapatépítés</button>' : "") + "</div>" +
       '<div id="fulCsapat" class="ful"' + (S.ful === "csapat" ? "" : " hidden") + '><div id="csapatEpites"></div></div>' +
-      '<div id="fulValaszt" class="ures"' + (S.ful ? " hidden" : "") + '>Válaszd ki fent, mit nyitsz meg: <b>Elemzés összegző</b> vagy <b>Kontroll SZB</b>.</div>' +
-      '<div id="fulPipeline" class="ful"' + (S.ful === "pipeline" ? "" : " hidden") + '><section><div id="pipe" class="pipe"><p class="ures">Elemzés összegző betöltése…</p></div></section></div>' +
+      '<div id="fulValaszt" class="ures"' + (S.ful ? " hidden" : "") + '>Válaszd ki fent, mit nyitsz meg: <b>Ügyfeleim</b> vagy <b>Kontroll SZB</b>.</div>' +
+      '<div id="fulPipeline" class="ful"' + (S.ful === "pipeline" ? "" : " hidden") + '><section><div id="pipe" class="pipe"><p class="ures">Ügyfelek betöltése…</p></div></section></div>' +
       '<div id="fulSzb" class="ful"' + (S.ful === "szb" ? "" : " hidden") + '>' +
       (mtars() ? "" :
       '<section><h3>Új SZB jegyzet</h3><form class="szerkeszto" id="jegyzetForm">' +
@@ -906,7 +906,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     var el = $("pipe"); if (!el) return;
     var c = P.cache[mtId];
     if (c && !frissit) { rajzolPipe(mtId); return; }
-    if (!c) el.innerHTML = '<p class="ures">Elemzés összegző betöltése…</p>';
+    if (!c) el.innerHTML = '<p class="ures">Ügyfelek betöltése…</p>';
     api("pipeline", { munkatars_id: mtId, friss: !!frissit }).then(function (d) { P.cache[mtId] = d; if (S.sel === mtId) rajzolPipe(mtId); })
       .catch(function (e) { if (S.sel === mtId && $("pipe")) $("pipe").innerHTML = '<p class="ures">' + esc(e.message) + "</p>"; });
   }
