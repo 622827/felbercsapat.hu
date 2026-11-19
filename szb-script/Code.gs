@@ -631,6 +631,11 @@ function esSzam_(v) {
   if (!isFinite(n) || n < 0 || n > 100000) hiba_('Hibás ES: ' + v);
   return Math.round(n * 100) / 100;
 }
+/**
+ * Utókövetés-alkalom eredménye: tanácsadás (Megvalósult/Elmaradt), szerviz 2.0 időpont (Tervezett/Megvalósult/Elmaradt),
+ * „Szerviz” = a szerviz felvételekor leadott ES (nem pipálja a TA megvalósultat).
+ */
+const ALKALOM_EREDMENY = ['Megvalósult', 'Elmaradt', 'Tervezett', 'Szerviz'];
 /** Tanácsadás rögzítése egy meglévő elemzéshez. k: { munkatars_id, sor, kulcs, ugyfel, datum: 'ÉÉÉÉ-HH-NN', eredmeny: 'Megvalósult'|'Elmaradt', es, jegyzet } */
 function alkalomUj_(en, k) {
   pipelineJog_(en, k.munkatars_id);
@@ -638,9 +643,9 @@ function alkalomUj_(en, k) {
   if (!m) hiba_('A munkatárs nem található.');
   const datum = String(k.datum || '');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) hiba_('Add meg a tanácsadás dátumát.');
-  const eredmeny = k.eredmeny === 'Megvalósult' || k.eredmeny === 'Elmaradt' ? k.eredmeny : hiba_('Válaszd ki, megvalósult-e a tanácsadás.');
+  const eredmeny = ALKALOM_EREDMENY.indexOf(k.eredmeny) > -1 ? k.eredmeny : hiba_('Válaszd ki, megvalósult-e a tanácsadás.');
   const es = esSzam_(k.es), jegyzet = String(k.jegyzet || '').trim().slice(0, 2000);
-  if (eredmeny === 'Elmaradt' && es) hiba_('Elmaradt tanácsadáshoz nem tartozhat leadott ES.');
+  if (es && eredmeny !== 'Megvalósult' && eredmeny !== 'Szerviz') hiba_('Leadott ES csak megvalósult időponthoz tartozhat.');
   const ss = SpreadsheetApp.openById(ELEMZES_TABLAZAT_ID), L = elrendezes_(ss, m);
   const ugyfel = String(k.ugyfel || '').trim();
   const sor = forrasSor_(L, Math.floor(Number(k.sor)), k.kulcs, ugyfel);
@@ -663,9 +668,9 @@ function alkalomMod_(en, k) {
   if (!m) hiba_('A munkatárs nem található.');
   const datum = String(k.datum || '');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) hiba_('Add meg a tanácsadás dátumát.');
-  const eredmeny = k.eredmeny === 'Megvalósult' || k.eredmeny === 'Elmaradt' ? k.eredmeny : hiba_('Válaszd ki, megvalósult-e a tanácsadás.');
+  const eredmeny = ALKALOM_EREDMENY.indexOf(k.eredmeny) > -1 ? k.eredmeny : hiba_('Válaszd ki, megvalósult-e a tanácsadás.');
   const es = esSzam_(k.es), jegyzet = String(k.jegyzet || '').trim().slice(0, 2000);
-  if (eredmeny === 'Elmaradt' && es) hiba_('Elmaradt tanácsadáshoz nem tartozhat leadott ES.');
+  if (es && eredmeny !== 'Megvalósult' && eredmeny !== 'Szerviz') hiba_('Leadott ES csak megvalósult időponthoz tartozhat.');
   const ss = SpreadsheetApp.openById(ELEMZES_TABLAZAT_ID), osszes = utoSorok_(ss);
   const a = osszes.filter(function (x) { return x.id === k.id && x.munkatars_id === m.id; })[0];
   if (!a) hiba_('Ez a tanácsadás már nem létezik.');
