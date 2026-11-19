@@ -306,7 +306,9 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   /* ---------- indítás ---------- */
   if (!S.token && !AUTO) { fooldalra(); return; }
   (S.token ? Promise.resolve(true) : autoBelep()).then(function (ok) { if (!ok) { fooldalra(); return; } betolt(); });
-  setInterval(function () { if (!document.hidden && S.token && !Object.keys(S.fuggo).length) betolt(); }, 60000);
+  // amíg valaki ír (pl. új telefonparty űrlap), nem frissítünk, hogy ne vesszen el, amit beírt
+  function irasFolyik() { var a = document.activeElement, d = document.querySelector("details.doboz[open]"); return !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) || !!d; }
+  setInterval(function () { if (!document.hidden && S.token && !Object.keys(S.fuggo).length && !irasFolyik()) betolt(); }, 60000);
 })();
 </script>
 </body>

@@ -844,7 +844,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   function plLetolt(ujra, friss) {
     if (PL.betolt) return; PL.betolt = true;
     var gomb = document.getElementById("frissit"); if (gomb) gomb.disabled = true;
-    function kesz() { PL.betolt = false; if (S.nezet === "pipeline" && S.data) rajzol(); }
+    function kesz() { PL.betolt = false; if (S.nezet === "pipeline" && S.data && !PL.celSzerk) rajzol(); }
     fetch(SZB_API, { method: "POST", body: JSON.stringify({ muvelet: "pipelineOsszesito", token: szbToken(), friss: !!friss }) }).then(function (r) { return r.json(); }).then(function (d) {
       if (d && d.kod === "auth" && !ujra) return FBR.szbBelep().then(function (ok) { PL.betolt = false; if (ok) return plLetolt(true, friss); PL.hiba = "Az elemzés összegző megtekintéséhez lépj ki, majd lépj be újra."; kesz(); });
       if (!d || d.hiba) { if (!PL.adat) PL.hiba = (d && d.hiba) || "Hibás válasz."; }
@@ -1237,9 +1237,11 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   betolt("");
   plLetolt();   // az elemzés összegző adatai már most, az eredményjelzővel párhuzamosan töltődnek
   // 5 percenként frissít, ha az oldal látható
-  setInterval(function () { if (!document.hidden) { betolt(S.lap); if (S.nezet === "pipeline") plLetolt(); } }, 5 * 60 * 1000);
+  // amíg valaki ír (pl. cél-szerkesztő), nem frissítünk, hogy ne vesszen el, amit beírt
+  function irasFolyik() { var a = document.activeElement; return !!PL.celSzerk || !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.id !== "plIdo"); }
+  setInterval(function () { if (!document.hidden && !irasFolyik()) { betolt(S.lap); if (S.nezet === "pipeline") plLetolt(); } }, 5 * 60 * 1000);
   var utolso = Date.now();
-  document.addEventListener("visibilitychange", function () { if (!document.hidden && Date.now() - utolso > 2 * 60 * 1000) { utolso = Date.now(); betolt(S.lap); } });
+  document.addEventListener("visibilitychange", function () { if (!document.hidden && !irasFolyik() && Date.now() - utolso > 2 * 60 * 1000) { utolso = Date.now(); betolt(S.lap); } });
 })();
 </script>
 </body>
