@@ -818,12 +818,17 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
 
   /* ---------- pipeline (Elemzés összegző) ---------- */
   var P = { cache: {}, idoszak: "aktualis", allapot: "mind", keres: "", mutat: 30 };
+  /** Mentés után: ha a szerver visszaküldte a friss adatokat, azokat használjuk (nem kell még egy kör). */
+  function pipeKesz(mtId, res) {
+    if (res && res.pipeline && res.pipeline.fejlec) { P.cache[mtId] = res.pipeline; if (S.sel === mtId) rajzolPipe(mtId); }
+    else pipeBetolt(mtId, true);
+  }
   function pipeBetolt(mtId, frissit) {
     var el = $("pipe"); if (!el) return;
     var c = P.cache[mtId];
     if (c && !frissit) { rajzolPipe(mtId); return; }
     if (!c) el.innerHTML = '<p class="ures">Elemzés összegző betöltése…</p>';
-    api("pipeline", { munkatars_id: mtId }).then(function (d) { P.cache[mtId] = d; if (S.sel === mtId) rajzolPipe(mtId); })
+    api("pipeline", { munkatars_id: mtId, friss: !!frissit }).then(function (d) { P.cache[mtId] = d; if (S.sel === mtId) rajzolPipe(mtId); })
       .catch(function (e) { if (S.sel === mtId && $("pipe")) $("pipe").innerHTML = '<p class="ures">' + esc(e.message) + "</p>"; });
   }
   function oszlop(fej, re) { for (var i = 0; i < fej.length; i++) if (re.test(fej[i])) return i; return -1; }
@@ -1146,7 +1151,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     api("pipelineUj", { munkatars_id: mtId, mezok: mz }).then(function (res) {
       P.uj = null; P.v = null; P.keres = ""; P.allapot = "mind"; P.frissFel = nev;
       toast(res.ujratoltes ? (res.figyelem || "Felvéve – frissítem a listát") : "Ügyfél felvéve – a kártyán töltheted a többit");
-      pipeBetolt(mtId, true);
+      pipeKesz(mtId, res.ujratoltes ? null : res);
     }).catch(function (err) { var h = $("ujHiba"); if (h) h.textContent = err.message; gomb.disabled = false; gomb.textContent = "✓ Ügyfél felvétele"; });
   }
 
@@ -1221,7 +1226,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       if (!confirm("Biztosan törlöd: " + nev + "?\n\nAz elemzés végleg törlődik az „Összes” lapról és a munkatárs lapjáról" + (nAlk ? ", a " + nAlk + " rögzített tanácsadásával együtt" : "") + ". Ez nem vonható vissza.")) return;
       tg.disabled = true; tg.textContent = "Törlés…";
       api("elemzesTorol", { munkatars_id: mtId, sor: d.sorszamok[idx], kulcs: d.kulcsok[idx], ugyfel: String(r[P.O.ugyfel] || "").trim() })
-        .then(function () { P.szerk = null; P.alk = null; toast(nev + " törölve"); pipeBetolt(mtId, true); })
+        .then(function (res) { P.szerk = null; P.alk = null; toast(nev + " törölve"); pipeKesz(mtId, res); })
         .catch(function (err) { tg.disabled = false; tg.textContent = "🗑 Törlés"; toast(err.message); });
       return;
     }
@@ -1242,7 +1247,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       if (esv && !/^\d+([.,]\d+)?$/.test(esv)) { hib.textContent = "Az ES szám legyen (pl. 40 vagy 12,5)."; return; }
       am.disabled = true; am.textContent = "Mentés…"; hib.textContent = "";
       api("alkalomUj", { munkatars_id: mtId, sor: d.sorszamok[idx], kulcs: d.kulcsok[idx], ugyfel: String(r[P.O.ugyfel] || "").trim(), datum: datum, eredmeny: P.alkEr, es: esv, jegyzet: jegyzet })
-        .then(function () { P.alk = null; toast(P.alkEr === "Megvalósult" ? "Tanácsadás rögzítve – TA megvalósult" : "Tanácsadás rögzítve"); pipeBetolt(mtId, true); })
+        .then(function (res) { P.alk = null; toast(P.alkEr === "Megvalósult" ? "Tanácsadás rögzítve – TA megvalósult" : "Tanácsadás rögzítve"); pipeKesz(mtId, res); })
         .catch(function (err) { var h2 = $("alkHiba"); if (h2) h2.textContent = err.message; am.disabled = false; am.textContent = "Mentés"; });
       return;
     }
@@ -1250,7 +1255,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
     if (at) {
       if (!confirm("Biztosan törlöd a(z) " + at.dataset.alkN + ". tanácsadást? A hozzá tartozó ES levonódik.")) return;
       at.disabled = true;
-      api("alkalomTorol", { munkatars_id: mtId, id: at.dataset.alkTorol }).then(function () { toast("Tanácsadás törölve"); pipeBetolt(mtId, true); })
+      api("alkalomTorol", { munkatars_id: mtId, id: at.dataset.alkTorol }).then(function (res) { toast("Tanácsadás törölve"); pipeKesz(mtId, res); })
         .catch(function (err) { at.disabled = false; toast(err.message); });
       return;
     }

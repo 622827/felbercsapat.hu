@@ -55,13 +55,14 @@ function doPost(e) {
 }
 
 function kezel_(k) {
+  MEMO_ = {};
   if (k.muvelet === 'belepes') return belepes_(k.email, k.jelszo);
   const en = munkamenet_(k.token);
   switch (k.muvelet) {
     case 'kilepes': PropertiesService.getScriptProperties().deleteProperty('m_' + k.token); return { ok: true };
     case 'adatok': return adatok_(en);
-    case 'pipeline': return pipeline_(en, k.munkatars_id);
-    case 'pipelineOsszesito': return pipelineOsszesito_(en);
+    case 'pipeline': return pipeline_(en, k.munkatars_id, !!k.friss);
+    case 'pipelineOsszesito': return pipelineOsszesito_(en, !!k.friss);
     case 'celokMent': return zarral_(function () { return celokMent_(en, k); });
     case 'pipelineMent': return zarral_(function () { return pipelineMent_(en, k); });
     case 'pipelineUj': return zarral_(function () { return pipelineUj_(en, k); });
@@ -207,10 +208,13 @@ function kell_(en, mtId) { if (!lathatoIdk_(en)[mtId]) hiba_('Ehhez a munkatárs
  * Csak az kapja meg, aki a munkatársat láthatja. Soronként visszaadja a sor számát és azonosítóját
  * (időbélyeg), hogy a szerkesztés pontosan oda írhasson vissza.
  */
-function pipeline_(en, mtId) {
+function pipeline_(en, mtId, friss) {
   pipelineJog_(en, mtId);
   const m = sorok_('Munkatársak').filter(function (x) { return x.id === mtId; })[0];
   if (!m) hiba_('A munkatárs nem található.');
+  return gyorsTar_('pipe_v1_' + mtId, function () { return pipelineAdat_(m); }, friss);
+}
+function pipelineAdat_(m) {
   const ss = SpreadsheetApp.openById(ELEMZES_TABLAZAT_ID);
   if (!ss.getSheetByName('Összes')) return { forras: '', fejlec: [], helyek: [], sorok: [], sorszamok: [], kulcsok: [], alkalmak: [], sajatLap: false, ido: most_() };
   const L = elrendezes_(ss, m), forras = L.lap || L.osszes, cel = nevNorm_(m.nev);
@@ -307,7 +311,12 @@ function virtSorOlvas_(L, sor) {
  * Soronként: [dátum 'ÉÉÉÉ-HH-NN', TA időpont 0/1, ajánlás, munkatársi ajánlás, egység kilátás, TA megvalósult 0/1, megkötött ES, spec ES,
  *             típus: 'I' igényfelmérés (vagy üres) | 'S' szerviz | 'P' specialista időpont].
  */
-function pipelineOsszesito_(en) {
+function pipelineOsszesito_(en, friss) {
+  const munkatarsak = gyorsTar_('osz_v1', osszesitoAdat_, friss);
+  const celok = sorok_('Célok').map(function (c) { return { munkatars_id: c.munkatars_id, honap: c.honap, cel: c.cel, vallalas: c.vallalas }; });
+  return { munkatarsak: munkatarsak.lista, celok: celok, admin: en.szerep === 'admin', ido: munkatarsak.ido };
+}
+function osszesitoAdat_() {
   const mt = sorok_('Munkatársak').filter(function (m) { return m.aktiv !== 'nem'; });
   const ss = SpreadsheetApp.openById(ELEMZES_TABLAZAT_ID), lapok = ss.getSheets();
   const cache = {};
@@ -341,8 +350,7 @@ function pipelineOsszesito_(en) {
     }
     return { id: m.id, nev: m.nev, csapat: m.csapat || '', pozicio: m.pozicio || '', sorok: sorok };
   });
-  const celok = sorok_('Célok').map(function (c) { return { munkatars_id: c.munkatars_id, honap: c.honap, cel: c.cel, vallalas: c.vallalas }; });
-  return { munkatarsak: munkatarsak, celok: celok, admin: en.szerep === 'admin', ido: most_() };
+  return { lista: munkatarsak, ido: most_() };
 }
 
 /**
@@ -432,6 +440,7 @@ function pipelineMent_(en, k) {
     if (v.pipa === true) minEllErtesites_(en, m, k.kulcs, ugyfel); else minEllErtesitesTorol_(m.id, k.kulcs);
   });
   SpreadsheetApp.flush();
+  gyorsTarTorol_(m.id);
   return { ok: true, sor: virtSorOlvas_(L, sor), kulcs: idoKulcs_(forras.getRange(sor, 1).getValue()) };
 }
 
@@ -505,16 +514,19 @@ function pipelineUj_(en, k) {
   const valtMinEll = mezok.filter(function (v) { return v.pipa === true && /min\.?\s*ell/i.test(L.oszl[v.o].nev || ''); });
   if (!lap) {
     valtMinEll.forEach(function () { minEllErtesites_(en, m, kulcs, ugyfel); });
-    return { ok: true, sor: virtSorOlvas_(L, ujSor), sorszam: ujSor, kulcs: kulcs };
+    gyorsTarTorol_(m.id);
+    return { ok: true, sor: virtSorOlvas_(L, ujSor), sorszam: ujSor, kulcs: kulcs, pipeline: pipeline_(en, m.id, true) };
   }
   const ell = lap.getRange(celSajat, 1, 1, Math.max(1, lap.getLastColumn())).getValues()[0];
   if (!egyezik_(ell, kulcs, L.sUgyfel, ugyfel)) {
+    gyorsTarTorol_(m.id);
     return { ok: true, ujratoltes: true, figyelem: 'Az ügyfél bekerült az „Összes” lapra, de a munkatárs lapján nem ott jelent meg, ahol vártam, ezért a kézi mezőket nem írtam be. Frissítsd az elemzés összegzőt, és töltsd ki őket szerkesztéssel.' };
   }
   kezi.forEach(function (v) { irCella_(lap, celSajat, L.oszl[v.o].sc, v, L.oszl[v.o].nev); });
   valtMinEll.forEach(function () { minEllErtesites_(en, m, kulcs, ugyfel); });
   SpreadsheetApp.flush();
-  return { ok: true, sor: virtSorOlvas_(L, celSajat), sorszam: celSajat, kulcs: kulcs };
+  gyorsTarTorol_(m.id);
+  return { ok: true, sor: virtSorOlvas_(L, celSajat), sorszam: celSajat, kulcs: kulcs, pipeline: pipeline_(en, m.id, true) };
 }
 
 /* ================= utókövetés: tanácsadás-alkalmak ================= */
@@ -592,7 +604,8 @@ function alkalomUj_(en, k) {
   lap.getRange(lap.getLastRow() + 1, 1, 1, UTOKOVETES_FEJ.length).setNumberFormat('@').setValues([sorAdat]);
   alkalomKihat_(L, L.lap ? sor : 0, es, eredmeny === 'Megvalósult' ? true : null);
   SpreadsheetApp.flush();
-  return { ok: true, id: id };
+  gyorsTarTorol_(m.id);
+  return { ok: true, id: id, pipeline: pipeline_(en, m.id, true) };
 }
 /** Tanácsadás törlése (elírás javítására): levonja az ES-t, és ha nem marad megvalósult alkalom, a TA megvalósult pipát leveszi. */
 function alkalomTorol_(en, k) {
@@ -608,7 +621,8 @@ function alkalomTorol_(en, k) {
   alkalomKihat_(L, sor, -(parseFloat(a.es) || 0), a.eredmeny === 'Megvalósult' && !vanMeg ? false : null);
   ss.getSheetByName('Utókövetés').deleteRow(a._sor);
   SpreadsheetApp.flush();
-  return { ok: true };
+  gyorsTarTorol_(m.id);
+  return { ok: true, pipeline: pipeline_(en, m.id, true) };
 }
 
 /* ================= elemzés (ügyfélkártya) törlése ================= */
@@ -641,7 +655,8 @@ function elemzesTorol_(en, k) {
     .map(function (a) { return a._sor; }).sort(function (a, b) { return b - a; }).forEach(function (s2) { uto.deleteRow(s2); });
   minEllErtesitesTorol_(m.id, kulcs);
   SpreadsheetApp.flush();
-  return { ok: true };
+  gyorsTarTorol_(m.id);
+  return { ok: true, pipeline: pipeline_(en, m.id, true) };
 }
 
 /* ================= a Google Űrlap kérdései (lépésenkénti felvétel) ================= */
@@ -1036,6 +1051,41 @@ function munkatarsTorol_(id) {
 /* ================= táblázat-kezelés ================= */
 
 let SS_ = null;
+/** Egy kérésen belül minden lapot csak egyszer olvasunk (írásnál a lap gyorsítótára törlődik). */
+let MEMO_ = {};
+function memoTorol_(nev) { delete MEMO_[nev]; if (nev === 'Munkatársak') gyorsTarTorol_(''); }
+
+/*
+ * Kérések közötti gyorsítótár (5 perc) a lassú Elemzés összegző olvasásokhoz. A weboldalról mentett változások
+ * azonnal törlik; a táblázatba közvetlenül írt változás legkésőbb 5 perc múlva, vagy a ↻ Frissítés gombra látszik.
+ * A Google gyorsítótára kulcsonként ~100 KB-ot enged, ezért darabolva tesszük el.
+ */
+function gyorsTar_(kulcs, fn, friss) {
+  const c = CacheService.getScriptCache();
+  if (!friss) {
+    try {
+      const db = Number(c.get(kulcs + ':n') || 0);
+      if (db > 0) {
+        const kk = []; for (let i = 0; i < db; i++) kk.push(kulcs + ':' + i);
+        const t = c.getAll(kk), reszek = kk.map(function (x) { return t[x]; });
+        if (reszek.every(function (x) { return typeof x === 'string'; })) return JSON.parse(reszek.join(''));
+      }
+    } catch (e) { /* olvassuk újra */ }
+  }
+  const ertek = fn();
+  try {
+    const sz = JSON.stringify(ertek), DB = 40000, ki = {};
+    let n = 0;
+    for (let i = 0; i < sz.length; i += DB) ki[kulcs + ':' + (n++)] = sz.slice(i, i + DB);
+    if (n <= 20) { ki[kulcs + ':n'] = String(n); c.putAll(ki, 300); }
+  } catch (e) { /* túl nagy: nem tesszük el */ }
+  return ertek;
+}
+function gyorsTarTorol_(mtId) {
+  const c = CacheService.getScriptCache();
+  c.remove('osz_v1:n');
+  if (mtId) c.remove('pipe_v1_' + mtId + ':n');
+}
 function ss_() { return SS_ || (SS_ = SpreadsheetApp.openById(TABLAZAT_ID)); }
 
 function lap_(nev) {
@@ -1054,13 +1104,16 @@ function lap_(nev) {
 }
 
 function sorok_(nev) {
+  function masol(l) { return l.map(function (o) { return Object.assign({}, o); }); }
+  if (MEMO_[nev]) return masol(MEMO_[nev]);
   const lap = lap_(nev), fej = LAPOK[nev], n = lap.getLastRow();
-  if (n < 2) return [];
-  return lap.getRange(2, 1, n - 1, fej.length).getValues().map(function (r, i) {
+  const l = n < 2 ? [] : lap.getRange(2, 1, n - 1, fej.length).getValues().map(function (r, i) {
     const o = { _sor: i + 2 };
     fej.forEach(function (k, j) { o[k] = r[j] === null || r[j] === undefined ? '' : String(r[j]); });
     return o;
   }).filter(function (o) { return o[fej[0]] !== ''; });
+  MEMO_[nev] = l;
+  return masol(l);
 }
 
 function cella_(v) {
@@ -1069,19 +1122,21 @@ function cella_(v) {
 }
 
 function hozzaad_(nev, obj) {
+  memoTorol_(nev);
   const lap = lap_(nev), fej = LAPOK[nev];
   const sor = lap.getLastRow() + 1;
   lap.getRange(sor, 1, 1, fej.length).setNumberFormat('@').setValues([fej.map(function (k) { return cella_(obj[k]); })]);
 }
 
 function frissit_(nev, sor, valtozas) {
+  memoTorol_(nev);
   const lap = lap_(nev), fej = LAPOK[nev];
   const r = lap.getRange(sor, 1, 1, fej.length), ertek = r.getValues()[0];
   fej.forEach(function (k, j) { if (k in valtozas) ertek[j] = cella_(valtozas[k]); });
   r.setNumberFormat('@').setValues([ertek]);
 }
 
-function torol_(nev, sor) { lap_(nev).deleteRow(sor); }
+function torol_(nev, sor) { memoTorol_(nev); lap_(nev).deleteRow(sor); }
 
 /* ================= segédek ================= */
 
