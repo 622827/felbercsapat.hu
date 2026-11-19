@@ -70,6 +70,7 @@ function kezel_(k) {
     case 'pipelineUj': return zarral_(function () { return pipelineUj_(en, k); });
     case 'urlap': return urlap_();
     case 'alkalomUj': return zarral_(function () { return alkalomUj_(en, k); });
+    case 'alkalomMod': return zarral_(function () { return alkalomMod_(en, k); });
     case 'alkalomTorol': return zarral_(function () { return alkalomTorol_(en, k); });
     case 'athuzas': return zarral_(function () { return athuzas_(en, k); });
     case 'preziMent': return zarral_(function () { return preziMent_(en, k); });
@@ -651,6 +652,35 @@ function alkalomUj_(en, k) {
   SpreadsheetApp.flush();
   gyorsTarTorol_(m.id);
   return { ok: true, id: id, pipeline: pipeline_(en, m.id, true) };
+}
+/**
+ * Tanácsadás módosítása. k: { munkatars_id, id, datum, eredmeny, es, jegyzet }
+ * A megkötött ES a különbséggel változik; a TA megvalósult igaz, ha az ügyfélnek van megvalósult tanácsadása.
+ */
+function alkalomMod_(en, k) {
+  pipelineJog_(en, k.munkatars_id);
+  const m = sorok_('Munkatársak').filter(function (x) { return x.id === k.munkatars_id; })[0];
+  if (!m) hiba_('A munkatárs nem található.');
+  const datum = String(k.datum || '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) hiba_('Add meg a tanácsadás dátumát.');
+  const eredmeny = k.eredmeny === 'Megvalósult' || k.eredmeny === 'Elmaradt' ? k.eredmeny : hiba_('Válaszd ki, megvalósult-e a tanácsadás.');
+  const es = esSzam_(k.es), jegyzet = String(k.jegyzet || '').trim().slice(0, 2000);
+  if (eredmeny === 'Elmaradt' && es) hiba_('Elmaradt tanácsadáshoz nem tartozhat leadott ES.');
+  const ss = SpreadsheetApp.openById(ELEMZES_TABLAZAT_ID), osszes = utoSorok_(ss);
+  const a = osszes.filter(function (x) { return x.id === k.id && x.munkatars_id === m.id; })[0];
+  if (!a) hiba_('Ez a tanácsadás már nem létezik.');
+  const L = elrendezes_(ss, m), sor = L.lap ? forrasSor_(L, 0, a.kulcs, a.ugyfel) : 0;
+  const tobbi = osszes.filter(function (x) { return x.id !== a.id && x.munkatars_id === m.id && x.kulcs === a.kulcs && x.ugyfel === a.ugyfel; });
+  const vanMeg = eredmeny === 'Megvalósult' || tobbi.some(function (x) { return x.eredmeny === 'Megvalósult'; });
+  const lap = ss.getSheetByName('Utókövetés'), ui = UTOKOVETES_FEJ.indexOf.bind(UTOKOVETES_FEJ);
+  const r = lap.getRange(a._sor, 1, 1, UTOKOVETES_FEJ.length), ertek = r.getValues()[0];
+  ertek[ui('datum')] = datum; ertek[ui('eredmeny')] = eredmeny; ertek[ui('es')] = es ? String(es) : ''; ertek[ui('jegyzet')] = jegyzet;
+  r.setNumberFormat('@').setValues([ertek.map(cella_)]);
+  // a pipát csak akkor vesszük le, ha épp ez volt a megvalósult tanácsadás, és nem maradt másik
+  alkalomKihat_(L, sor, Math.round((es - (parseFloat(a.es) || 0)) * 100) / 100, vanMeg ? true : (a.eredmeny === 'Megvalósult' ? false : null));
+  SpreadsheetApp.flush();
+  gyorsTarTorol_(m.id);
+  return { ok: true, pipeline: pipeline_(en, m.id, true) };
 }
 /** Tanácsadás törlése (elírás javítására): levonja az ES-t, és ha nem marad megvalósult alkalom, a TA megvalósult pipát leveszi. */
 function alkalomTorol_(en, k) {

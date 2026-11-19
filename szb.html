@@ -238,6 +238,8 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
   .alk-n { font-weight: 700; color: var(--muted); }
   .alk-x { border: 0; background: none; color: var(--muted); font-size: 1.2rem; line-height: 1; cursor: pointer; padding: 2px 6px; border-radius: 8px; }
   .alk-x:hover { color: var(--danger); }
+  .alk-gombok { display: inline-flex; gap: 2px; align-items: center; }
+  .alk-gombok [data-alk-szerk] { font-size: .9rem; }
   .alk-urlap { background: var(--bg); border-radius: 14px; padding: 12px; display: grid; gap: 10px; border: 2px solid var(--accent-soft); }
   .alk-sor { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
   .pp.ro { cursor: default; }
@@ -1301,14 +1303,18 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       var ok = a.eredmeny === "Megvalósult";
       return '<li class="' + (ok ? "ok" : "el") + '"><span class="alk-n">' + (i + 1) + '.</span><div><b>' + datumHu(a.datum) + "</b> · " + (ok ? "✓ Megvalósult" : "✗ Elmaradt") +
         (a.es ? " · <b>" + esc(a.es) + " ES</b>" : "") + (a.jegyzet ? "<p>" + esc(a.jegyzet) + "</p>" : "") + "</div>" +
-        '<button type="button" class="alk-x" data-alk-torol="' + esc(a.id) + '" data-alk-n="' + (i + 1) + '" title="Törlés" aria-label="' + (i + 1) + '. tanácsadás törlése">×</button></li>';
+        '<span class="alk-gombok"><button type="button" class="alk-x" data-alk-szerk="' + esc(a.id) + '" title="Szerkesztés" aria-label="' + (i + 1) + '. tanácsadás szerkesztése">✏️</button>' +
+        '<button type="button" class="alk-x" data-alk-torol="' + esc(a.id) + '" data-alk-n="' + (i + 1) + '" title="Törlés" aria-label="' + (i + 1) + '. tanácsadás törlése">×</button></span></li>';
     }).join("") + "</ol>";
     else if (!nyitva) h += '<p class="alk-ures">Még nincs rögzített tanácsadás.</p>';
-    if (nyitva) h += '<div class="alk-urlap"><b>' + (l.length + 1) + '. tanácsadás</b>' +
-      '<div class="var-opt" role="radiogroup" aria-label="Eredmény"><button type="button" class="var-o" data-alk-er="Megvalósult" aria-pressed="false">✓ Megvalósult</button><button type="button" class="var-o" data-alk-er="Elmaradt" aria-pressed="false">✗ Elmaradt</button></div>' +
-      '<div class="alk-sor"><label class="pm"><span>Dátum</span><input type="date" class="mezo" id="alkDatum" value="' + ma() + '"></label>' +
-      '<label class="pm"><span>Leadott ES</span><input class="mezo" id="alkEs" inputmode="decimal" placeholder="0"></label></div>' +
-      '<label class="pm"><span>Jegyzet</span><textarea class="mezo" id="alkJegyzet" rows="2" placeholder="Mi történt, mit kötöttetek…"></textarea></label>' +
+    var sz = nyitva && P.alkSzerk ? l.filter(function (a) { return a.id === P.alkSzerk; })[0] : null, szN = sz ? l.indexOf(sz) + 1 : 0;
+    if (nyitva) h += '<div class="alk-urlap"><b>' + (sz ? szN + ". tanácsadás szerkesztése" : (l.length + 1) + ". tanácsadás") + "</b>" +
+      '<div class="var-opt" role="radiogroup" aria-label="Eredmény">' + ["Megvalósult", "Elmaradt"].map(function (e) {
+        return '<button type="button" class="var-o" data-alk-er="' + e + '" aria-pressed="' + (P.alkEr === e) + '">' + (e === "Megvalósult" ? "✓ " : "✗ ") + e + "</button>";
+      }).join("") + "</div>" +
+      '<div class="alk-sor"><label class="pm"><span>Dátum</span><input type="date" class="mezo" id="alkDatum" value="' + esc(sz ? sz.datum : ma()) + '"></label>' +
+      '<label class="pm"><span>Leadott ES</span><input class="mezo" id="alkEs" inputmode="decimal" placeholder="0" value="' + esc(sz && sz.es ? String(sz.es).replace(".", ",") : "") + '"' + (P.alkEr === "Elmaradt" ? " disabled" : "") + "></label></div>" +
+      '<label class="pm"><span>Jegyzet</span><textarea class="mezo" id="alkJegyzet" rows="2" placeholder="Mi történt, mit kötöttetek…">' + esc(sz ? sz.jegyzet : "") + "</textarea></label>" +
       '<div class="sor"><span class="hiba" id="alkHiba"></span><button type="button" class="gomb halk jobbra" data-alk-megse="1">Mégse</button><button type="button" class="gomb" data-alk-ment="1">Mentés</button></div></div>';
     return h + "</div>";
   }
@@ -1360,8 +1366,14 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
         .catch(function (err) { tg.disabled = false; tg.textContent = "🗑 Törlés"; toast(err.message); });
       return;
     }
-    if (e.target.closest("[data-alk-uj]")) { P.alk = idx; P.alkEr = ""; rajzolPipe(mtId); var ad = $("alkDatum"); if (ad) ad.closest(".alk-urlap").scrollIntoView({ behavior: "smooth", block: "nearest" }); return; }
-    if (e.target.closest("[data-alk-megse]")) { P.alk = null; rajzolPipe(mtId); return; }
+    var asz = e.target.closest("[data-alk-szerk]");
+    if (asz) {
+      var al = (d.alkalmak || []).filter(function (a) { return a.id === asz.dataset.alkSzerk; })[0];
+      P.alk = idx; P.alkSzerk = asz.dataset.alkSzerk; P.alkEr = al ? al.eredmeny : "";
+      rajzolPipe(mtId); var ad2 = $("alkDatum"); if (ad2) ad2.closest(".alk-urlap").scrollIntoView({ behavior: "smooth", block: "nearest" }); return;
+    }
+    if (e.target.closest("[data-alk-uj]")) { P.alk = idx; P.alkSzerk = null; P.alkEr = ""; rajzolPipe(mtId); var ad = $("alkDatum"); if (ad) ad.closest(".alk-urlap").scrollIntoView({ behavior: "smooth", block: "nearest" }); return; }
+    if (e.target.closest("[data-alk-megse]")) { P.alk = null; P.alkSzerk = null; rajzolPipe(mtId); return; }
     var er = e.target.closest("[data-alk-er]");
     if (er) {
       P.alkEr = er.dataset.alkEr;
@@ -1376,8 +1388,10 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuRO
       if (!datum) { hib.textContent = "Add meg a dátumot."; return; }
       if (esv && !/^\d+([.,]\d+)?$/.test(esv)) { hib.textContent = "Az ES szám legyen (pl. 40 vagy 12,5)."; return; }
       am.disabled = true; am.textContent = "Mentés…"; hib.textContent = "";
-      api("alkalomUj", { munkatars_id: mtId, sor: d.sorszamok[idx], kulcs: d.kulcsok[idx], ugyfel: String(r[P.O.ugyfel] || "").trim(), datum: datum, eredmeny: P.alkEr, es: esv, jegyzet: jegyzet })
-        .then(function (res) { P.alk = null; toast(P.alkEr === "Megvalósult" ? "Tanácsadás rögzítve – TA megvalósult" : "Tanácsadás rögzítve"); pipeKesz(mtId, res); })
+      var modId = P.alkSzerk;
+      (modId ? api("alkalomMod", { munkatars_id: mtId, id: modId, datum: datum, eredmeny: P.alkEr, es: esv, jegyzet: jegyzet })
+        : api("alkalomUj", { munkatars_id: mtId, sor: d.sorszamok[idx], kulcs: d.kulcsok[idx], ugyfel: String(r[P.O.ugyfel] || "").trim(), datum: datum, eredmeny: P.alkEr, es: esv, jegyzet: jegyzet }))
+        .then(function (res) { P.alk = null; P.alkSzerk = null; toast(modId ? "Tanácsadás módosítva" : P.alkEr === "Megvalósult" ? "Tanácsadás rögzítve – TA megvalósult" : "Tanácsadás rögzítve"); pipeKesz(mtId, res); })
         .catch(function (err) { var h2 = $("alkHiba"); if (h2) h2.textContent = err.message; am.disabled = false; am.textContent = "Mentés"; });
       return;
     }
