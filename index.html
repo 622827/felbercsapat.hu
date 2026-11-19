@@ -52,7 +52,7 @@ var API = "";
   .btn[disabled] { opacity: .6; cursor: wait; }
   #gate .btn { width: 100%; margin-top: 12px; font-size: 1.05rem; }
   #gate .err { color: var(--warn); min-height: 1.4em; margin: 12px 0 0; font-size: .95rem; }
-  #gate .g-gomb { display: flex; flex-direction: column; align-items: center; gap: 8px; min-height: 44px; }
+  #gate .g-gomb { color-scheme: light; display: flex; flex-direction: column; align-items: center; gap: 8px; min-height: 44px; }
   #gate .g-gomb.tolt > div { opacity: .5; pointer-events: none; }
   #gate .g-tolt { margin: 0; color: var(--muted); font-size: .95rem; }
   #gate .admin-belep { margin-top: 18px; text-align: left; }
@@ -324,7 +324,7 @@ var API = "";
    GOOGLE_CLIENT_ID nélkül a régi, személyes jelszavas belépés működik (hozzaferes.json).
    A böngésző az adatkulcsot és a munkamenetet tárolja, a jelszót nem. */
 var SZB_API = "https://script.google.com/macros/s/AKfycbyP2anc2uoxhtdf8iimSruuROOIe6dsANr4RENPdxYf84GCZ7rJFRze708hE99ylqU/exec";
-var GOOGLE_CLIENT_ID = ""; // Google Cloud OAuth-ügyfélazonosító (…apps.googleusercontent.com) – ugyanez a szb-script/Code.gs-ben
+var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googleusercontent.com"; // Google Cloud OAuth-ügyfélazonosító (…apps.googleusercontent.com) – ugyanez a szb-script/Code.gs-ben
 (function () {
   var K = "fbr_token", root = document.documentElement, G = !!GOOGLE_CLIENT_ID;
   // A Google-belépés csak HTTPS-en működik.
