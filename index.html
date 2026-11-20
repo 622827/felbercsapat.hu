@@ -1251,6 +1251,8 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
     ["pont", "plusz", "minusz"].forEach(function (k) { a.ertekeles[k] = a.ertekeles[k] || {}; });
     return a;
   }
+  /** Mindenki csak a sajátját látja (ahol ő a mentor); az admin mindet. */
+  function bdSzur(d) { var en = d.en || BD.en; return (d.lista || []).filter(function (x) { return d.admin || !en || String(x.mentor_email).toLowerCase() === String(en.email).toLowerCase(); }); }
   function bdLetolt(ujra) {
     if (BD.betolt || !SZB_API || !szbToken()) return;
     BD.betolt = true;
@@ -1259,8 +1261,9 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
       if (d && d.kod === "auth" && !ujra && FBR.szbBelep) return FBR.szbBelep().then(function (ok) { if (ok) bdLetolt(true); });
       if (!d || d.hiba) { if (!BD.probak || BD.probak < 3) { BD.probak = (BD.probak || 0) + 1; setTimeout(bdLetolt, 10000 * BD.probak); } return; }
       var volt = BD.jog; BD.jog = !!d.jog; BD.admin = d.admin; BD.mentorok = d.mentorok || []; BD.en = d.en;
-      if (!BD.piszkos) BD.lista = d.lista || [];
-      try { localStorage.setItem("fbr_bd_v1", JSON.stringify(d.jog ? { jog: true, admin: d.admin, mentorok: d.mentorok, lista: d.lista } : { jog: false })); } catch (e) {}
+      // mindenki csak a sajátját látja (ahol ő a mentor); az admin mindet
+      if (!BD.piszkos) BD.lista = bdSzur(d);
+      try { localStorage.setItem("fbr_bd_v1", JSON.stringify(d.jog ? { jog: true, admin: d.admin, mentorok: d.mentorok, lista: bdSzur(d) } : { jog: false })); } catch (e) {}
       if (S.data && !BD.piszkos && (S.nezet === "bedolgozas" || volt !== BD.jog)) rajzol();
       if (d.jog && d.admin) bdRegiBetolt();
     }).catch(function () { BD.betolt = false; });
@@ -1372,7 +1375,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
         if (!d || d.hiba) { bdAllapot("⚠️ Nem sikerült menteni: " + ((d && d.hiba) || "hiba") + " – próbáld újra."); return; }
         BD.piszkos = false; bdAllapot("Mentve ✓ " + new Date().toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit" }));
         var helyi = {}; BD.lista.forEach(function (x) { helyi[x.id] = x; });
-        BD.lista = (d.lista || []).map(function (x) { return x.id === b.id ? Object.assign(x, { adat: b.adat }) : x; });
+        BD.lista = bdSzur(d).map(function (x) { return x.id === b.id ? Object.assign(x, { adat: b.adat }) : x; });
         try { localStorage.setItem("fbr_bd_v1", JSON.stringify({ jog: true, admin: d.admin, mentorok: d.mentorok, lista: BD.lista })); } catch (e) {}
       }).catch(function () { if (sorsz === BD.ment) bdAllapot("⚠️ Nem sikerült menteni (hálózati hiba) – a következő változtatással újrapróbálom."); });
     }, azonnal ? 300 : 1200);
@@ -1397,7 +1400,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
       fetch(SZB_API, { method: "POST", body: JSON.stringify({ muvelet: "bedolgozasMent", token: szbToken(), nev: nev, mentor_email: ms ? ms.value : "", adat: bdUres() }) }).then(function (r) { return r.json(); }).then(function (d) {
         if (!d || d.hiba) { hiba.textContent = (d && d.hiba) || "Nem sikerült."; uv.disabled = false; uv.textContent = "Felvétel"; return; }
         var regi = {}; BD.lista.forEach(function (x) { regi[x.id] = 1; });
-        BD.lista = d.lista || []; BD.uj = false; BD.ful = "szb";
+        BD.lista = bdSzur(d); BD.uj = false; BD.ful = "szb";
         var uj = BD.lista.filter(function (x) { return !regi[x.id]; })[0]; if (uj) BD.sel = uj.id;
         rajzol();
       }).catch(function () { hiba.textContent = "Hálózati hiba."; uv.disabled = false; uv.textContent = "Felvétel"; });
@@ -1418,7 +1421,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
       if (!confirm("Biztosan törlöd " + b.nev + " bedolgozását?")) return;
       fetch(SZB_API, { method: "POST", body: JSON.stringify({ muvelet: "bedolgozasTorol", token: szbToken(), id: b.id }) }).then(function (r) { return r.json(); }).then(function (d) {
         if (!d || d.hiba) { alert((d && d.hiba) || "Nem sikerült törölni."); return; }
-        BD.lista = d.lista || []; BD.sel = null; rajzol();
+        BD.lista = bdSzur(d); BD.sel = null; rajzol();
       });
     };
   }

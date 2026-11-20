@@ -279,11 +279,10 @@ function bedolgozoE_(en) {
   const m = en.munkatars_id && sorok_('Munkatársak').filter(function (x) { return x.id === en.munkatars_id; })[0];
   return !!(m && /^VJ$/i.test(String(m.pozicio || '').trim()));
 }
-/** Ki láthat egy bedolgozást: admin mindet; a mentor a sajátját; a csapatvezető a csapatáét. */
+/** Ki láthat egy bedolgozást: az admin mindet, mindenki más csak a sajátját (ahol ő a mentor). */
 function bedolgozasLathat_(en, b) {
   if (en.szerep === 'admin') return true;
-  if (String(b.mentor_email).toLowerCase() === String(en.email).toLowerCase()) return true;
-  return en.szerep === 'vezeto' && !!b.csapat && b.csapat === felhCsapat_(en);
+  return String(b.mentor_email).toLowerCase() === String(en.email).toLowerCase();
 }
 /** Választható mentorok (az admin felvételnél): aktív vezetők, vezetőjelöltek és adminok. */
 function bedolgozasMentorok_() {
