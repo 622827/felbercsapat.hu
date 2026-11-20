@@ -646,6 +646,35 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
     return 0;
   }
 
+  /**
+   * Év végi rekord: az „eddig” értékek az Ügyfeleim (Elemzés összegző) leadott ES-eiből, a rekord-időszakra
+   * (tanácsadás / szerviz dátuma; a régi, kézzel beírt megkötött ES az elemzés dátumán). A célok maradnak.
+   * Ha az összegző még nincs betöltve, null (és elindul a letöltés).
+   */
+  function rekordLeadott(rh, ido) {
+    if (!PL.adat) {
+      try { var tarolt = JSON.parse(localStorage.getItem("fbr_pl_v1") || "null"); if (tarolt && tarolt.munkatarsak) { PL.adat = tarolt; PL.regi = true; } } catch (e) {}
+      if (!PL.betolt) plLetolt();
+      if (!PL.adat) return null;
+    }
+    function bent(v) { var dt = pDatum(v); return !!dt && (!ido || (dt >= ido.tol && dt < ido.ig)); }
+    var szemely = {}, csapat = {}, ossz = 0;
+    PL.adat.munkatarsak.forEach(function (m) {
+      var es = 0;
+      m.sorok.forEach(function (r) { if (bent(r[0])) es += r[6] || 0; });
+      (m.leadasok || []).forEach(function (x) { if (bent(x[0])) es += x[1] || 0; });
+      var k = faNev(m.nev).toLowerCase(), cs = String(csapatNev(m)).trim();
+      szemely[k] = (szemely[k] || 0) + es; csapat[cs] = (csapat[cs] || 0) + es; ossz += es;
+    });
+    var h = JSON.parse(JSON.stringify(rh));
+    h.osszes.rekord.eddig = ossz;
+    h.csapatok.forEach(function (c) {
+      if (c.osszes.rekord) c.osszes.rekord.eddig = csapat[String(c.nev).trim()] || 0;
+      c.tagok.forEach(function (t) { if (t.rekord && t.rekord.cel) t.rekord.eddig = szemely[faNev(t.nev).toLowerCase()] || 0; });
+    });
+    return h;
+  }
+
   /* ---------- megjelenítés ---------- */
   /** A rekord-adatokat tartalmazó hónap (ha több van, amelyikben a legtöbb az „eddig”). */
   function rekordHonap(d) {
@@ -695,7 +724,13 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
       return;
     } else if (nezet === "rekord") {
       var t = rekordIdo(rh.rekordCimke), rido = t ? clamp((Date.now() - t.tol) / (t.ig - t.tol)) : null;
-      html = statusz(rido, false) + rekordKartya(rh, d.jutalmak);
+      rh = rekordLeadott(rh, t);
+      if (!rh) {
+        app.innerHTML = statusz(rido, false) + (PL.hiba ? '<div class="notice"><p>' + esc(PL.hiba) + "</p></div>" : '<div class="grid kpis"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>');
+        document.getElementById("frissit").onclick = function () { betolt(S.lap); plLetolt(false, true); };
+        return;
+      }
+      html = statusz(rido, false) + '<p class="k-sub" style="margin:-4px 0 12px">Az elért ES az Ügyfeleim-ben rögzített leadott egységekből számol (tanácsadás / szerviz dátuma szerint, specialista nélkül).</p>' + rekordKartya(rh, d.jutalmak);
       if (d.jutalmak && d.jutalmak.szintek) html += jutalmakSzekcio(rh, d.jutalmak);
       html += '<h2>Csapatok az év végi rekordban</h2><div class="grid teams">' + rh.csapatok.map(function (c) { return rekordCsapatKartya(c, rido); }).join("") + "</div>";
       html += '<div class="grid lower">' + rekordToplista(rh) + "</div>";
@@ -718,7 +753,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
     }
 
     app.innerHTML = html;
-    document.getElementById("frissit").onclick = function () { betolt(S.lap); };
+    document.getElementById("frissit").onclick = function () { betolt(S.lap); if (nezet === "rekord") plLetolt(false, true); };
     requestAnimationFrame(function () { requestAnimationFrame(function () {
       app.querySelectorAll(".fill").forEach(function (f) { f.style.width = f.dataset.w + "%"; });
     }); });
@@ -913,7 +948,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
   function plLetolt(ujra, friss) {
     if (PL.betolt) return; PL.betolt = true;
     var gomb = document.getElementById("frissit"); if (gomb) gomb.disabled = true;
-    function kesz() { PL.betolt = false; if (S.nezet === "pipeline" && S.data && !PL.celSzerk) rajzol(); }
+    function kesz() { PL.betolt = false; if ((S.nezet === "pipeline" || S.nezet === "rekord") && S.data && !PL.celSzerk) rajzol(); }
     fetch(SZB_API, { method: "POST", body: JSON.stringify({ muvelet: "pipelineOsszesito", token: szbToken(), friss: !!friss }) }).then(function (r) { return r.json(); }).then(function (d) {
       if (d && d.kod === "auth" && !ujra) return FBR.szbBelep().then(function (ok) { PL.betolt = false; if (ok) return plLetolt(true, friss); PL.hiba = "Az elemzés összegző megtekintéséhez lépj ki, majd lépj be újra."; kesz(); });
       if (!d || d.hiba) { if (!PL.adat) PL.hiba = (d && d.hiba) || "Hibás válasz."; }
