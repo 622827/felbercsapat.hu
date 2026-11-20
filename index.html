@@ -366,7 +366,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
   try { tok = localStorage.getItem(K) || ""; } catch (e) {}
   function ls(k, v) { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) {} }
   function lg(k) { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } }
-  var KULCSOK = ["fbr_token", "fbr_nev", "fbr_szb", "szb_token", "fbr_pl_v1", "fbr_g"];
+  var KULCSOK = ["fbr_token", "fbr_nev", "fbr_szb", "szb_token", "fbr_pl_v1", "fbr_g", "fbr_mr_v1"];
   window.FBR = {
     token: function () { return tok; },
     google: G,
@@ -722,7 +722,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
     var d = S.data, rh = rekordHonap(d);
     // A negyedéves nézet megszűnt: aki azt nézte utoljára, a rekordot (ha nincs, a havit) kapja.
     // A negyedéves és a sima havi nézet megszűnt: helyettük a rekord (ha van) vagy a Havi teljesítmények nyílik.
-    if (MR.lista === null && !MR.betolt) meresLetolt();
+    if ((!MR.kert || MR.lista === null) && !MR.betolt) { MR.kert = true; meresLetolt(); }
     var vanMeres = !!(MR.lista && MR.lista.length);
     var nezet = S.nezet === "pipeline" || S.nezet === "csapatfa" || (S.nezet === "rekord" && rh) || (S.nezet === "meres" && vanMeres) ? S.nezet : (rh ? "rekord" : "pipeline");
     controls.innerHTML =
@@ -976,17 +976,29 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
 
   /* ---------- Fiókvezetői mérés (a „Mérés” táblázat mintájára, a Kontroll SZB háttérben tárolva) ---------- */
   var MR = { lista: null, betolt: false, hiba: "", i: 0, q: null, szerk: false, p: null, pl: null, ment: false };
-  function meresLetolt() {
-    if (MR.betolt || !SZB_API || !szbToken()) { if (MR.lista === null && !szbToken()) MR.lista = []; return; }
+  /*
+   * A mérések letöltése. A legutóbbi sikeres eredmény a böngészőben is megmarad (fbr_mr_v1), így a fül azonnal
+   * látszik, és egy átmeneti hiba (lassú szerver, lejárt munkamenet, hálózat) nem tünteti el: ilyenkor később újrapróbálja.
+   */
+  (function () { try { var t = JSON.parse(localStorage.getItem("fbr_mr_v1") || "null"); if (t && Array.isArray(t.meresek)) MR.lista = t.meresek; } catch (e) {} })();
+  function meresLetolt(ujra) {
+    if (MR.betolt || !SZB_API) return;
+    if (!szbToken()) { if (!ujra && FBR.szbBelep) { MR.betolt = true; FBR.szbBelep().then(function (ok) { MR.betolt = false; if (ok) meresLetolt(true); }, function () { MR.betolt = false; }); } return; }
     MR.betolt = true;
+    function hiba() {
+      MR.betolt = false; MR.probak = (MR.probak || 0) + 1;
+      if (MR.probak <= 4) setTimeout(function () { meresLetolt(); }, [5, 15, 45, 120][MR.probak - 1] * 1000);
+    }
     fetch(SZB_API, { method: "POST", body: JSON.stringify({ muvelet: "meresek", token: szbToken() }) }).then(function (r) { return r.json(); }).then(function (d) {
-      MR.betolt = false;
-      if (!d || d.hiba || !d.meresek) { if (MR.lista === null) MR.lista = []; MR.hiba = (d && d.hiba) || ""; return; }
+      if (d && d.kod === "auth" && !ujra && FBR.szbBelep) { MR.betolt = false; return FBR.szbBelep().then(function (ok) { if (ok) meresLetolt(true); }); }
+      if (!d || d.hiba || !Array.isArray(d.meresek)) { MR.hiba = (d && d.hiba) || ""; return hiba(); }
+      MR.betolt = false; MR.probak = 0;
       var elotte = MR.lista ? MR.lista.length : -1;
       MR.lista = d.meresek; MR.hiba = "";
+      try { localStorage.setItem("fbr_mr_v1", JSON.stringify({ meresek: d.meresek })); } catch (e) {}
       if (MR.i >= MR.lista.length) MR.i = 0;
-      if (S.data && !MR.szerk && (S.nezet === "meres" || elotte !== MR.lista.length)) rajzol();
-    }).catch(function () { MR.betolt = false; if (MR.lista === null) MR.lista = []; });
+      if (S.data && !MR.szerk && !MR.ment && (S.nezet === "meres" || elotte !== MR.lista.length)) rajzol();
+    }).catch(hiba);
   }
   function mSzam(v) { return v == null || v === "" ? null : Number(v); }
   function mOssz(l) { return l.reduce(function (n, x) { return n + (Number(x) || 0); }, 0); }
@@ -1114,7 +1126,9 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
       fetch(SZB_API, { method: "POST", body: JSON.stringify({ muvelet: "meresMent", token: szbToken(), id: m.id, adat: m.adat }) }).then(function (v) { return v.json(); }).then(function (d) {
         MR.ment = false;
         if (!d || d.hiba || !d.meresek) { m.adat = regi; rajzol(); alert((d && d.hiba) || "Nem sikerült menteni."); return; }
-        MR.lista = d.meresek; if (MR.i >= MR.lista.length) MR.i = 0; rajzol();
+        MR.lista = d.meresek; if (MR.i >= MR.lista.length) MR.i = 0;
+        try { localStorage.setItem("fbr_mr_v1", JSON.stringify({ meresek: d.meresek })); } catch (e) {}
+        rajzol();
       }).catch(function () { MR.ment = false; m.adat = regi; rajzol(); alert("Nem sikerült menteni (hálózati hiba)."); });
     }; });
     var mm = document.getElementById("mrMent"); if (mm) mm.onclick = function () {
@@ -1127,7 +1141,9 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
       fetch(SZB_API, { method: "POST", body: JSON.stringify({ muvelet: "meresMent", token: szbToken(), id: MR.lista[MR.i].id, adat: MR.p }) }).then(function (r) { return r.json(); }).then(function (d) {
         MR.ment = false;
         if (!d || d.hiba || !d.meresek) { var e = document.getElementById("mrHiba"); if (e) e.textContent = (d && d.hiba) || "Nem sikerült menteni."; var g = document.getElementById("mrMent"); if (g) { g.disabled = false; g.textContent = "Mentés"; } return; }
-        MR.lista = d.meresek; MR.szerk = false; MR.p = null; if (MR.i >= MR.lista.length) MR.i = 0; rajzol();
+        MR.lista = d.meresek; MR.szerk = false; MR.p = null; if (MR.i >= MR.lista.length) MR.i = 0;
+        try { localStorage.setItem("fbr_mr_v1", JSON.stringify({ meresek: d.meresek })); } catch (e) {}
+        rajzol();
       }).catch(function () { MR.ment = false; var e = document.getElementById("mrHiba"); if (e) e.textContent = "Nem sikerült menteni (hálózati hiba)."; var g = document.getElementById("mrMent"); if (g) { g.disabled = false; g.textContent = "Mentés"; } });
     };
   }
@@ -1544,7 +1560,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
   // 5 percenként frissít, ha az oldal látható
   // amíg valaki ír (pl. cél-szerkesztő), nem frissítünk, hogy ne vesszen el, amit beírt
   function irasFolyik() { var a = document.activeElement; return !!PL.celSzerk || !!MR.szerk || !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.id !== "plIdo"); }
-  setInterval(function () { if (!document.hidden && !irasFolyik()) { betolt(S.lap); if (S.nezet === "pipeline") plLetolt(); } }, 5 * 60 * 1000);
+  setInterval(function () { if (!document.hidden && !irasFolyik()) { betolt(S.lap); if (S.nezet === "pipeline") plLetolt(); meresLetolt(); } }, 5 * 60 * 1000);
   var utolso = Date.now();
   document.addEventListener("visibilitychange", function () { if (!document.hidden && !irasFolyik() && Date.now() - utolso > 2 * 60 * 1000) { utolso = Date.now(); betolt(S.lap); } });
 })();
