@@ -1074,18 +1074,21 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbz-b4P9aSq3he5q8enKIR3jfd
         })();
       }).join("") + "</div>" + (szurt.length > P.mutat ? '<button class="gomb halk" type="button" id="pTobb">Továbbiak (' + (szurt.length - P.mutat) + ")</button>" : "");
       // Összesítő táblázat a szűrt ügyfelekről (az időszak, állapot és keresés szerint, lapozás nélkül)
-      var sKil = 0, sMeg = 0, athuzott = d.athuzott || [], nAt = 0;
+      var sKil = 0, sMeg = 0, sSpec = 0, athuzott = d.athuzott || [], nAt = 0;
+      // Specialista ES oszlop csak Horváth-Varga Péternél (az ő specialista egységei)
+      var pmt = (S.mt || []).concat(S.sajat ? [S.sajat] : []).filter(function (m) { return m && m.id === mtId; })[0];
+      var specO = O.specEs > -1 && pmt && /^horv[aá]th\s*-\s*varga\s+p[eé]ter/i.test(String(pmt.nev || "").trim()) ? O.specEs : -1;
       function szamH(v) { return String(Math.round(v * 100) / 100).replace(".", ","); }
-      html += '<section class="ptabla"><h3>Ügyfelek összesítve (' + szurt.length + ")</h3>" + '<div class="tabla"><table class="pt-ossz"><thead><tr><th>Ügyfél neve</th><th class="szam">ES kilátás</th><th class="szam">ES megkötve</th><th>Teendők</th><th class="x" title="Áthúzás: nem számít a kilátásba">✕</th></tr></thead><tbody>' +
+      html += '<section class="ptabla"><h3>Ügyfelek összesítve (' + szurt.length + ")</h3>" + '<div class="tabla"><table class="pt-ossz"><thead><tr><th>Ügyfél neve</th><th class="szam">ES kilátás</th><th class="szam">ES megkötve</th>' + (specO > -1 ? '<th class="szam">Specialista ES</th>' : "") + '<th>Teendők</th><th class="x" title="Áthúzás: nem számít a kilátásba">✕</th></tr></thead><tbody>' +
         szurt.map(function (x) {
           var kil = szamv(g(x.r, O.kilatas)), meg = szamv(g(x.r, O.megkotott)), at = athuzott.indexOf(d.kulcsok[x.idx] + "|" + String(g(x.r, O.ugyfel)).trim()) > -1;
           if (at) nAt++; else sKil += kil;
-          sMeg += meg;
+          sMeg += meg; var spe = specO > -1 ? szamv(g(x.r, specO)) : 0; sSpec += spe;
           function es(v, i) { return i < 0 ? "–" : v ? szamH(v) : '<span class="halv">0</span>'; }
-          return '<tr' + (at ? ' class="athuzva"' : "") + "><td>" + esc(g(x.r, O.ugyfel) || "Névtelen ügyfél") + '</td><td class="szam">' + es(kil, O.kilatas) + '</td><td class="szam' + (meg ? " meg" : "") + '">' + es(meg, O.megkotott) + "</td><td>" + (esc(g(x.r, O.teendo)) || '<span class="halv">–</span>') + "</td>" +
+          return '<tr' + (at ? ' class="athuzva"' : "") + "><td>" + esc(g(x.r, O.ugyfel) || "Névtelen ügyfél") + '</td><td class="szam">' + es(kil, O.kilatas) + '</td><td class="szam' + (meg ? " meg" : "") + '">' + es(meg, O.megkotott) + "</td>" + (specO > -1 ? '<td class="szam' + (spe ? " meg" : "") + '">' + es(spe, specO) + "</td>" : "") + "<td>" + (esc(g(x.r, O.teendo)) || '<span class="halv">–</span>') + "</td>" +
             '<td class="x"><button type="button" class="xgomb" data-athuz="' + x.idx + '" aria-pressed="' + at + '" aria-label="' + esc(g(x.r, O.ugyfel)) + ' áthúzása" title="' + (at ? "Visszaállítás" : "Áthúzás") + '">' + (at ? "✕" : "") + "</button></td></tr>";
         }).join("") +
-        '</tbody><tfoot><tr><th>Összesen' + (nAt ? '<small> (' + nAt + " áthúzott nélkül)</small>" : "") + '</th><th class="szam">' + szamH(sKil) + ' ES</th><th class="szam meg">' + szamH(sMeg) + " ES</th><th></th><th></th></tr></tfoot></table></div></section>";
+        '</tbody><tfoot><tr><th>Összesen' + (nAt ? '<small> (' + nAt + " áthúzott nélkül)</small>" : "") + '</th><th class="szam">' + szamH(sKil) + ' ES</th><th class="szam meg">' + szamH(sMeg) + " ES</th>" + (specO > -1 ? '<th class="szam meg">' + szamH(sSpec) + " ES</th>" : "") + "<th></th><th></th></tr></tfoot></table></div></section>";
     }
     el.innerHTML = html;
     $("pIdo").value = P.idoszak;
