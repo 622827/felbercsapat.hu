@@ -338,6 +338,77 @@ function bedolgozasTorol_(en, id) {
   return bedolgozasok_(en);
 }
 
+/* ---------- Egyszeri import a „Bedolgozás - Felber BL” táblázatból (▶ Futtatás a szerkesztőben: bedolgozasImport) ---------- */
+const BEDOLGOZAS_TABLAZAT_ID = '18X-zFawUmET1k4TPJapESNh_orz549B-d93BbcZXyzA';
+/* A lapnév végén álló becenév → mentor (a Felhasználók lapon szereplő név). */
+const BEDOLGOZAS_MENTOR = { 'ildi': 'Zsinka Ildikó', 'andus': 'Molnár Andrea', 'mila': 'Nagy Mila', 'szilvi': 'Szekér Szilvia', 'viki': 'Ádám- Grózly Viktória', 'dávid': 'Majoros Dávid', 'david': 'Majoros Dávid', 'réka': 'Mayer Réka', 'reka': 'Mayer Réka', 'anna': 'Szekér Anna', 'dominik': 'Felber BL' };
+const BEDOLGOZAS_SZB_CIMEK = ['1. SZB', 'Bemutató igényfelmérés', '2. SZB', '3. SZB', '4. SZB', '5. SZB', '6. SZB', 'Vizsga checklist', 'Vizsga utáni SZB', '1. kontroll SZB', 'Belső elemző vizsga', 'Extrák'];
+
+/** Egy bedolgozás-lap (értékek 2D tömbje) → a weboldal adatszerkezete. */
+function bedolgozasLapFeldolgoz_(v) {
+  function c(r, k) { const x = (v[r] || [])[k]; return x === null || x === undefined ? '' : String(x).trim(); }
+  function b(r, k) { return /^true$/i.test(c(r, k)); }
+  function bool(r, k) { return /^(true|false)$/i.test(c(r, k)); }
+  const szb = BEDOLGOZAS_SZB_CIMEK.map(function (cim, i) {
+    const k = i * 2, t = [];
+    for (let r = 1; r <= 7; r++) { const n = c(r, k); if (n && !/^jegyzet/i.test(n) && bool(r, k + 1)) t.push({ n: n, k: b(r, k + 1) }); }
+    const tr = i < 7;
+    return { cim: cim, t: t, jegyzet: tr ? c(8, k) : '', trening: tr ? c(10, k) : '', tr: tr };
+  });
+  const elemzesek = [];
+  for (let r = 0; r < v.length; r++) {
+    if (!/^\d+\.$/.test(c(r, 0)) || !/^név/i.test(c(r, 2))) continue;
+    let veg = r + 1; while (veg < v.length && !(/^\d+\.$/.test(c(veg, 0)) && /^név/i.test(c(veg, 2)))) veg++;
+    function keres(re, tol) { for (let x = tol; x < veg; x++) if (re.test(c(x, 0))) return x; return -1; }
+    let aj = -1; for (let x = r + 1; x < veg; x++) if (/^ajánlások száma/i.test(c(x, 2))) { aj = x; break; }
+    const alap = keres(/^alap témák/i, r), j1 = keres(/^javítandó/i, alap > -1 ? alap : r), kif = keres(/^kifejtett témák/i, r);
+    const j2 = keres(/^javítandó/i, kif > -1 ? kif : r), chk = keres(/^neked checklist/i, r);
+    let chk2 = -1; for (let x = chk > -1 ? chk + 1 : r; x < veg; x++) if (/^elkérte/i.test(c(x, 2))) { chk2 = x; break; }
+    const e = {
+      nev: c(r, 4), ajanlasok: aj > -1 ? c(aj, 4) : '', igenyek: c(r, 7),
+      alapJ: j1 > -1 ? { cegbemutato: c(j1, 2), kepek: c(j1, 5), zaras: c(j1, 8), ajanlaskeres: c(j1, 11) } : {},
+      temak: kif > -1 ? { nyugdij: b(kif, 3), lakas: b(kif, 5), gyermek: b(kif, 7), eu: b(kif, 9), befektetes: b(kif, 11) } : {},
+      temaJ: j2 > -1 ? { nyugdij: c(j2, 2), lakas: c(j2, 4), gyermek: c(j2, 6), eu: c(j2, 8), befektetes: c(j2, 10) } : {},
+      check: [chk, chk2].map(function (x) { return x > -1 ? [3, 5, 7, 9, 11].map(function (k) { return b(x, k); }) : [false, false, false, false, false]; }).reduce(function (a, x) { return a.concat(x); }, [])
+    };
+    const vanBenne = e.nev || e.ajanlasok || e.igenyek || e.check.some(Boolean) || Object.keys(e.temak).some(function (k) { return e.temak[k]; }) ||
+      Object.keys(e.alapJ).concat(Object.keys(e.temaJ)).some(function (k) { return (e.alapJ[k] || e.temaJ[k]); });
+    if (vanBenne) elemzesek.push(e);
+    r = veg - 1;
+  }
+  const ert = { ajanlasok: '', elemzesek: '', pont: {}, plusz: {}, minusz: {} };
+  const PT = { 'cégbemutató': 'cegbemutato', 'képek': 'kepek', 'nagytéma': 'nagytema', 'zárás': 'zaras', 'telefonálás': 'telefonalas' };
+  for (let r = 0; r < Math.min(v.length, 40); r++) {
+    if (/^ajánlások:/i.test(c(r, 12))) { ert.ajanlasok = c(r, 13); ert.elemzesek = c(r, 15); }
+    const kul = PT[c(r, 12).toLowerCase()];
+    if (kul && ert.pont[kul] === undefined) { ert.pont[kul] = c(r, 13); ert.plusz[kul] = c(r, 14); ert.minusz[kul] = c(r, 17); }
+  }
+  return { szb: szb, elemzesek: elemzesek, ertekeles: ert };
+}
+
+/** Kézi futtatásra: a táblázat látható (nem rejtett) lapjait felveszi a Bedolgozások közé. A már meglévő (azonos nevű) bedolgozást kihagyja. */
+function bedolgozasImport() {
+  const ss = SpreadsheetApp.openById(BEDOLGOZAS_TABLAZAT_ID);
+  const felh = sorok_('Felhasználók').filter(function (f) { return f.aktiv !== 'nem'; });
+  const meglevo = {}; sorok_('Bedolgozások').forEach(function (b) { if (b.aktiv !== 'nem') meglevo[nevNorm_(b.nev)] = 1; });
+  const jel = { felvett: [], kihagyott: [] };
+  ss.getSheets().forEach(function (lap) {
+    const lapnev = lap.getName().trim();
+    if (lap.isSheetHidden() || /^standard$/i.test(lapnev)) return;
+    const m = /^(.+?)\s*-\s*(.+)$/.exec(lapnev), nev = (m ? m[1] : lapnev).trim(), becenev = (m ? m[2] : '').trim().toLowerCase();
+    if (meglevo[nevNorm_(nev)]) { jel.kihagyott.push(lapnev + ' (már megvan)'); return; }
+    const mentorNev = BEDOLGOZAS_MENTOR[becenev] || '';
+    const f = mentorNev && felh.filter(function (x) { return nevNorm_(x.nev) === nevNorm_(mentorNev); })[0];
+    const adat = bedolgozasLapFeldolgoz_(lap.getRange(1, 1, Math.min(lap.getLastRow(), 400) || 1, Math.min(lap.getLastColumn(), 24) || 1).getDisplayValues());
+    hozzaad_('Bedolgozások', { id: ujId_(), nev: nev, mentor: f ? f.nev : mentorNev, mentor_email: f ? f.email : '', csapat: f ? felhCsapat_(enAdat_(f)) : '', adat: JSON.stringify(adat),
+      letrehozva: most_(), modositva: most_(), szerzo: 'import: ' + lapnev, aktiv: 'igen' });
+    meglevo[nevNorm_(nev)] = 1;
+    jel.felvett.push(nev + ' → mentor: ' + (f ? f.nev : (mentorNev || '?')) + ', ' + adat.elemzesek.length + ' elemzés, ' + adat.szb.reduce(function (n, x) { return n + x.t.filter(function (t) { return t.k; }).length; }, 0) + ' pipa');
+  });
+  Logger.log(JSON.stringify(jel, null, 1));
+  return jel;
+}
+
 /* ================= Fiókvezetői mérés ================= */
 
 /* Az első mérés a „Mérés” táblázat „Andus GST” lapja alapján (Molnár Andrea fiókvezetői mérése). */
