@@ -273,8 +273,8 @@ function kell_(en, mtId) { if (!lathatoIdk_(en)[mtId]) hiba_('Ehhez a munkatárs
 const MERES_ALAP = {
   cim: 'Molnár Andrea – Fiókvezetői mérés',
   negyedevek: [
-    { nev: '2026 Q4', cel: 5000, honapok: ['Október', 'November', 'December'] },
-    { nev: '2027 Q1', cel: 5000, honapok: ['Január', 'Február', 'Március'] }
+    { cimke: 'Mérés', nev: '2026 Q4', vallalas: 3500, cel: 5000, lepcsok: [500, 1500, 3500], honapok: ['Október', 'November', 'December'] },
+    { cimke: 'Védés', nev: '2027 Q1', vallalas: 3500, cel: 5000, lepcsok: [500, 1500, 3500], honapok: ['Január', 'Február', 'Március'] }
   ],
   merfok: [0.1, 0.2, 0.35, 0.5, 0.65, 0.85, 1],
   sorok: [
@@ -304,12 +304,38 @@ function meresek_(en) {
     zarral_(function () { if (!sorok_('Mérések').length) hozzaad_('Mérések', { id: ujId_(), csapat: MERES_ALAP_CSAPAT, adat: JSON.stringify(MERES_ALAP), modositva: most_(), szerzo: 'rendszer' }); });
     l = sorok_('Mérések');
   }
+  const lathato = l.filter(function (m) { return meresLathat_(en, m.csapat); });
+  let osz = null;
+  if (lathato.length) { try { osz = gyorsTar_('osz_v1', osszesitoAdat_, false).lista; } catch (e) { osz = null; } }
   return {
-    meresek: l.filter(function (m) { return meresLathat_(en, m.csapat); }).map(function (m) {
+    meresek: lathato.map(function (m) {
       let adat = null; try { adat = JSON.parse(m.adat); } catch (e) {}
-      return { id: m.id, csapat: m.csapat, adat: adat, modositva: m.modositva, szerzo: m.szerzo, szerk: meresSzerk_(en, m.csapat) };
+      return { id: m.id, csapat: m.csapat, adat: adat, modositva: m.modositva, szerzo: m.szerzo, szerk: meresSzerk_(en, m.csapat), leadott: adat && osz ? meresLeadott_(adat, osz) : null };
     }).filter(function (m) { return m.adat; })
   };
+}
+
+/* Termelési hónap: az első kedd utáni naptól a következő hónap első keddjéig (az még ide tartozik). */
+function elsoKedd_(y, m) { const x = new Date(y, m, 1); x.setDate(1 + ((2 - x.getDay() + 7) % 7)); return x; }
+function termHoKulcs_(ymd) {
+  const d = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(ymd || '')); if (!d) return '';
+  let y = +d[1], m = +d[2] - 1; const dt = new Date(y, m, +d[3]), kezd = elsoKedd_(y, m); kezd.setDate(kezd.getDate() + 1);
+  if (dt < kezd) { m--; if (m < 0) { m = 11; y--; } }
+  return y + '-' + ('0' + (m + 1)).slice(-2);
+}
+/**
+ * A mérés soraihoz (név szerint) az Ügyfeleim-ben leadott ES termelési havonta, soronként: [{ 'ÉÉÉÉ-HH': es } | null].
+ * Mint a Havi teljesítményeknél: a tanácsadással rögzített ES a tanácsadás dátumán, a régi kézi ES az elemzés dátumán.
+ */
+function meresLeadott_(adat, osz) {
+  return (adat.sorok || []).map(function (r) {
+    const n = nevNorm_(r.nev), m = n && osz.filter(function (x) { return nevNorm_(x.nev) === n; })[0];
+    if (!m) return null;
+    const h = {};
+    m.sorok.forEach(function (x) { if (x[6]) { const k = termHoKulcs_(x[0]); if (k) h[k] = (h[k] || 0) + x[6]; } });
+    m.leadasok.forEach(function (x) { const k = termHoKulcs_(x[0]); if (k) h[k] = (h[k] || 0) + x[1]; });
+    return h;
+  });
 }
 
 function meresSzam_(v) {
@@ -331,7 +357,9 @@ function meresMent_(en, k) {
   const negyedevek = nq.map(function (q) {
     const h = Array.isArray(q.honapok) ? q.honapok.slice(0, 3) : [];
     while (h.length < 3) h.push('');
-    return { nev: meresSzoveg_(q.nev, 30), cel: meresSzam_(q.cel), honapok: h.map(function (x) { return meresSzoveg_(x, 20); }) };
+    const lp = Array.isArray(q.lepcsok) ? q.lepcsok.slice(0, 3) : [];
+    while (lp.length < 3) lp.push(null);
+    return { cimke: meresSzoveg_(q.cimke, 30), nev: meresSzoveg_(q.nev, 30), vallalas: meresSzam_(q.vallalas), cel: meresSzam_(q.cel), lepcsok: lp.map(meresSzam_), honapok: h.map(function (x) { return meresSzoveg_(x, 20); }) };
   });
   const hossz = negyedevek.length * 3;
   const sorok = (Array.isArray(a.sorok) ? a.sorok.slice(0, 40) : []).map(function (r) {
