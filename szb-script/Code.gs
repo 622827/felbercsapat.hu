@@ -93,7 +93,7 @@ function kezel_(k) {
     case 'feladatAllit': return zarral_(function () { return feladatAllit_(en, k.id, !!k.kesz); });
     case 'feladatTorol': return zarral_(function () { return feladatTorol_(en, k.id); });
     case 'meresek': return meresek_(en);
-    case 'bedolgozasok': return bedolgozasok_(en);
+    case 'bedolgozasok': if (bedolgozoE_(en)) bedolgozasAutoImport_(); return bedolgozasok_(en);
     case 'bedolgozasMent': return zarral_(function () { return bedolgozasMent_(en, k); });
     case 'bedolgozasTorol': return zarral_(function () { return bedolgozasTorol_(en, k.id); });
     case 'meresMent': return zarral_(function () { return meresMent_(en, k); });
@@ -384,6 +384,19 @@ function bedolgozasLapFeldolgoz_(v) {
     if (kul && ert.pont[kul] === undefined) { ert.pont[kul] = c(r, 13); ert.plusz[kul] = c(r, 14); ert.minusz[kul] = c(r, 17); }
   }
   return { szb: szb, elemzesek: elemzesek, ertekeles: ert };
+}
+
+/** Az első megnyitáskor egyszer magától betölti a táblázat eddigi bedolgozásait (utána a weboldalon tölthetők). */
+function bedolgozasAutoImport_() {
+  const props = PropertiesService.getScriptProperties();
+  if (props.getProperty('bd_import_v1')) return;
+  try {
+    zarral_(function () {
+      if (props.getProperty('bd_import_v1')) return;
+      const j = bedolgozasImport();
+      props.setProperty('bd_import_v1', JSON.stringify({ ido: most_(), felvett: j.felvett.length }));
+    });
+  } catch (e) { Logger.log('Bedolgozás import hiba: ' + (e && e.message || e)); }
 }
 
 /** Kézi futtatásra: a táblázat látható (nem rejtett) lapjait felveszi a Bedolgozások közé. A már meglévő (azonos nevű) bedolgozást kihagyja. */
