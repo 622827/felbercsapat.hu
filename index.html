@@ -307,6 +307,10 @@ var API = "";
   .m-units .bar-row { margin-top: 4px; font-size: .78rem; }
   .m-side { display: flex; gap: 12px; font-size: .8rem; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
   .m-side b { color: var(--ink); display: block; font-size: .95rem; }
+  .m-side.pl-arany b { font-size: 1.05rem; white-space: nowrap; }
+  .bar-row.pl-kis span { font-size: .78rem; color: var(--muted); }
+  .pl-cs-es { font-weight: 700; font-size: 1.15rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .pl-cs-es small { font-size: .75em; color: var(--muted); margin-left: 6px; }
 
   /* Toplista */
   .top { list-style: none; margin: 0; padding: 0; counter-reset: t; }
@@ -1286,7 +1290,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
     html += '<h2>Csapatok</h2><div class="grid teams">' + csSor.map(function (c) {
       var tagok = c.tagok.slice().sort(function (a, b) { return b.o.megkotott - a.o.megkotott || b.o.n - a.o.n || a.nev.localeCompare(b.nev, "hu"); });
       var cc = c.cel || c.vallalas;
-      return '<section class="card reveal"><div class="team-h"><h3>' + esc(c.nev) + "</h3>" + (cc ? pctHtml(arany(c.o.megkotott, cc)) : "<span>" + szam(c.o.megkotott) + " ES</span>") + "</div>" +
+      return '<section class="card reveal"><div class="team-h"><h3>' + esc(c.nev) + "</h3>" + (cc ? '<span class="pl-cs-es">' + szam(c.o.megkotott) + " / " + szam(cc) + ' ES <small>' + szazalek(arany(c.o.megkotott, cc)) + "</small></span>" : "<span>" + szam(c.o.megkotott) + " ES</span>") + "</div>" +
         (cc ? bar(c.o.megkotott, cc, { vallalas: c.vallalas, ido: ido }) : bar(c.o.megkotott, maxCsES, {})) +
         (cc ? '<div class="team-mini"><div><b>' + szam(c.o.megkotott) + " / " + szam(c.cel) + "</b>cél (ES)</div><div><b>" + szam(c.o.megkotott) + " / " + szam(c.vallalas) + "</b>vállalás (ES)</div>" +
             "<div><b>" + szam(c.o.n) + "</b>elemzés</div></div>"
@@ -1295,8 +1299,10 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
         '<ul class="members">' + tagok.map(function (t) {
           return "<li" + (t.o.n ? "" : ' class="pl-nulla"') + '><div class="m-name"><b title="' + esc(t.nev) + '">' + esc(t.nev) + "</b>" + (t.poz ? '<span class="chip">' + esc(t.poz) + "</span>" : "") + "</div>" +
             (t.cel || t.vallalas
-              ? '<div class="m-units">' + bar(t.o.megkotott, t.cel || t.vallalas, { vallalas: t.vallalas, ido: ido }) + '<div class="bar-row"><span>' + szam(t.o.megkotott) + " / " + szam(t.cel || t.vallalas) + " ES" + (t.cel ? "" : " (vállalás)") + "</span>" + pctHtml(arany(t.o.megkotott, t.cel || t.vallalas)) + "</div></div>" +
-                '<div class="m-side"><div><b>' + szam(t.vallalas) + "</b>vállalás</div><div><b>" + szazalek(arany(t.o.megkotott, t.vallalas)) + "</b>teljesült</div></div></li>"
+              ? '<div class="m-units">' + bar(t.o.megkotott, t.cel || t.vallalas, { vallalas: t.vallalas, ido: ido }) + '<div class="bar-row pl-kis"><span>' +
+                  (t.cel ? "cél: " + szazalek(arany(t.o.megkotott, t.cel)) : "") + (t.cel && t.vallalas ? " · " : "") + (t.vallalas ? "vállalás: " + szazalek(arany(t.o.megkotott, t.vallalas)) : "") + "</span></div></div>" +
+                '<div class="m-side pl-arany">' + (t.cel ? "<div><b>" + szam(t.o.megkotott) + " / " + szam(t.cel) + "</b>cél (ES)</div>" : "") +
+                  (t.vallalas ? "<div><b>" + szam(t.o.megkotott) + " / " + szam(t.vallalas) + "</b>vállalás (ES)</div>" : "") + "</div></li>"
               : '<div class="m-units">' + bar(t.o.megkotott, maxES, {}) + '<div class="bar-row"><span>' + szam(t.o.megkotott) + " ES leadott</span></div></div>" +
                 '<div class="m-side"><div><b>' + szam(t.o.n) + "</b>elemzés</div><div><b>" + szam(t.o.taMeg) + "</b>TA megv.</div></div></li>");
         }).join("") + "</ul></section>";
