@@ -76,6 +76,9 @@ var API = "";
   .kilep:hover { color: var(--ink); border-color: var(--muted); }
   a.kilep { text-decoration: none; display: inline-flex; align-items: center; }
   a.kilep.szb { color: var(--accent); border-color: var(--accent); }
+  a.kilep.mt-gomb { background: var(--accent); color: var(--bg); border: 0; font-size: 1.2rem; font-weight: 800; padding: 15px 30px; border-radius: 16px; box-shadow: 0 6px 20px rgba(61,220,132,.35); text-decoration: none; }
+  a.kilep.mt-gomb:hover { color: var(--bg); filter: brightness(1.08); transform: translateY(-1px); }
+  @media (max-width: 560px) { a.kilep.mt-gomb { order: -1; flex: 1 1 100%; text-align: center; font-size: 1.15rem; } }
   .status { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: .85rem; margin: -8px 0 20px; flex-wrap: wrap; }
   .status button { background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; cursor: pointer; color: var(--muted); }
   .status button:hover { color: var(--ink); border-color: var(--muted); }
@@ -521,7 +524,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
       <p class="eyebrow">Felber BL</p>
       <h1 class="title">Eredményjelző</h1>
     </div>
-    <div class="controls"><div class="controls" id="controls"></div><a class="kilep szb" href="telefonparty.html">📞 Telefonparty</a><a class="kilep szb" href="szb.html">Munkatársak</a><button class="kilep" id="kilep" type="button">Kilépés</button></div>
+    <div class="controls"><div class="controls" id="controls"></div><a class="kilep szb" href="telefonparty.html">📞 Telefonparty</a><a class="kilep szb mt-gomb" href="szb.html">👥 Munkatársak</a><button class="kilep" id="kilep" type="button">Kilépés</button></div>
   </header>
   <main id="app" aria-live="polite">
     <div class="grid kpis"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
