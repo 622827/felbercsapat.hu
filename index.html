@@ -1798,8 +1798,17 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
    */
   var FA_SZULO = {
     "Szabó Levente": "Majoros Dávid",
-    "Kovács S. József": "Nagy Mila"
+    "Kovács S. József": "Nagy Mila",
+    "Pál Gergő": "Nagy Mila",
+    "Réger Anna Mária": "Nagy Mila"
   };
+  /* Névjavítás a fában (a táblázatbeli név → a fában mutatott név). */
+  var FA_NEVCSERE = { "Réger Ancsi": "Réger Anna Mária", "Réger Anna": "Réger Anna Mária" };
+  /* A fába külön felvett munkatársak (akik még nem szerepelnek a CÉLOK táblázat aktuális hónapjában). */
+  var FA_EXTRA = [
+    { nev: "Pál Gergő", poz: "", csapat: "Felber csapat" },
+    { nev: "Réger Anna Mária", poz: "EL", csapat: "Felber csapat" }
+  ];
   function faNev(n) { return String(n || "").replace(/\s*-\s*/g, "-").replace(/\s+/g, " ").trim(); }
   function csapatfa(d) {
     var h = d.honapok[S.honap] || d.honapok[alapHonap(d.honapok)];
@@ -1808,13 +1817,14 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
       var vez = c.tagok.filter(function (t) { return t.vezeto && t.nev; })[0];
       c.tagok.forEach(function (t) {
         if (!t.nev) return;
-        var n = faNev(t.nev);
+        var n = faNev(FA_NEVCSERE[faNev(t.nev)] || t.nev);
         if (emberek[n]) return;
         emberek[n] = { nev: n, poz: t.poz || "", szint: t.szint || "", vezeto: !!t.vezeto, csapat: c.nev, es: t.egyseg ? t.egyseg.ossz : null, vez: vez ? faNev(vez.nev) : "", gyerek: [] };
         sorrend.push(n);
         if (t.vezeto && /^BL/i.test(t.poz || "") && !gyoker) gyoker = n;
       });
     });
+    FA_EXTRA.forEach(function (x) { var n = faNev(x.nev); if (emberek[n]) return; emberek[n] = { nev: n, poz: x.poz || "", szint: "", vezeto: false, csapat: x.csapat || "", es: null, vez: "", gyerek: [] }; sorrend.push(n); });
     if (!gyoker) gyoker = sorrend.filter(function (n) { return emberek[n].vezeto; })[0] || sorrend[0];
     sorrend.forEach(function (n) {
       if (n === gyoker) return;
