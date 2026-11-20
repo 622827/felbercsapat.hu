@@ -16,8 +16,8 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbz-b4P9aSq3he5q8enKIR3jfd
 <style>
   /* Elrendezés: bal oldalt a munkatársak csapatonként, jobbra az SZB-lap (új jegyzet → jegyzetek → feladatok). Mobilon lista → részlet. */
   :root {
-    --bg: #0b2e5a; --panel: #143d72; --panel2: #18467f; --ink: #ffffff; --muted: #b9dcff; --line: #2a5a96; --track: #1d4c86;
-    --accent: #3ddc84; --accent-ink: #0b2e5a; --accent-soft: #1d5a4a; --blue: #5cb8ff; --warn: #ffc857; --warn-soft: #4a4430; --danger: #ff8a7a;
+    --bg: #2a64a6; --panel: #3370b4; --panel2: #3a79bd; --ink: #ffffff; --muted: #d2e6ff; --line: #5590cd; --track: #4382c4;
+    --accent: #CDA03A; --accent-ink: #14305a; --accent-soft: #9c7a2e; --accent-text: #E3C06A; --accent-grad: linear-gradient(135deg, #A97C1E 0%, #E3C06A 45%, #C99A34 70%, #A97C1E 100%); --blue: #a8e1ff; --warn: #ffc857; --warn-soft: #4a4430; --danger: #ff8a7a;
     --sans: "Stag Sans", "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
     color-scheme: dark;
   }
@@ -37,7 +37,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbz-b4P9aSq3he5q8enKIR3jfd
   .mezo { width: 100%; border: 2px solid var(--line); background: var(--bg); border-radius: 12px; padding: 12px 14px; }
   .mezo:focus { border-color: var(--accent); outline: none; }
   .hiba { color: var(--warn); font-size: .9rem; min-height: 1.3em; margin: 0; }
-  .eyebrow { margin: 0; color: var(--accent); font-weight: 700; font-size: .75rem; letter-spacing: .09em; text-transform: uppercase; }
+  .eyebrow { margin: 0; color: var(--accent-text); font-weight: 700; font-size: .75rem; letter-spacing: .09em; text-transform: uppercase; }
 
   /* Fő elrendezés */
   .app { display: grid; grid-template-columns: 300px minmax(0, 1fr); min-height: 100vh; }
@@ -66,7 +66,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbz-b4P9aSq3he5q8enKIR3jfd
 
   main { min-width: 0; padding: 64px 16px 60px 32px; }
   .vissza-ej { position: fixed; top: 14px; right: 16px; z-index: 30; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px;
-    border: 1px solid var(--accent); color: var(--accent); background: var(--bg); font-weight: 700; font-size: .85rem; text-decoration: none; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+    border: 1px solid var(--accent); color: var(--accent-text); background: var(--bg); font-weight: 700; font-size: .85rem; text-decoration: none; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
   .vissza-ej:hover { background: var(--accent-soft); color: var(--ink); }
   .lap { max-width: 860px; display: flex; flex-direction: column; gap: 28px; }
   .vissza { display: none; border: 0; background: none; color: var(--muted); font-weight: 600; padding: 0; cursor: pointer; justify-self: start; }
@@ -101,7 +101,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbz-b4P9aSq3he5q8enKIR3jfd
   .fulek button { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 16px 12px; border-radius: 16px; border: 2px solid var(--line); background: var(--panel); font-weight: 700; font-size: 1.05rem; cursor: pointer; color: var(--muted); }
   .fulek button span { font-size: 1.3rem; }
   .fulek button:hover { color: var(--ink); border-color: var(--muted); }
-  .fulek button[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .fulek button[aria-selected="true"] { background: var(--accent-grad); border-color: var(--accent); color: var(--accent-ink); }
   .ful { display: flex; flex-direction: column; gap: 28px; }
   .pipe { display: flex; flex-direction: column; gap: 16px; }
   .pforras { margin: 6px 0 0; color: var(--muted); font-size: .78rem; }
@@ -155,10 +155,10 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbz-b4P9aSq3he5q8enKIR3jfd
   table.pt-ossz th, table.pt-ossz td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
   table.pt-ossz thead th { font-size: .75rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
   table.pt-ossz .szam { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; width: 1%; }
-  table.pt-ossz td.meg { color: var(--accent); font-weight: 700; }
+  table.pt-ossz td.meg { color: var(--accent-text); font-weight: 700; }
   table.pt-ossz td:last-child { overflow-wrap: anywhere; white-space: pre-wrap; }
   table.pt-ossz tfoot th { border-top: 2px solid var(--line); border-bottom: 0; font-weight: 800; }
-  table.pt-ossz tfoot th.meg { color: var(--accent); }
+  table.pt-ossz tfoot th.meg { color: var(--accent-text); }
   table.pt-ossz .halv { color: var(--muted); opacity: .6; }
   table.pt-ossz .x { width: 1%; text-align: center; }
   .xgomb { width: 28px; height: 28px; border-radius: 7px; border: 2px solid var(--line); background: var(--bg); color: var(--danger); font-size: 1.1rem; font-weight: 800; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; padding: 0; }
@@ -168,7 +168,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbz-b4P9aSq3he5q8enKIR3jfd
   table.pt-ossz tr.athuzva td.meg { color: var(--muted); }
   table.pt-ossz tfoot small { font-weight: 500; color: var(--muted); font-size: .75rem; }
   .pk-es { text-align: right; line-height: 1; }
-  .pk header .pk-es b { display: block; font-size: 2.4rem; font-weight: 800; letter-spacing: -.03em; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .pk header .pk-es b { display: block; font-size: 2.4rem; font-weight: 800; letter-spacing: -.03em; color: var(--accent-text); font-variant-numeric: tabular-nums; }
   .pk header .pk-es b small { font-size: .45em; margin-left: 3px; font-weight: 700; letter-spacing: 0; }
   .pk header .pk-es span { display: block; font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; margin-top: 3px; }
   .pk header .pk-es.nulla b { color: var(--muted); opacity: .5; font-size: 1.5rem; }
@@ -190,7 +190,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbz-b4P9aSq3he5q8enKIR3jfd
   .szbk-k textarea { min-height: 0; resize: vertical; font: inherit; font-size: .95rem; line-height: 1.4; overflow: hidden; }
   .szbk-k.al { margin-left: 14px; padding-left: 12px; border-left: 3px solid var(--accent-soft); }
   .szbk-k.al > span { font-weight: 500; }
-  .szbk-csop { margin: 4px 0 -4px; font-weight: 700; color: var(--accent); }
+  .szbk-csop { margin: 4px 0 -4px; font-weight: 700; color: var(--accent-text); }
   .szbv { display: grid; gap: 10px; margin-top: 6px; }
   .szbv-k b { display: block; font-size: .82rem; color: var(--muted); font-weight: 600; margin-bottom: 2px; }
   .szbv-k .szoveg { margin: 0; }
@@ -200,7 +200,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbz-b4P9aSq3he5q8enKIR3jfd
   .sor { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
   .sor label { color: var(--muted); font-size: .85rem; }
   input[type=date], select { border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 8px 10px; }
-  .gomb { border: 0; border-radius: 10px; padding: 10px 18px; font-weight: 700; cursor: pointer; background: var(--accent); color: var(--accent-ink); }
+  .gomb { border: 0; border-radius: 10px; padding: 10px 18px; font-weight: 700; cursor: pointer; background: var(--accent-grad); color: var(--accent-ink); }
   .gomb[disabled] { opacity: .55; cursor: default; }
   .gomb.halk { background: transparent; color: var(--muted); border: 1px solid var(--line); font-weight: 600; padding: 7px 12px; }
   .gomb.vesz { background: var(--danger); color: #3a0d08; padding: 7px 12px; }
@@ -230,7 +230,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbz-b4P9aSq3he5q8enKIR3jfd
   .pinl .pinl-szeles { grid-column: 1 / -1; }
   .pinl .pinl-teendo .mezo { background: var(--warn-soft); }
   .pinl .pm.ment > span::after { content: " · mentés…"; }
-  .pinl .pm.kesz > span::after { content: " · mentve ✓"; color: var(--accent); }
+  .pinl .pm.kesz > span::after { content: " · mentve ✓"; color: var(--accent-text); }
   /* utókövetés: tanácsadások */
   .alk { border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 8px; }
   .alk-fej { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
