@@ -1847,7 +1847,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
       .concat(agak.map(function (n) { return '<div class="fa-oszlop"><p class="fa-cim">' + esc(emberek[n].csapat) + '</p><ul class="fa-lista fa-elso">' + ag(n) + "</ul></div>"; }));
     var db = sorrend.length;
     // fa-elrendezés (széles képernyőn): a gyökér alatt vízszintesen elágazva, ágaként saját színnel
-    var SZINEK = ["#3ddc84", "#5cb8ff", "#ffc857", "#ff8ad8", "#b39dff", "#4fe0d2"];
+    var SZINEK = ["#D4AE58", "#5cb8ff", "#ff9e7a", "#ff8ad8", "#b39dff", "#4fe0d2"];
     var elso = gy.gyerek.filter(function (n) { return !emberek[n].vezeto; }).concat(gy.gyerek.filter(function (n) { return emberek[n].vezeto; }));
     var agSzin = {}, si = 0, sajatSzin = SZINEK[si++];
     elso.forEach(function (n) { agSzin[n] = emberek[n].vezeto ? SZINEK[si++ % SZINEK.length] : sajatSzin; });
@@ -1862,7 +1862,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
       var e = emberek[n];
       return '<li style="--sz:' + szin + '">' + orgKartya(n, szin) + (e.gyerek.length ? "<ul>" + e.gyerek.map(function (c) { return orgAg(c, szin); }).join("") + "</ul>" : "") + "</li>";
     }
-    var org = '<div class="org-keret" id="orgKeret"><div class="org-belso" id="orgBelso"><ul class="org"><li class="org-gy">' + orgKartya(gyoker, "#3ddc84") +
+    var org = '<div class="org-keret" id="orgKeret"><div class="org-belso" id="orgBelso"><ul class="org"><li class="org-gy">' + orgKartya(gyoker, "#D4AE58") +
       "<ul>" + elso.map(function (n) { return orgAg(n, agSzin[n]); }).join("") + "</ul></li></ul></div></div>";
     setTimeout(faIllesztes, 0);
     if (document.fonts && document.fonts.ready) document.fonts.ready.then(faIllesztes);
@@ -1878,8 +1878,8 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
     var k = document.getElementById("orgKeret"), b = document.getElementById("orgBelso"), l = document.getElementById("faLista"); if (!k || !b) return;
     b.style.transform = ""; b.style.width = ""; k.style.height = ""; k.classList.remove("szuk"); if (l) l.classList.remove("kell");
     var sw = b.scrollWidth, cw = k.clientWidth; if (!sw || !cw) return;
-    if (sw * 0.66 > cw + 2) { k.classList.add("szuk"); if (l) l.classList.add("kell"); return; }   // így sem férne ki: egymás alatti nézet
-    var sk = sw > cw ? Math.max(0.66, cw / sw) : 1;
+    if (sw * 0.5 > cw + 2) { k.classList.add("szuk"); if (l) l.classList.add("kell"); return; }   // így sem férne ki: egymás alatti nézet
+    var sk = sw > cw ? Math.max(0.5, cw / sw) : 1;
     b.style.transform = sk < 1 ? "scale(" + sk + ")" : "";
     b.style.width = sk < 1 ? sw + "px" : "";
     k.style.height = sk < 1 ? Math.ceil(b.scrollHeight * sk) + 8 + "px" : "";
