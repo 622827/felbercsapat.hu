@@ -309,6 +309,15 @@ var API = "";
   .m-side b { color: var(--ink); display: block; font-size: .95rem; }
   .m-side.pl-arany b { font-size: 1.05rem; white-space: nowrap; }
   .bar-row.pl-kis span { font-size: .78rem; color: var(--muted); }
+  /* Havi teljesítmények: a csapatok egymás alatt, teljes szélességben, levegősebb sorokkal */
+  .teams.pl-teams { grid-template-columns: 1fr; gap: 18px; }
+  .pl-teams .card { padding: 24px 28px; }
+  .pl-teams .team-mini { grid-template-columns: repeat(3, minmax(0, 220px)); gap: 24px; }
+  .pl-teams .members li { grid-template-columns: minmax(170px, 1fr) minmax(0, 2.4fr) auto; gap: 6px 32px; padding: 14px 0; }
+  .pl-teams .members .m-units .bar { height: 10px; }
+  .pl-teams .m-side { gap: 32px; min-width: 260px; justify-content: flex-end; }
+  .pl-teams .m-side > div { min-width: 110px; }
+  .pl-teams .m-side.pl-arany b { font-size: 1.15rem; }
   .pl-cs-es { font-weight: 700; font-size: 1.15rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
   .pl-cs-es small { font-size: .75em; color: var(--muted); margin-left: 6px; }
 
@@ -339,6 +348,9 @@ var API = "";
     .kpis { grid-template-columns: 1fr 1fr; }
     .kpis .card:first-child { grid-column: 1 / -1; }
     .teams, .jut { grid-template-columns: 1fr; }
+    .pl-teams .members li { grid-template-columns: minmax(120px, 1fr) minmax(0, 1.6fr) auto; gap: 6px 18px; }
+    .pl-teams .m-side { gap: 18px; min-width: 0; }
+    .pl-teams .m-side > div { min-width: 0; }
   }
   @media (max-width: 560px) {
     body { padding-top: 70px; }
@@ -348,6 +360,11 @@ var API = "";
     .r-facts div:last-child { grid-column: 1 / -1; }
     .members li { grid-template-columns: minmax(0, 1fr) auto; }
     .members .m-units { grid-column: 1 / -1; grid-row: 2; }
+    .pl-teams .card { padding: 18px 16px; }
+    .pl-teams .team-mini { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .pl-teams .members li { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 14px; }
+    .pl-teams .m-side { gap: 14px; min-width: 0; }
+    .pl-teams .m-side > div { min-width: 0; }
     .members li.r-tag { grid-template-columns: minmax(0, 1fr); }
     .tabs button { padding: 8px 12px; }
   }
@@ -1304,7 +1321,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
 
     // csapatok: mint a havi nézet csapatkártyái
     csSor.sort(function (a, b) { return b.o.megkotott - a.o.megkotott || b.o.n - a.o.n; });
-    html += '<h2>Csapatok</h2><div class="grid teams">' + csSor.map(function (c) {
+    html += '<h2>Csapatok</h2><div class="grid teams pl-teams">' + csSor.map(function (c) {
       var tagok = c.tagok.slice().sort(function (a, b) { return b.o.megkotott - a.o.megkotott || b.o.n - a.o.n || a.nev.localeCompare(b.nev, "hu"); });
       var cc = c.cel || c.vallalas;
       return '<section class="card reveal"><div class="team-h"><h3>' + esc(c.nev) + "</h3>" + (cc ? '<span class="pl-cs-es">' + szam(c.o.megkotott) + " / " + szam(cc) + ' ES <small>' + szazalek(arany(c.o.megkotott, cc)) + "</small></span>" : "<span>" + szam(c.o.megkotott) + " ES</span>") + "</div>" +
