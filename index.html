@@ -153,6 +153,8 @@ var API = "";
   .mr-st { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px; font-size: .78rem; font-weight: 700; color: var(--muted); background: transparent; font-family: inherit; }
   .mr-st.ok { background: var(--accent); border-color: var(--accent); color: var(--bg); }
   button.mr-st { cursor: pointer; min-height: 30px; }
+  button.mr-st:hover { border-color: var(--accent); color: var(--ink); }
+  button.mr-st.ok:hover { color: var(--bg); filter: brightness(1.08); }
   .mr-in { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; color: var(--ink); padding: 6px 8px; font: inherit; font-size: .9rem; }
   .mr-in:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
   .mr-sz { width: 5.5em; text-align: right; font-variant-numeric: tabular-nums; }
@@ -1053,9 +1055,11 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
       a.sorok.map(function (r, ri) {
         var ld = mLd(), auto = !!(ld && ld[ri]), es = [0, 1, 2].map(function (hi) { return mEs(a, ld, ri, qi, hi); }), ossz = mOssz(es), havi = mSzam(r.havi), rc = mSzam(r.cel);
         function stat(kulcs) {
-          var on = !!(r[kulcs] && r[kulcs][qi]);
-          return sz ? '<td><button type="button" class="mr-st' + (on ? " ok" : "") + '" data-mr-st="' + kulcs + "." + ri + "." + qi + '">' + (on ? "✓ Megvan" : "Nincs meg") + "</button></td>"
-                    : '<td><span class="mr-st' + (on ? " ok" : "") + '">' + (on ? "✓ Megvan" : "Nincs meg") + "</span></td>";
+          var on = !!(r[kulcs] && r[kulcs][qi]), cimke = on ? "✓ Megvan" : "Nincs meg";
+          if (!sz && rc == null && havi == null) return "<td></td>";   // kiegészítő sor (pl. kézi októberi ES): nincs státusza
+          if (sz) return '<td><button type="button" class="mr-st' + (on ? " ok" : "") + '" data-mr-st="' + kulcs + "." + ri + "." + qi + '">' + cimke + "</button></td>";
+          if (m.szerk) return '<td><button type="button" class="mr-st' + (on ? " ok" : "") + '" data-mr-pipa="' + kulcs + "." + ri + "." + qi + '" aria-pressed="' + on + '" title="Kattints az átállításhoz">' + cimke + "</button></td>";
+          return '<td><span class="mr-st' + (on ? " ok" : "") + '">' + cimke + "</span></td>";
         }
         return '<tr title="' + (auto ? "Az ES az Ügyfeleim-ben leadott egységekből számol (termelési hónap szerint)." : "Az ES kézzel beírt.") + '"><th>' + (sz ? '<input class="mr-in mr-nev" data-mr="s.' + ri + '.nev" value="' + esc(r.nev) + '" aria-label="Név"> <input class="mr-in mr-poz" data-mr="s.' + ri + '.poz" value="' + esc(r.poz) + '" aria-label="Pozíció">' : esc(r.nev) + (r.poz ? "<small>" + esc(r.poz) + "</small>" : "")) + "</th>" +
           (sz ? '<td><input class="mr-in mr-sz" inputmode="numeric" data-mr="s.' + ri + '.cel" value="' + esc(rc == null ? "" : rc) + '" aria-label="Cél"></td><td><input class="mr-in mr-sz" inputmode="numeric" data-mr="s.' + ri + '.havi" value="' + esc(havi == null ? "" : havi) + '" aria-label="Havi cél"></td>'
@@ -1101,6 +1105,18 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
         else { var r = a.sorok[+k[1]]; if (k[2] === "es") r.es[+k[3]] = sz(v); else if (k[2] === "nev" || k[2] === "poz") r[k[2]] = v; else r[k[2]] = sz(v); }
       };
     });
+    // Aktív státusz / Cél pipálása szerkesztő mód nélkül (admin és a csapat vezetője): azonnal ment
+    app.querySelectorAll("[data-mr-pipa]").forEach(function (b) { b.onclick = function () {
+      if (MR.ment) return;
+      var x = b.dataset.mrPipa.split("."), m = MR.lista[MR.i], regi = JSON.parse(JSON.stringify(m.adat)), r = m.adat.sorok[+x[1]];
+      r[x[0]] = r[x[0]] || []; r[x[0]][+x[2]] = !r[x[0]][+x[2]];
+      MR.ment = true; rajzol();
+      fetch(SZB_API, { method: "POST", body: JSON.stringify({ muvelet: "meresMent", token: szbToken(), id: m.id, adat: m.adat }) }).then(function (v) { return v.json(); }).then(function (d) {
+        MR.ment = false;
+        if (!d || d.hiba || !d.meresek) { m.adat = regi; rajzol(); alert((d && d.hiba) || "Nem sikerült menteni."); return; }
+        MR.lista = d.meresek; if (MR.i >= MR.lista.length) MR.i = 0; rajzol();
+      }).catch(function () { MR.ment = false; m.adat = regi; rajzol(); alert("Nem sikerült menteni (hálózati hiba)."); });
+    }; });
     var mm = document.getElementById("mrMent"); if (mm) mm.onclick = function () {
       var hiba = document.getElementById("mrHiba");
       for (var i = 0; i < MR.p.sorok.length; i++) if (!String(MR.p.sorok[i].nev || "").trim()) { hiba.textContent = "Minden sorhoz adj meg nevet (vagy töröld a sort)."; return; }
