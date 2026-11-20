@@ -41,6 +41,7 @@ const LAPOK = {
   'Áthúzások': ['munkatars_id', 'kulcs', 'ugyfel', 'ido', 'szerzo'],
   'Prezik': ['id', 'munkatars_id', 'datum', 'jelolt', 'telefon', 'forras', 'eredmeny', 'jegyzet', 'letrehozva', 'szerzo', 'modositva', 'jelolesek'],
   'Célok': ['munkatars_id', 'honap', 'cel', 'vallalas', 'modositva', 'szerzo'],
+  'Mérések': ['id', 'csapat', 'adat', 'modositva', 'szerzo'],
   'Értesítések': ['id', 'tipus', 'munkatars_id', 'munkatars_nev', 'ugyfel', 'kulcs', 'cimzettek', 'letrehozva', 'szerzo', 'kesz', 'kesz_ido', 'kesz_szerzo']
 };
 
@@ -90,6 +91,8 @@ function kezel_(k) {
     case 'feladatMent': return zarral_(function () { return feladatMent_(en, k); });
     case 'feladatAllit': return zarral_(function () { return feladatAllit_(en, k.id, !!k.kesz); });
     case 'feladatTorol': return zarral_(function () { return feladatTorol_(en, k.id); });
+    case 'meresek': return meresek_(en);
+    case 'meresMent': return zarral_(function () { return meresMent_(en, k); });
     case 'eredmeny': return eredmeny_(k.lap);
     case 'telefonparty': return telefonparty_(en, k.party_id);
     case 'telefonpartyPipal': return zarral_(function () { return telefonpartyPipal_(en, k.party_id, k.kulcs, k.db); });
@@ -263,6 +266,85 @@ function sajatId_(en, mt) {
   return m ? m.id : '';
 }
 function kell_(en, mtId) { if (!lathatoIdk_(en)[mtId]) hiba_('Ehhez a munkatárshoz nincs hozzáférésed.'); }
+
+/* ================= Fiókvezetői mérés ================= */
+
+/* Az első mérés a „Mérés” táblázat „Andus GST” lapja alapján (Molnár Andrea fiókvezetői mérése). */
+const MERES_ALAP = {
+  cim: 'Molnár Andrea – Fiókvezetői mérés',
+  negyedevek: [
+    { nev: '2026 Q4', cel: 5000, honapok: ['Október', 'November', 'December'] },
+    { nev: '2027 Q1', cel: 5000, honapok: ['Január', 'Február', 'Március'] }
+  ],
+  merfok: [0.1, 0.2, 0.35, 0.5, 0.65, 0.85, 1],
+  sorok: [
+    { nev: 'Molnár Andrea', poz: 'VR4', cel: 950, havi: 316, es: [null, null, null, null, null, null], aktiv: [false, false], celOk: [false, false] },
+    { nev: 'Bódis Dorina', poz: 'R2', cel: 900, havi: 300, es: [480, null, null, null, null, null], aktiv: [false, false], celOk: [false, false] },
+    { nev: 'Palásti Norbert', poz: 'R2', cel: 450, havi: 150, es: [null, null, null, null, null, null], aktiv: [false, false], celOk: [false, false] },
+    { nev: 'Zsinka Ildikó', poz: 'R2', cel: 900, havi: 300, es: [468, null, null, null, null, null], aktiv: [true, false], celOk: [false, false] },
+    { nev: 'Betanuló', poz: '', cel: 900, havi: 300, es: [null, null, null, null, null, null], aktiv: [false, false], celOk: [false, false] },
+    { nev: 'Betanuló', poz: '', cel: 900, havi: 300, es: [null, null, null, null, null, null], aktiv: [false, false], celOk: [false, false] }
+  ]
+};
+const MERES_ALAP_CSAPAT = 'Molnár csapat';
+
+/** A felhasználó csapata (vezetőnél a Felhasználók lapról, munkatársnál a munkatárs-lapjáról). */
+function felhCsapat_(en) {
+  if (en.csapat) return String(en.csapat).trim();
+  const m = en.munkatars_id && sorok_('Munkatársak').filter(function (x) { return x.id === en.munkatars_id; })[0];
+  return m ? String(m.csapat || '').trim() : '';
+}
+function meresLathat_(en, cs) { return en.szerep === 'admin' || (!!cs && felhCsapat_(en) === cs); }
+function meresSzerk_(en, cs) { return en.szerep === 'admin' || (en.szerep === 'vezeto' && !!cs && felhCsapat_(en) === cs); }
+
+/** A felhasználó által látható mérések (admin: mind; más: a saját csapatáé). Első híváskor létrehozza az alap mérést. */
+function meresek_(en) {
+  let l = sorok_('Mérések');
+  if (!l.length) {
+    zarral_(function () { if (!sorok_('Mérések').length) hozzaad_('Mérések', { id: ujId_(), csapat: MERES_ALAP_CSAPAT, adat: JSON.stringify(MERES_ALAP), modositva: most_(), szerzo: 'rendszer' }); });
+    l = sorok_('Mérések');
+  }
+  return {
+    meresek: l.filter(function (m) { return meresLathat_(en, m.csapat); }).map(function (m) {
+      let adat = null; try { adat = JSON.parse(m.adat); } catch (e) {}
+      return { id: m.id, csapat: m.csapat, adat: adat, modositva: m.modositva, szerzo: m.szerzo, szerk: meresSzerk_(en, m.csapat) };
+    }).filter(function (m) { return m.adat; })
+  };
+}
+
+function meresSzam_(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(String(v).replace(/\s/g, '').replace(',', '.'));
+  if (!isFinite(n) || n < 0 || n > 1e7) hiba_('Hibás szám: ' + v);
+  return Math.round(n);
+}
+function meresSzoveg_(v, max) { return String(v === null || v === undefined ? '' : v).trim().slice(0, max || 80); }
+
+/** Mérés mentése (admin, vagy a csapat vezetője). Az adatot ellenőrzi és normalizálja. */
+function meresMent_(en, k) {
+  const m = sorok_('Mérések').filter(function (x) { return x.id === k.id; })[0];
+  if (!m) hiba_('A mérés nem található. Frissítsd az oldalt.');
+  if (!meresSzerk_(en, m.csapat)) hiba_('Ehhez nincs jogosultságod.');
+  const a = k.adat || {};
+  const nq = Array.isArray(a.negyedevek) ? a.negyedevek.slice(0, 4) : [];
+  if (!nq.length) hiba_('Legalább egy negyedév kell.');
+  const negyedevek = nq.map(function (q) {
+    const h = Array.isArray(q.honapok) ? q.honapok.slice(0, 3) : [];
+    while (h.length < 3) h.push('');
+    return { nev: meresSzoveg_(q.nev, 30), cel: meresSzam_(q.cel), honapok: h.map(function (x) { return meresSzoveg_(x, 20); }) };
+  });
+  const hossz = negyedevek.length * 3;
+  const sorok = (Array.isArray(a.sorok) ? a.sorok.slice(0, 40) : []).map(function (r) {
+    const es = Array.isArray(r.es) ? r.es.slice(0, hossz) : [];
+    while (es.length < hossz) es.push(null);
+    function bool(t) { t = Array.isArray(t) ? t : []; return negyedevek.map(function (_, i) { return !!t[i]; }); }
+    return { nev: meresSzoveg_(r.nev, 60), poz: meresSzoveg_(r.poz, 12), cel: meresSzam_(r.cel), havi: meresSzam_(r.havi), es: es.map(meresSzam_), aktiv: bool(r.aktiv), celOk: bool(r.celOk) };
+  });
+  const merfok = (Array.isArray(a.merfok) ? a.merfok : MERES_ALAP.merfok).map(Number).filter(function (x) { return isFinite(x) && x > 0 && x <= 2; }).slice(0, 10);
+  const adat = { cim: meresSzoveg_(a.cim, 80) || 'Fiókvezetői mérés', negyedevek: negyedevek, merfok: merfok, sorok: sorok };
+  frissit_('Mérések', m._sor, { adat: JSON.stringify(adat), modositva: most_(), szerzo: en.email });
+  return meresek_(en);
+}
 
 /* ================= pipeline ================= */
 
