@@ -1277,7 +1277,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
       var a = bdNorm(b.adat), sz = bdSzbAll(a), pt = bdPontok(a);
       return '<button type="button" class="bd-kartya' + (b.id === BD.sel ? " akt" : "") + '" data-bd-sel="' + esc(b.id) + '"><b>' + esc(b.nev) + "</b><span>mentor: " + esc(b.mentor || "–") + "</span>" +
         '<div class="bar"><div class="fill' + (sz.k === sz.n ? " ok" : "") + '" style="width:' + (sz.n ? (sz.k / sz.n * 100).toFixed(1) : 0) + '%"></div></div>' +
-        "<small>SZB: " + sz.k + " / " + sz.n + " · elemzés: " + a.elemzesek.length + " · " + Math.round(pt.szazalek * 100) + "%</small></button>";
+        "<small>SZB: " + sz.k + " / " + sz.n + " · elemzés: " + a.elemzesek.length + " · vizsga: " + Math.round(pt.szazalek * 100) + "%</small></button>";
     }).join("") + '<button type="button" class="bd-kartya bd-uj" id="bdUjGomb"><b>+ Új bedolgozás</b><span>új munkatárs felvétele</span></button></div>';
     if (BD.uj) {
       h += '<section class="card bd-ujform"><h3 style="margin-top:0">Új bedolgozás</h3><label>Az új munkatárs neve <input class="bd-in" id="bdUjNev" placeholder="pl. Kiss Péter"></label>' +
@@ -1289,8 +1289,8 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
     var a = b.adat, sz = bdSzbAll(a), pt = bdPontok(a);
     h += '<section class="card bd-fej"><div class="r-head"><div><p class="k-label">Bedolgozás · mentor: ' + esc(b.mentor || "–") + (b.csapat ? " · " + esc(b.csapat) : "") + "</p>" +
       '<h2 style="margin:0">' + esc(b.nev) + "</h2></div>" +
-      '<div class="bd-fej-szam"><div><b id="bdSzbDb">' + sz.k + " / " + sz.n + "</b><span>SZB pont kipipálva</span></div><div><b>" + a.elemzesek.length + "</b><span>közös elemzés</span></div><div><b id=\"bdSzazalek\">" + Math.round(pt.szazalek * 100) + '%</b><span>értékelés</span></div></div></div>' +
-      '<div class="tabs" role="tablist" style="margin-top:14px">' + [["szb", "✅ SZB-k"], ["elemzes", "🗂 Közös elemzések"], ["ertekeles", "⭐ Értékelés"]].map(function (x) {
+      '<div class="bd-fej-szam"><div><b id="bdSzbDb">' + sz.k + " / " + sz.n + "</b><span>SZB pont kipipálva</span></div><div><b>" + a.elemzesek.length + "</b><span>közös elemzés</span></div><div><b id=\"bdSzazalek\">" + Math.round(pt.szazalek * 100) + '%</b><span>vizsga</span></div></div></div>' +
+      '<div class="tabs" role="tablist" style="margin-top:14px">' + [["szb", "✅ SZB-k"], ["elemzes", "🗂 Közös elemzések"], ["ertekeles", "🎓 Vizsga"]].map(function (x) {
         return '<button role="tab" type="button" data-bd-ful="' + x[0] + '" aria-selected="' + (BD.ful === x[0]) + '">' + x[1] + "</button>"; }).join("") + "</div></section>";
     if (BD.ful === "szb") {
       h += '<div class="bd-szb">' + a.szb.map(function (x, si) {
