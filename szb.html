@@ -217,6 +217,12 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbz-b4P9aSq3he5q8enKIR3jfd
   .var-o { border: 2px solid var(--line); background: var(--bg); color: var(--ink); border-radius: 14px; padding: 12px 18px; font: inherit; font-weight: 600; cursor: pointer; min-height: 48px; text-align: left; }
   .var-o[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
   .var-o:hover { border-color: var(--muted); }
+  .jel-opt { display: flex; flex-wrap: wrap; gap: 8px; }
+  .jel-o { display: inline-flex; align-items: center; gap: 10px; border: 2px solid var(--line); background: var(--bg); color: var(--muted); border-radius: 999px; padding: 8px 18px 8px 10px; font: inherit; font-weight: 600; cursor: pointer; min-height: 44px; transition: background .15s, border-color .15s, color .15s; }
+  .jel-o .jb { width: 22px; height: 22px; border-radius: 7px; border: 2px solid var(--line); display: grid; place-items: center; font-size: .8rem; font-weight: 800; color: transparent; transition: inherit; }
+  .jel-o:hover { border-color: var(--muted); color: var(--ink); }
+  .jel-o[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
+  .jel-o[aria-pressed="true"] .jb { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
   .var-egyeb { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: .9rem; margin-top: 4px; }
   .var-igenyek { display: grid; gap: 10px; }
   .var-igenyek .mezo { font-size: 1rem; }
@@ -664,8 +670,8 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbz-b4P9aSq3he5q8enKIR3jfd
       '<label class="pm"><span>Kinek tartottad? *</span><input class="mezo" id="przJelolt" value="' + esc(v.jelolt) + '" placeholder="Név"></label>' +
       '<label class="pm"><span>Telefonszám</span><input class="mezo" id="przTel" inputmode="tel" value="' + esc(v.telefon) + '"></label>' +
       '<label class="pm"><span>Honnan jött? (ajánló, forrás)</span><input class="mezo" id="przForras" value="' + esc(v.forras) + '"></label></div>' +
-      '<div class="pm"><span>Lett-e belőle? (több is jelölhető)</span><div class="var-opt">' + PR_JEL.map(function (j) {
-        return '<button type="button" class="var-o" data-pr-jel="' + j + '" aria-pressed="' + (PR.jel.indexOf(j) > -1) + '">' + (PR.jel.indexOf(j) > -1 ? "☑ " : "☐ ") + j + "</button>";
+      '<div class="pm"><span>Lett-e belőle? (több is jelölhető)</span><div class="jel-opt">' + PR_JEL.map(function (j) {
+        return '<button type="button" class="jel-o" data-pr-jel="' + j + '" aria-pressed="' + (PR.jel.indexOf(j) > -1) + '"><span class="jb" aria-hidden="true">✓</span>' + j + "</button>";
       }).join("") + "</div></div>" +
       '<label class="pm"><span>Jegyzet</span><textarea class="mezo" id="przJegyzet" rows="2" placeholder="Mi volt a benyomás, mi a következő lépés…">' + esc(v.jegyzet) + "</textarea></label>" +
       '<div class="sor"><span class="hiba" id="przHiba"></span>' + (sz ? '<button type="button" class="gomb halk jobbra" data-pr-megse="1">Mégse</button>' : '<span class="jobbra"></span>') +
@@ -706,7 +712,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbz-b4P9aSq3he5q8enKIR3jfd
       if (jb) {
         var jn = jb.dataset.prJel; PR.erAllitva = true;
         PR.jel = PR.jel.indexOf(jn) > -1 ? PR.jel.filter(function (x) { return x !== jn; }) : PR.jel.concat([jn]);
-        el.querySelectorAll("[data-pr-jel]").forEach(function (x) { var on = PR.jel.indexOf(x.dataset.prJel) > -1; x.setAttribute("aria-pressed", String(on)); x.textContent = (on ? "☑ " : "☐ ") + x.dataset.prJel; });
+        el.querySelectorAll("[data-pr-jel]").forEach(function (x) { var on = PR.jel.indexOf(x.dataset.prJel) > -1; x.setAttribute("aria-pressed", String(on)); });
         return;
       }
       if (e.target.closest("[data-pr-megse]")) { PR.szerk = null; PR.jel = []; PR.erAllitva = false; rajzolPrezik(mtId); return; }
