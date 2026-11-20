@@ -132,6 +132,25 @@ var API = "";
   .pr-kpis { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); margin-bottom: 16px; }
   table.ht .ht-pr { color: var(--accent); font-weight: 700; }
   /* heti igényfelmérés-táblázat (a CÉLOK táblázat mintájára) */
+  .mr-q { margin-top: 16px; }
+  .mr-q .r-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .mr-fok { display: flex; flex-wrap: wrap; gap: 6px; margin: 30px 0 14px; font-size: .78rem; }
+  .mr-fok span { border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .mr-fok span.ok { border-color: var(--accent); background: rgba(61,220,132,.15); color: var(--ink); }
+  table.mr-t td.mr-ok { color: var(--accent); font-weight: 700; }
+  .mr-st { display: inline-block; border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px; font-size: .78rem; font-weight: 700; color: var(--muted); background: transparent; font-family: inherit; }
+  .mr-st.ok { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+  button.mr-st { cursor: pointer; min-height: 30px; }
+  .mr-in { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; color: var(--ink); padding: 6px 8px; font: inherit; font-size: .9rem; }
+  .mr-in:focus { outline: 2px solid var(--accent); border-color: var(--accent); }
+  .mr-sz { width: 5.5em; text-align: right; font-variant-numeric: tabular-nums; }
+  .mr-ho { width: 7em; font-size: .75rem; }
+  .mr-nev { width: 11em; } .mr-poz { width: 4em; }
+  .mr-cim { width: 30em; max-width: 100%; text-transform: none; letter-spacing: 0; font-size: .95rem; }
+  .mr-x { background: transparent; border: 1px solid var(--line); color: var(--muted); border-radius: 8px; width: 32px; height: 32px; cursor: pointer; }
+  .mr-x:hover { color: #ff8a7a; border-color: #ff8a7a; }
+  .mr-gombok { display: flex; gap: 10px; align-items: center; justify-content: flex-end; flex-wrap: wrap; margin-top: 14px; }
+  .mr-hiba { color: #ff8a7a; font-size: .9rem; margin-right: auto; }
   .ht-keret { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -6px; }
   table.ht { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; font-size: .9rem; min-width: 560px; }
   table.ht th, table.ht td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: center; white-space: nowrap; }
@@ -689,13 +708,16 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
     var d = S.data, rh = rekordHonap(d);
     // A negyedéves nézet megszűnt: aki azt nézte utoljára, a rekordot (ha nincs, a havit) kapja.
     // A negyedéves és a sima havi nézet megszűnt: helyettük a rekord (ha van) vagy a Havi teljesítmények nyílik.
-    var nezet = S.nezet === "pipeline" || S.nezet === "csapatfa" || (S.nezet === "rekord" && rh) ? S.nezet : (rh ? "rekord" : "pipeline");
+    if (MR.lista === null && !MR.betolt) meresLetolt();
+    var vanMeres = !!(MR.lista && MR.lista.length);
+    var nezet = S.nezet === "pipeline" || S.nezet === "csapatfa" || (S.nezet === "rekord" && rh) || (S.nezet === "meres" && vanMeres) ? S.nezet : (rh ? "rekord" : "pipeline");
     controls.innerHTML =
       '<div class="tabs" role="tablist" aria-label="Nézet">' +
         (rh ? '<button role="tab" data-n="rekord" aria-selected="' + (nezet === "rekord") + '">🏆 Év végi rekord</button>' : "") +
         '<button role="tab" data-n="pipeline" aria-selected="' + (nezet === "pipeline") + '">📈 Havi teljesítmények</button>' +
+        (vanMeres ? '<button role="tab" data-n="meres" aria-selected="' + (nezet === "meres") + '">📏 Fiókvezetői mérés</button>' : "") +
         '<button role="tab" data-n="csapatfa" aria-selected="' + (nezet === "csapatfa") + '">🌳 Csapatfa</button></div>' +
-      (d.lapok && d.lapok.length > 1 && nezet !== "pipeline" && nezet !== "csapatfa" ? '<select class="q" id="lap" aria-label="Negyedév">' + d.lapok.map(function (l) { return '<option' + (l === d.lap ? " selected" : "") + ">" + esc(l) + "</option>"; }).join("") + "</select>" : "") +
+      (d.lapok && d.lapok.length > 1 && nezet !== "pipeline" && nezet !== "csapatfa" && nezet !== "meres" ? '<select class="q" id="lap" aria-label="Negyedév">' + d.lapok.map(function (l) { return '<option' + (l === d.lap ? " selected" : "") + ">" + esc(l) + "</option>"; }).join("") + "</select>" : "") +
       (nezet === "havi" ? '<div class="tabs" role="tablist" aria-label="Hónap">' + d.honapok.map(function (m, i) {
         return '<button role="tab" data-i="' + i + '" aria-selected="' + (i === S.honap) + '">' + esc(m.nev) + "</button>";
       }).join("") + "</div>" : "");
@@ -714,7 +736,12 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
     }
 
     var html;
-    if (nezet === "csapatfa") {
+    if (nezet === "meres") {
+      app.innerHTML = meresNezet(statusz(null, false));
+      meresEsemenyek();
+      requestAnimationFrame(function () { requestAnimationFrame(function () { app.querySelectorAll(".fill").forEach(function (f) { f.style.width = f.dataset.w + "%"; }); }); });
+      return;
+    } else if (nezet === "csapatfa") {
       app.innerHTML = csapatfa(d);
       document.getElementById("frissit").onclick = function () { betolt(S.lap); };
       return;
@@ -931,6 +958,116 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
         return '<li><div class="medal">' + (i + 1) + '</div><div class="t-name"><b>' + esc(x.t.nev) + "</b><span>" + esc(x.csapat) + "</span></div>" +
           '<div class="t-val"><b>' + szam(x.ossz) + " " + egys + "</b><span>" + szazalek(arany(x.ossz, x.cel)) + " a célból</span></div></li>";
       }).join("") + "</ol>" : '<p class="k-sub">Ebben a hónapban még nincs eredmény.</p>') + "</section>";
+  }
+
+  /* ---------- Fiókvezetői mérés (a „Mérés” táblázat mintájára, a Kontroll SZB háttérben tárolva) ---------- */
+  var MR = { lista: null, betolt: false, hiba: "", i: 0, szerk: false, p: null, ment: false };
+  function meresLetolt() {
+    if (MR.betolt || !SZB_API || !szbToken()) { if (MR.lista === null && !szbToken()) MR.lista = []; return; }
+    MR.betolt = true;
+    fetch(SZB_API, { method: "POST", body: JSON.stringify({ muvelet: "meresek", token: szbToken() }) }).then(function (r) { return r.json(); }).then(function (d) {
+      MR.betolt = false;
+      if (!d || d.hiba || !d.meresek) { if (MR.lista === null) MR.lista = []; MR.hiba = (d && d.hiba) || ""; return; }
+      var elotte = MR.lista ? MR.lista.length : -1;
+      MR.lista = d.meresek; MR.hiba = "";
+      if (MR.i >= MR.lista.length) MR.i = 0;
+      if (S.data && !MR.szerk && (S.nezet === "meres" || elotte !== MR.lista.length)) rajzol();
+    }).catch(function () { MR.betolt = false; if (MR.lista === null) MR.lista = []; });
+  }
+  function mSzam(v) { return v == null || v === "" ? null : Number(v); }
+  function mOssz(l) { return l.reduce(function (n, x) { return n + (Number(x) || 0); }, 0); }
+  function meresStat(a) {
+    var q = a.negyedevek.map(function (n, qi) {
+      var ossz = 0; a.sorok.forEach(function (r) { ossz += mOssz(r.es.slice(qi * 3, qi * 3 + 3)); });
+      return { nev: n.nev, cel: Number(n.cel) || 0, ossz: ossz };
+    });
+    return { q: q, ossz: mOssz(q.map(function (x) { return x.ossz; })), cel: mOssz(q.map(function (x) { return x.cel; })) };
+  }
+  function meresNezet(statuszHtml) {
+    var m = MR.lista[MR.i], a = MR.szerk && MR.p ? MR.p : m.adat, st = meresStat(a), sz = MR.szerk;
+    var h = statuszHtml;
+    if (MR.lista.length > 1) h += '<div class="tabs" role="tablist" aria-label="Mérés" style="margin-bottom:14px">' + MR.lista.map(function (x, i) {
+      return '<button role="tab" data-mr-i="' + i + '" aria-selected="' + (i === MR.i) + '">' + esc(x.adat.cim) + "</button>"; }).join("") + "</div>";
+    var p = arany(st.ossz, st.cel);
+    h += '<section class="card rekord reveal"><div class="r-head"><p class="k-label">📏 ' + (sz ? '<input class="mr-in mr-cim" data-mr="cim" value="' + esc(a.cim) + '" aria-label="A mérés neve">' : esc(a.cim)) + "</p>" + pctHtml(p) + "</div>" +
+      '<div class="r-num">' + szam(st.ossz) + " <small>/ " + szam(st.cel) + " ES</small></div>" +
+      bar(st.ossz, st.cel, { big: true }) +
+      '<p class="k-sub" style="margin-bottom:0">Mérés teljesítve: <b>' + szam(st.ossz) + " ES</b> · még " + szam(Math.max(0, st.cel - st.ossz)) + " ES hiányzik</p>" +
+      (m.szerk ? '<div class="mr-gombok">' + (sz ? '<span class="mr-hiba" id="mrHiba"></span><button type="button" class="kilep" id="mrMegse">Mégse</button><button type="button" class="btn" id="mrMent"' + (MR.ment ? " disabled" : "") + ">" + (MR.ment ? "Mentés…" : "Mentés") + "</button>" : '<button type="button" class="kilep" id="mrSzerk">✏️ Szerkesztés / számok beírása</button>') + "</div>" : "") +
+      "</section>";
+    a.negyedevek.forEach(function (n, qi) {
+      var q = st.q[qi], qp = arany(q.ossz, q.cel);
+      var jelek = (a.merfok || []).map(function (f) { return { ertek: Math.round(f * q.cel) }; });
+      h += '<section class="card reveal mr-q"><div class="r-head"><h2 style="margin:0">' + (sz ? '<input class="mr-in" data-mr="q.' + qi + '.nev" value="' + esc(n.nev) + '" aria-label="Negyedév" style="width:9em">' : esc(n.nev)) + "</h2>" + pctHtml(qp) + "</div>" +
+        '<p class="k-sub">' + szam(q.ossz) + " / " + (sz ? '<input class="mr-in mr-sz" inputmode="numeric" data-mr="q.' + qi + '.cel" value="' + esc(n.cel == null ? "" : n.cel) + '" aria-label="Negyedéves cél">' : szam(q.cel)) + " ES</p>" +
+        bar(q.ossz, q.cel, { jelek: jelek }) +
+        '<p class="mr-fok">' + (a.merfok || []).map(function (f) { var ok = q.cel && q.ossz >= f * q.cel; return '<span class="' + (ok ? "ok" : "") + '">' + Math.round(f * 100) + "% · " + szam(Math.round(f * q.cel)) + "</span>"; }).join("") + "</p>" +
+        '<div class="ht-keret"><table class="ht mr-t"><thead><tr><th>Munkatárs</th><th>Cél<span>negyedév</span></th><th>Havi</th>' +
+        n.honapok.map(function (x, hi) { return "<th>" + (sz ? '<input class="mr-in mr-ho" data-mr="q.' + qi + ".h." + hi + '" value="' + esc(x) + '" aria-label="Hónap">' : esc(x)) + "</th>"; }).join("") +
+        '<th>Összesen</th><th>Aktív státusz</th><th>Cél</th>' + (sz && qi === 0 ? "<th></th>" : "") + "</tr></thead><tbody>" +
+        a.sorok.map(function (r, ri) {
+          var es = r.es.slice(qi * 3, qi * 3 + 3), ossz = mOssz(es), havi = mSzam(r.havi), cel = mSzam(r.cel);
+          function stat(t, kulcs) {
+            var on = !!(r[kulcs] && r[kulcs][qi]);
+            return sz ? '<td><button type="button" class="mr-st' + (on ? " ok" : "") + '" data-mr-st="' + kulcs + "." + ri + "." + qi + '">' + (on ? "✓ Megvan" : "Nincs meg") + "</button></td>"
+                      : '<td><span class="mr-st' + (on ? " ok" : "") + '">' + (on ? "✓ Megvan" : "Nincs meg") + "</span></td>";
+          }
+          return "<tr><th>" + (sz ? '<input class="mr-in mr-nev" data-mr="s.' + ri + '.nev" value="' + esc(r.nev) + '" aria-label="Név"> <input class="mr-in mr-poz" data-mr="s.' + ri + '.poz" value="' + esc(r.poz) + '" aria-label="Pozíció">' : esc(r.nev) + (r.poz ? "<small>" + esc(r.poz) + "</small>" : "")) + "</th>" +
+            (sz ? '<td><input class="mr-in mr-sz" inputmode="numeric" data-mr="s.' + ri + '.cel" value="' + esc(cel == null ? "" : cel) + '" aria-label="Cél"></td><td><input class="mr-in mr-sz" inputmode="numeric" data-mr="s.' + ri + '.havi" value="' + esc(havi == null ? "" : havi) + '" aria-label="Havi cél"></td>'
+                : "<td>" + (cel == null ? "–" : szam(cel)) + "</td><td>" + (havi == null ? "–" : szam(havi)) + "</td>") +
+            es.map(function (v, hi) {
+              v = mSzam(v);
+              if (sz) return '<td><input class="mr-in mr-sz" inputmode="numeric" data-mr="s.' + ri + ".es." + (qi * 3 + hi) + '" value="' + esc(v == null ? "" : v) + '" aria-label="' + esc(n.honapok[hi] + " ES") + '"></td>';
+              return '<td class="' + (v == null ? "ht-0" : havi && v >= havi ? "mr-ok" : "") + '">' + (v == null ? "–" : szam(v)) + "</td>";
+            }).join("") +
+            '<td class="ht-ossz' + (cel && ossz >= cel ? " mr-ok" : "") + '">' + szam(ossz) + "</td>" + stat("aktiv", "aktiv") + stat("cel", "celOk") +
+            (sz && qi === 0 ? '<td><button type="button" class="mr-x" data-mr-torol="' + ri + '" title="Sor törlése" aria-label="Sor törlése">✕</button></td>' : "") + "</tr>";
+        }).join("") +
+        '<tr class="ht-cs"><th>Összesen</th><td>' + szam(mOssz(a.sorok.map(function (r) { return r.cel; }))) + "</td><td>" + szam(mOssz(a.sorok.map(function (r) { return r.havi; }))) + "</td>" +
+        [0, 1, 2].map(function (hi) { return "<td>" + szam(mOssz(a.sorok.map(function (r) { return r.es[qi * 3 + hi]; }))) + "</td>"; }).join("") +
+        "<td>" + szam(q.ossz) + "</td><td></td><td></td>" + (sz && qi === 0 ? "<td></td>" : "") + "</tr></tbody></table></div>" +
+        (sz && qi === 0 ? '<p style="margin:10px 0 0"><button type="button" class="kilep" id="mrUjSor">+ Új sor</button></p>' : "") +
+        "</section>";
+    });
+    if (!sz) h += '<p class="k-sub">Zöld: elérte a havi célt. ' + (m.modositva ? "Utoljára módosítva: " + new Date(m.modositva).toLocaleString("hu-HU", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "") + "</p>";
+    return h;
+  }
+  function meresEsemenyek() {
+    var fr = document.getElementById("frissit"); if (fr) fr.onclick = function () { betolt(S.lap); meresLetolt(); };
+    app.querySelectorAll("[data-mr-i]").forEach(function (b) { b.onclick = function () { if (MR.szerk) return; MR.i = +b.dataset.mrI; rajzol(); }; });
+    var sg = document.getElementById("mrSzerk"); if (sg) sg.onclick = function () { MR.p = JSON.parse(JSON.stringify(MR.lista[MR.i].adat)); MR.szerk = true; rajzol(); };
+    var mg = document.getElementById("mrMegse"); if (mg) mg.onclick = function () { MR.szerk = false; MR.p = null; rajzol(); };
+    var us = document.getElementById("mrUjSor"); if (us) us.onclick = function () {
+      MR.p.sorok.push({ nev: "", poz: "", cel: null, havi: null, es: MR.p.negyedevek.map(function () { return [null, null, null]; }).reduce(function (x, y) { return x.concat(y); }, []), aktiv: MR.p.negyedevek.map(function () { return false; }), celOk: MR.p.negyedevek.map(function () { return false; }) });
+      rajzol(); var l = app.querySelectorAll(".mr-nev"); if (l.length) l[l.length - 1].focus();
+    };
+    app.querySelectorAll("[data-mr-torol]").forEach(function (b) { b.onclick = function () {
+      var r = MR.p.sorok[+b.dataset.mrTorol]; if (!confirm("Törlöd ezt a sort" + (r && r.nev ? " (" + r.nev + ")" : "") + "?")) return;
+      MR.p.sorok.splice(+b.dataset.mrTorol, 1); rajzol(); }; });
+    app.querySelectorAll("[data-mr-st]").forEach(function (b) { b.onclick = function () {
+      var x = b.dataset.mrSt.split("."), r = MR.p.sorok[+x[1]]; r[x[0]] = r[x[0]] || []; r[x[0]][+x[2]] = !r[x[0]][+x[2]]; rajzol(); }; });
+    app.querySelectorAll("[data-mr]").forEach(function (inp) {
+      inp.oninput = function () {
+        var k = inp.dataset.mr.split("."), v = inp.value, a = MR.p;
+        function sz(t) { t = String(t).replace(/\s/g, "").replace(",", "."); return t === "" ? null : t; }
+        if (k[0] === "cim") a.cim = v;
+        else if (k[0] === "q") { var q = a.negyedevek[+k[1]]; if (k[2] === "nev") q.nev = v; else if (k[2] === "cel") q.cel = sz(v); else q.honapok[+k[3]] = v; }
+        else { var r = a.sorok[+k[1]]; if (k[2] === "es") r.es[+k[3]] = sz(v); else if (k[2] === "nev" || k[2] === "poz") r[k[2]] = v; else r[k[2]] = sz(v); }
+      };
+    });
+    var mm = document.getElementById("mrMent"); if (mm) mm.onclick = function () {
+      var hiba = document.getElementById("mrHiba");
+      for (var i = 0; i < MR.p.sorok.length; i++) if (!String(MR.p.sorok[i].nev || "").trim()) { hiba.textContent = "Minden sorhoz adj meg nevet (vagy töröld a sort)."; return; }
+      var rossz = false; JSON.stringify(MR.p, function (k, v) { if (typeof v === "string" && /^(cel|havi)$/.test(k) && v !== "" && isNaN(Number(v))) rossz = true; return v; });
+      MR.p.sorok.forEach(function (r) { r.es.forEach(function (v) { if (v != null && v !== "" && isNaN(Number(v))) rossz = true; }); });
+      if (rossz) { hiba.textContent = "Csak számot írj az ES mezőkbe."; return; }
+      MR.ment = true; mm.disabled = true; mm.textContent = "Mentés…";
+      fetch(SZB_API, { method: "POST", body: JSON.stringify({ muvelet: "meresMent", token: szbToken(), id: MR.lista[MR.i].id, adat: MR.p }) }).then(function (r) { return r.json(); }).then(function (d) {
+        MR.ment = false;
+        if (!d || d.hiba || !d.meresek) { var e = document.getElementById("mrHiba"); if (e) e.textContent = (d && d.hiba) || "Nem sikerült menteni."; var g = document.getElementById("mrMent"); if (g) { g.disabled = false; g.textContent = "Mentés"; } return; }
+        MR.lista = d.meresek; MR.szerk = false; MR.p = null; if (MR.i >= MR.lista.length) MR.i = 0; rajzol();
+      }).catch(function () { MR.ment = false; var e = document.getElementById("mrHiba"); if (e) e.textContent = "Nem sikerült menteni (hálózati hiba)."; var g = document.getElementById("mrMent"); if (g) { g.disabled = false; g.textContent = "Mentés"; } });
+    };
   }
 
   /* ---------- pipeline eredményjelző (Elemzés összegző) ---------- */
@@ -1344,7 +1481,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
   plLetolt();   // az elemzés összegző adatai már most, az eredményjelzővel párhuzamosan töltődnek
   // 5 percenként frissít, ha az oldal látható
   // amíg valaki ír (pl. cél-szerkesztő), nem frissítünk, hogy ne vesszen el, amit beírt
-  function irasFolyik() { var a = document.activeElement; return !!PL.celSzerk || !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.id !== "plIdo"); }
+  function irasFolyik() { var a = document.activeElement; return !!PL.celSzerk || !!MR.szerk || !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.id !== "plIdo"); }
   setInterval(function () { if (!document.hidden && !irasFolyik()) { betolt(S.lap); if (S.nezet === "pipeline") plLetolt(); } }, 5 * 60 * 1000);
   var utolso = Date.now();
   document.addEventListener("visibilitychange", function () { if (!document.hidden && !irasFolyik() && Date.now() - utolso > 2 * 60 * 1000) { utolso = Date.now(); betolt(S.lap); } });
