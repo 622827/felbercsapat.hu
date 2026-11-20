@@ -1262,7 +1262,32 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
       if (!BD.piszkos) BD.lista = d.lista || [];
       try { localStorage.setItem("fbr_bd_v1", JSON.stringify(d.jog ? { jog: true, admin: d.admin, mentorok: d.mentorok, lista: d.lista } : { jog: false })); } catch (e) {}
       if (S.data && !BD.piszkos && (S.nezet === "bedolgozas" || volt !== BD.jog)) rajzol();
+      if (d.jog && d.admin) bdRegiBetolt();
     }).catch(function () { BD.betolt = false; });
+  }
+  /*
+   * Egyszeri átvétel a régi „Bedolgozás - Felber BL” táblázatból: a titkosított bd-import.enc.json-ból (ugyanaz a kulcs,
+   * mint az eredményjelző adatfájljáé) az admin böngészője menti el a még hiányzó bedolgozásokat a szokásos mentéssel.
+   */
+  function bdRegiBetolt() {
+    if (BD.importFut) return;
+    try { if (localStorage.getItem("fbr_bd_imp1")) return; } catch (e) {}
+    BD.importFut = true;
+    fetch("bd-import.enc.json?_=" + Date.now()).then(function (r) { if (!r.ok) throw new Error("nincs"); return r.json(); }).then(function (f) {
+      var t = FbrKripto.visszafejt(FBR.token(), f); if (!t || !t.lista) throw new Error("nem fejthető vissza");
+      var van = {}; BD.lista.forEach(function (x) { van[String(x.nev).trim().toLowerCase()] = 1; });
+      var hiany = t.lista.filter(function (x) { return !van[String(x.nev).trim().toLowerCase()]; });
+      if (!hiany.length) { try { localStorage.setItem("fbr_bd_imp1", "1"); } catch (e) {} BD.importFut = false; return; }
+      var i = 0; bdAllapot("Eddigi bedolgozások betöltése… 0 / " + hiany.length);
+      (function kov() {
+        if (i >= hiany.length) { try { localStorage.setItem("fbr_bd_imp1", "1"); } catch (e) {} BD.importFut = false; bdAllapot("Betöltve: " + hiany.length + " korábbi bedolgozás ✓"); BD.kert = false; bdLetolt(); return; }
+        var x = hiany[i];
+        fetch(SZB_API, { method: "POST", body: JSON.stringify({ muvelet: "bedolgozasMent", token: szbToken(), nev: x.nev, mentor_email: x.mentor_email, adat: x.adat }) }).then(function (r) { return r.json(); }).then(function (d) {
+          if (!d || d.hiba) throw new Error((d && d.hiba) || "hiba");
+          i++; bdAllapot("Eddigi bedolgozások betöltése… " + i + " / " + hiany.length); kov();
+        }).catch(function (e) { BD.importFut = false; bdAllapot("⚠️ A korábbi bedolgozások betöltése megakadt (" + (e.message || e) + ") – frissítsd az oldalt."); });
+      })();
+    }).catch(function () { BD.importFut = false; });
   }
   function bdAkt() { var b = BD.lista.filter(function (x) { return x.id === BD.sel; })[0]; if (!b && BD.lista.length) { b = BD.lista[0]; BD.sel = b.id; } if (b) b.adat = bdNorm(b.adat); return b || null; }
   function bdSzbAll(a) { var n = 0, k = 0; a.szb.forEach(function (sz) { sz.t.forEach(function (t) { n++; if (t.k) k++; }); }); return { n: n, k: k }; }
