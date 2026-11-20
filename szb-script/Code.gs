@@ -876,7 +876,7 @@ function alkalomTorol_(en, k) {
  * (a QUERY-s A–V rész magától feljebb csúszik, így minden sor a helyén marad). Törli a tanácsadásait és nyitott értesítéseit is.
  */
 function elemzesTorol_(en, k) {
-  if (en.szerep !== 'admin' && en.szerep !== 'vezeto') hiba_('Ügyfelet csak vezető vagy admin törölhet.');
+  // Törölhet: az admin, a vezető a csapattagjainál, a munkatárs a saját ügyfeleinél (pipelineJog_ ellenőrzi).
   pipelineJog_(en, k.munkatars_id);
   const m = sorok_('Munkatársak').filter(function (x) { return x.id === k.munkatars_id; })[0];
   if (!m) hiba_('A munkatárs nem található.');
