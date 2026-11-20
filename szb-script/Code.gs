@@ -42,6 +42,7 @@ const LAPOK = {
   'Prezik': ['id', 'munkatars_id', 'datum', 'jelolt', 'telefon', 'forras', 'eredmeny', 'jegyzet', 'letrehozva', 'szerzo', 'modositva', 'jelolesek'],
   'Célok': ['munkatars_id', 'honap', 'cel', 'vallalas', 'modositva', 'szerzo'],
   'Mérések': ['id', 'csapat', 'adat', 'modositva', 'szerzo'],
+  'Bedolgozások': ['id', 'nev', 'mentor', 'mentor_email', 'csapat', 'adat', 'letrehozva', 'modositva', 'szerzo', 'aktiv'],
   'Értesítések': ['id', 'tipus', 'munkatars_id', 'munkatars_nev', 'ugyfel', 'kulcs', 'cimzettek', 'letrehozva', 'szerzo', 'kesz', 'kesz_ido', 'kesz_szerzo']
 };
 
@@ -92,6 +93,9 @@ function kezel_(k) {
     case 'feladatAllit': return zarral_(function () { return feladatAllit_(en, k.id, !!k.kesz); });
     case 'feladatTorol': return zarral_(function () { return feladatTorol_(en, k.id); });
     case 'meresek': return meresek_(en);
+    case 'bedolgozasok': return bedolgozasok_(en);
+    case 'bedolgozasMent': return zarral_(function () { return bedolgozasMent_(en, k); });
+    case 'bedolgozasTorol': return zarral_(function () { return bedolgozasTorol_(en, k.id); });
     case 'meresMent': return zarral_(function () { return meresMent_(en, k); });
     case 'eredmeny': return eredmeny_(k.lap);
     case 'telefonparty': return telefonparty_(en, k.party_id);
@@ -266,6 +270,73 @@ function sajatId_(en, mt) {
   return m ? m.id : '';
 }
 function kell_(en, mtId) { if (!lathatoIdk_(en)[mtId]) hiba_('Ehhez a munkatárshoz nincs hozzáférésed.'); }
+
+/* ================= Bedolgozás (a „Bedolgozás - Felber BL” táblázat mintájára) ================= */
+
+/** Bedolgozást az admin, a csapatvezetők és a vezetőjelöltek (VJ pozíció) láthatnak és vezethetnek. */
+function bedolgozoE_(en) {
+  if (en.szerep === 'admin' || en.szerep === 'vezeto') return true;
+  const m = en.munkatars_id && sorok_('Munkatársak').filter(function (x) { return x.id === en.munkatars_id; })[0];
+  return !!(m && /^VJ$/i.test(String(m.pozicio || '').trim()));
+}
+/** Ki láthat egy bedolgozást: admin mindet; a mentor a sajátját; a csapatvezető a csapatáét. */
+function bedolgozasLathat_(en, b) {
+  if (en.szerep === 'admin') return true;
+  if (String(b.mentor_email).toLowerCase() === String(en.email).toLowerCase()) return true;
+  return en.szerep === 'vezeto' && !!b.csapat && b.csapat === felhCsapat_(en);
+}
+/** Választható mentorok (az admin felvételnél): aktív vezetők, vezetőjelöltek és adminok. */
+function bedolgozasMentorok_() {
+  const mt = {};
+  sorok_('Munkatársak').forEach(function (m) { mt[m.id] = m; });
+  return sorok_('Felhasználók').filter(function (f) { return f.aktiv !== 'nem'; }).filter(function (f) {
+    if (f.szerep === 'admin' || f.szerep === 'vezeto') return true;
+    const m = f.munkatars_id && mt[f.munkatars_id];
+    return !!(m && /^VJ$/i.test(String(m.pozicio || '').trim()));
+  }).map(function (f) { return { email: f.email, nev: f.nev, csapat: felhCsapat_(enAdat_(f)) }; });
+}
+function bedolgozasok_(en) {
+  if (!bedolgozoE_(en)) return { jog: false, lista: [] };
+  const lista = sorok_('Bedolgozások').filter(function (b) { return b.aktiv !== 'nem' && bedolgozasLathat_(en, b); }).map(function (b) {
+    let adat = null; try { adat = JSON.parse(b.adat); } catch (e) {}
+    return { id: b.id, nev: b.nev, mentor: b.mentor, mentor_email: b.mentor_email, csapat: b.csapat, adat: adat, letrehozva: b.letrehozva, modositva: b.modositva };
+  });
+  return { jog: true, admin: en.szerep === 'admin', en: { email: en.email, nev: en.nev }, mentorok: en.szerep === 'admin' ? bedolgozasMentorok_() : [], lista: lista };
+}
+/** Új bedolgozás vagy meglévő mentése. k: { id?, nev, mentor_email? (csak admin), adat } – az adat a teljes állapot (JSON). */
+function bedolgozasMent_(en, k) {
+  if (!bedolgozoE_(en)) hiba_('Ehhez nincs jogosultságod.');
+  const nev = String(k.nev || '').trim().slice(0, 80);
+  if (!nev) hiba_('Add meg az új munkatárs nevét.');
+  const adat = JSON.stringify(k.adat || {});
+  if (adat.length > 45000) hiba_('Túl sok adat egy bedolgozásban (kérlek rövidíts a jegyzeteken).');
+  if (k.id) {
+    const b = sorok_('Bedolgozások').filter(function (x) { return x.id === k.id && x.aktiv !== 'nem'; })[0];
+    if (!b) hiba_('A bedolgozás nem található. Frissítsd az oldalt.');
+    if (!bedolgozasLathat_(en, b)) hiba_('Ehhez a bedolgozáshoz nincs hozzáférésed.');
+    const v = { nev: nev, adat: adat, modositva: most_(), szerzo: en.email };
+    if (en.szerep === 'admin' && k.mentor_email) {
+      const mm = bedolgozasMentorok_().filter(function (x) { return x.email.toLowerCase() === String(k.mentor_email).toLowerCase(); })[0];
+      if (mm) { v.mentor = mm.nev; v.mentor_email = mm.email; v.csapat = mm.csapat; }
+    }
+    frissit_('Bedolgozások', b._sor, v);
+  } else {
+    let mentor = { nev: en.nev, email: en.email, csapat: felhCsapat_(en) };
+    if (en.szerep === 'admin' && k.mentor_email) {
+      const mm = bedolgozasMentorok_().filter(function (x) { return x.email.toLowerCase() === String(k.mentor_email).toLowerCase(); })[0];
+      if (mm) mentor = mm;
+    }
+    hozzaad_('Bedolgozások', { id: ujId_(), nev: nev, mentor: mentor.nev, mentor_email: mentor.email, csapat: mentor.csapat, adat: adat, letrehozva: most_(), modositva: most_(), szerzo: en.email, aktiv: 'igen' });
+  }
+  return bedolgozasok_(en);
+}
+function bedolgozasTorol_(en, id) {
+  const b = sorok_('Bedolgozások').filter(function (x) { return x.id === id && x.aktiv !== 'nem'; })[0];
+  if (!b) hiba_('A bedolgozás nem található.');
+  if (!(en.szerep === 'admin' || String(b.mentor_email).toLowerCase() === String(en.email).toLowerCase())) hiba_('Bedolgozást csak a mentor vagy az admin törölhet.');
+  frissit_('Bedolgozások', b._sor, { aktiv: 'nem', modositva: most_(), szerzo: en.email });
+  return bedolgozasok_(en);
+}
 
 /* ================= Fiókvezetői mérés ================= */
 
