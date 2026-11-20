@@ -508,7 +508,9 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
     var h1 = ROVID[m[1].toLowerCase()], h2 = ROVID[m[3].toLowerCase()];
     if (h1 == null || h2 == null) return null;
     var y = ev(), tol = new Date(y, h1, +m[2]), ig = new Date(h2 < h1 ? y + 1 : y, h2, +m[4] + 1); // ig: a zárónap vége
-    return { tol: tol, ig: ig, szoveg: m[1].toLowerCase() + ". " + m[2] + ". – " + m[3].toLowerCase() + ". " + m[4] + "." };
+    // A rekord a kezdőhónap termelési hónapjának első napjától számít (pl. nov. 1. helyett nov. 4., az első kedd utáni nap).
+    var tk = hoKezd(y, h1); if (tk > tol) tol = tk;
+    return { tol: tol, ig: ig, szoveg: m[1].toLowerCase() + ". " + tol.getDate() + ". – " + m[3].toLowerCase() + ". " + m[4] + "." };
   }
 
   function bar(ertek, cel, o) {
