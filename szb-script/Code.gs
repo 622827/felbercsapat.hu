@@ -350,7 +350,7 @@ function bedolgozasLapFeldolgoz_(v) {
   function bool(r, k) { return /^(true|false)$/i.test(c(r, k)); }
   const szb = BEDOLGOZAS_SZB_CIMEK.map(function (cim, i) {
     const k = i * 2, t = [];
-    for (let r = 1; r <= 7; r++) { const n = c(r, k); if (n && !/^jegyzet/i.test(n) && bool(r, k + 1)) t.push({ n: n, k: b(r, k + 1) }); }
+    for (let r = 1; r <= 7; r++) { const n = c(r, k); if (n && !/^jegyzet/i.test(n) && !/provb\s*regisztr/i.test(n) && bool(r, k + 1)) t.push({ n: n, k: b(r, k + 1) }); }
     const tr = i < 7;
     return { cim: cim, t: t, jegyzet: tr ? c(8, k) : '', trening: tr ? c(10, k) : '', tr: tr };
   });

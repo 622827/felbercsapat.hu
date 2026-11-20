@@ -1223,7 +1223,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
   /* ---------- Bedolgozás (a „Bedolgozás - Felber BL” táblázat mintájára; csak vezetők, vezetőjelöltek, admin) ---------- */
   var BD_SZB = [
     { cim: "1. SZB", t: ["2 hetes betanulás vázolása", "MNB elmondása", "Gmail regisztráció", "Bemutató igényfelmérés ip", "SZB időpontok egyeztetése", "OVB internet kezelése"], tr: true },
-    { cim: "Bemutató igényfelmérés", t: ["OVB extra kezelése – végtelen eladás", "Cégbemutató kb. szó szerint", "PROVB regisztráció", "Cégbemutató feladása", "OVB tools (itt vagy 1. SZB-n)"], tr: true },
+    { cim: "Bemutató igényfelmérés", t: ["OVB extra kezelése – végtelen eladás", "Cégbemutató kb. szó szerint", "Cégbemutató feladása", "OVB tools (itt vagy 1. SZB-n)"], tr: true },
     { cim: "2. SZB", t: ["Dupla fizu eladása", "MNB kontroll", "Képek feladása", "Napi 1 kontakt"], tr: true },
     { cim: "3. SZB", t: ["Gyerek feladása", "Elemzőfüzet küldése", "Drive mappa", "Esetleg, kommunikáció", "Csapatépítő meghívás"], tr: true },
     { cim: "4. SZB", t: ["Karrier SZB", "Nyugdíj feladása", "Próbaelemzések, listázás (20 kontakt)", "Csapatmeetingre meghívni", "Plusz SZB-k / egyeztetés", "Teljes elemzés tréning (opcionális)"], tr: true },
@@ -1249,6 +1249,8 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
   function bdNorm(a) {
     a = a || {}; if (!a.szb || !a.szb.length) a.szb = bdUres().szb; if (!a.elemzesek) a.elemzesek = []; if (!a.ertekeles) a.ertekeles = bdUres().ertekeles;
     ["pont", "plusz", "minusz"].forEach(function (k) { a.ertekeles[k] = a.ertekeles[k] || {}; });
+    // megszűnt tételek (pl. PROVB regisztráció) kiszűrése a meglévő bedolgozásokból is
+    a.szb.forEach(function (sz) { sz.t = (sz.t || []).filter(function (t) { return !/provb\s*regisztr/i.test(t.n || ""); }); });
     return a;
   }
   /** Mindenki csak a sajátját látja (ahol ő a mentor); az admin mindet. */
