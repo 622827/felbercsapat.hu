@@ -1254,7 +1254,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
     return a;
   }
   /** Mindenki csak a sajátját látja (ahol ő a mentor); az admin mindet. */
-  function bdSzur(d) { var en = d.en || BD.en; return (d.lista || []).filter(function (x) { return d.admin || !en || String(x.mentor_email).toLowerCase() === String(en.email).toLowerCase(); }); }
+  function bdSzur(d) { var en = d.en || BD.en; return (d.lista || []).filter(function (x) { return d.admin || d.mind || !en || String(x.mentor_email).toLowerCase() === String(en.email).toLowerCase(); }); }
   function bdLetolt(ujra) {
     if (BD.betolt || !SZB_API || !szbToken()) return;
     BD.betolt = true;
@@ -1262,7 +1262,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
       BD.betolt = false;
       if (d && d.kod === "auth" && !ujra && FBR.szbBelep) return FBR.szbBelep().then(function (ok) { if (ok) bdLetolt(true); });
       if (!d || d.hiba) { if (!BD.probak || BD.probak < 3) { BD.probak = (BD.probak || 0) + 1; setTimeout(bdLetolt, 10000 * BD.probak); } return; }
-      var volt = BD.jog; BD.jog = !!d.jog; BD.admin = d.admin; BD.mentorok = d.mentorok || []; BD.en = d.en;
+      var volt = BD.jog; BD.jog = !!d.jog; BD.admin = d.admin; BD.olvaso = !!d.olvaso; BD.mentorok = d.mentorok || []; BD.en = d.en;
       // mindenki csak a sajátját látja (ahol ő a mentor); az admin mindet
       if (!BD.piszkos) BD.lista = bdSzur(d);
       try { localStorage.setItem("fbr_bd_v1", JSON.stringify(d.jog ? { jog: true, admin: d.admin, mentorok: d.mentorok, lista: bdSzur(d) } : { jog: false })); } catch (e) {}
@@ -1308,7 +1308,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
       return '<button type="button" class="bd-kartya' + (b.id === BD.sel ? " akt" : "") + '" data-bd-sel="' + esc(b.id) + '"><b>' + esc(b.nev) + "</b><span>mentor: " + esc(b.mentor || "–") + "</span>" +
         '<div class="bar"><div class="fill' + (sz.k === sz.n ? " ok" : "") + '" style="width:' + (sz.n ? (sz.k / sz.n * 100).toFixed(1) : 0) + '%"></div></div>' +
         "<small>SZB: " + sz.k + " / " + sz.n + " · elemzés: " + a.elemzesek.length + " · vizsga: " + Math.round(pt.szazalek * 100) + "%</small></button>";
-    }).join("") + '<button type="button" class="bd-kartya bd-uj" id="bdUjGomb"><b>+ Új bedolgozás</b><span>új munkatárs felvétele</span></button></div>';
+    }).join("") + (BD.olvaso ? "" : '<button type="button" class="bd-kartya bd-uj" id="bdUjGomb"><b>+ Új bedolgozás</b><span>új munkatárs felvétele</span></button>') + "</div>";
     if (BD.uj) {
       h += '<section class="card bd-ujform"><h3 style="margin-top:0">Új bedolgozás</h3><label>Az új munkatárs neve <input class="bd-in" id="bdUjNev" placeholder="pl. Kiss Péter"></label>' +
         (BD.admin && BD.mentorok && BD.mentorok.length ? '<label>Mentor <select class="bd-in" id="bdUjMentor">' + BD.mentorok.map(function (m) { return '<option value="' + esc(m.email) + '"' + (BD.en && m.email === BD.en.email ? " selected" : "") + ">" + esc(m.nev + (m.csapat ? " (" + m.csapat + ")" : "")) + "</option>"; }).join("") + "</select></label>" : "") +
@@ -1408,6 +1408,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
       }).catch(function () { hiba.textContent = "Hálózati hiba."; uv.disabled = false; uv.textContent = "Felvétel"; });
     };
     var b = bdAkt(); if (!b) return;
+    if (BD.olvaso) { app.querySelectorAll("[data-bd], [data-bd-pipa], #bdUjElem, [data-bd-elem-torol], #bdTorol").forEach(function (el) { el.disabled = true; if (el.id === "bdUjElem" || el.id === "bdTorol" || el.dataset.bdElemTorol != null) el.style.display = "none"; }); return; }
     app.querySelectorAll("[data-bd-pipa]").forEach(function (el) { el.onclick = function () {
       var k = el.dataset.bdPipa, on = !bdErtek(b.adat, k); bdBeallit(b.adat, k, on);
       el.classList.toggle("ok", on); el.setAttribute("aria-pressed", String(on)); el.querySelector("i").textContent = on ? "✓" : "";

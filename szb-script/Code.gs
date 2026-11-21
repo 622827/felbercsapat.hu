@@ -69,6 +69,8 @@ function kezel_(k) {
   if (k.muvelet === 'googleBelepes') return googleBelepes_(k.idToken);
   if (k.muvelet === 'googleAllapot') return { google: !!GOOGLE_CLIENT_ID };
   const en = munkamenet_(k.token);
+  // Megtekintő (pl. a felsővezető): mindent lát, de semmit nem módosíthat
+  if (en.szerep === 'megfigyelo' && MEGTEKINTO_MUVELETEK.indexOf(k.muvelet) < 0) hiba_('Csak megtekintési jogod van – szerkeszteni nem tudsz.');
   switch (k.muvelet) {
     case 'kilepes': PropertiesService.getScriptProperties().deleteProperty('m_' + k.token); return { ok: true };
     case 'adatok': return adatok_(en);
@@ -244,10 +246,13 @@ function ujJelszo_() {
 
 function enAdat_(f) { return { email: f.email, nev: f.nev, szerep: f.szerep, munkatars_id: f.munkatars_id, csapat: f.csapat }; }
 function admin_(en) { if (en.szerep !== 'admin') hiba_('Ehhez nincs jogosultságod.'); }
+/** Mindent láthat: az admin és a megtekintő („megfigyelo” szerep – csak olvasás). */
+function latMindent_(en) { return en.szerep === 'admin' || en.szerep === 'megfigyelo'; }
+const MEGTEKINTO_MUVELETEK = ['kilepes', 'adatok', 'pipeline', 'pipelineOsszesito', 'urlap', 'eredmeny', 'telefonparty', 'meresek', 'bedolgozasok', 'szinkronAllapot'];
 
 function lathatoMunkatarsak_(en) {
   const mt = sorok_('Munkatársak').filter(function (m) { return m.aktiv !== 'nem'; });
-  if (en.szerep === 'admin') return mt;
+  if (latMindent_(en)) return mt;
   // A vezető a csapattagjait látja, a saját lapját nem (a róla írt SZB jegyzetek miatt). A saját Pipeline-ját külön kapja (sajatId_).
   // A „felettes” oszlopban megadott vezető (pl. Szekér Szilviánál Mayer Réka) a Kontroll SZB-jét is látja és írhatja – csak azt (csakSzb).
   if (en.szerep === 'vezeto') {
@@ -275,13 +280,13 @@ function kell_(en, mtId) { if (!lathatoIdk_(en)[mtId]) hiba_('Ehhez a munkatárs
 
 /** Bedolgozást az admin, a csapatvezetők és a vezetőjelöltek (VJ pozíció) láthatnak és vezethetnek. */
 function bedolgozoE_(en) {
-  if (en.szerep === 'admin' || en.szerep === 'vezeto') return true;
+  if (latMindent_(en) || en.szerep === 'vezeto') return true;
   const m = en.munkatars_id && sorok_('Munkatársak').filter(function (x) { return x.id === en.munkatars_id; })[0];
   return !!(m && /^VJ$/i.test(String(m.pozicio || '').trim()));
 }
 /** Ki láthat egy bedolgozást: az admin mindet, mindenki más csak a sajátját (ahol ő a mentor). */
 function bedolgozasLathat_(en, b) {
-  if (en.szerep === 'admin') return true;
+  if (latMindent_(en)) return true;
   return String(b.mentor_email).toLowerCase() === String(en.email).toLowerCase();
 }
 /** Választható mentorok (az admin felvételnél): aktív vezetők, vezetőjelöltek és adminok. */
@@ -300,7 +305,7 @@ function bedolgozasok_(en) {
     let adat = null; try { adat = JSON.parse(b.adat); } catch (e) {}
     return { id: b.id, nev: b.nev, mentor: b.mentor, mentor_email: b.mentor_email, csapat: b.csapat, adat: adat, letrehozva: b.letrehozva, modositva: b.modositva };
   });
-  return { jog: true, admin: en.szerep === 'admin', en: { email: en.email, nev: en.nev }, mentorok: en.szerep === 'admin' ? bedolgozasMentorok_() : [], lista: lista };
+  return { jog: true, admin: en.szerep === 'admin', mind: latMindent_(en), olvaso: en.szerep === 'megfigyelo', en: { email: en.email, nev: en.nev }, mentorok: en.szerep === 'admin' ? bedolgozasMentorok_() : [], lista: lista };
 }
 /** Új bedolgozás vagy meglévő mentése. k: { id?, nev, mentor_email? (csak admin), adat } – az adat a teljes állapot (JSON). */
 function bedolgozasMent_(en, k) {
@@ -448,7 +453,7 @@ function felhCsapat_(en) {
   const m = en.munkatars_id && sorok_('Munkatársak').filter(function (x) { return x.id === en.munkatars_id; })[0];
   return m ? String(m.csapat || '').trim() : '';
 }
-function meresLathat_(en, cs) { return en.szerep === 'admin' || (!!cs && felhCsapat_(en) === cs); }
+function meresLathat_(en, cs) { return latMindent_(en) || (!!cs && felhCsapat_(en) === cs); }
 function meresSzerk_(en, cs) { return en.szerep === 'admin' || (en.szerep === 'vezeto' && !!cs && felhCsapat_(en) === cs); }
 
 /** A felhasználó által látható mérések (admin: mind; más: a saját csapatáé). Első híváskor létrehozza az alap mérést. */
@@ -1425,7 +1430,7 @@ function felhasznalokLista_() {
 function felhasznaloMent_(k) {
   const email = String(k.email || '').trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) hiba_('Adj meg érvényes e-mail-címet.');
-  const szerep = ['admin', 'vezeto', 'munkatars'].indexOf(k.szerep) > -1 ? k.szerep : 'munkatars';
+  const szerep = ['admin', 'vezeto', 'munkatars', 'megfigyelo'].indexOf(k.szerep) > -1 ? k.szerep : 'munkatars';
   if (szerep === 'munkatars' && !k.munkatars_id) hiba_('Válaszd ki, melyik munkatárs lapját látja.');
   if (szerep === 'vezeto' && !k.csapat) hiba_('Add meg a vezető csapatát.');
   const adat = { nev: String(k.nev || '').trim(), szerep: szerep, munkatars_id: k.munkatars_id || '', csapat: k.csapat || '', aktiv: k.aktiv === false ? 'nem' : 'igen' };

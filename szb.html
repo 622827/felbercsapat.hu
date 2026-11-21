@@ -67,6 +67,9 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbz-b4P9aSq3he5q8enKIR3jfd
   main { min-width: 0; padding: 64px 16px 60px 32px; }
   .vissza-ej { position: fixed; top: 14px; right: 16px; z-index: 30; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 999px;
     border: 1px solid var(--accent); color: var(--accent-text); background: var(--bg); font-weight: 700; font-size: .85rem; text-decoration: none; box-shadow: 0 4px 14px rgba(0,0,0,.25); }
+  body.olvaso #pUj, body.olvaso .pk-szerk, body.olvaso .pk-torol, body.olvaso #feladatForm, body.olvaso #jegyzetForm, body.olvaso #przForm,
+  body.olvaso [data-alk-szerk], body.olvaso [data-alk-torol], body.olvaso [data-athuz], body.olvaso .alk-uj, body.olvaso [data-a="fTorol"], body.olvaso [data-pr-szerk], body.olvaso [data-pr-torol] { display: none !important; }
+  body.olvaso .lap::before { content: "👁 Megtekintő mód – mindent látsz, de szerkeszteni nem tudsz."; display: block; margin: 0 0 12px; padding: 8px 12px; border-radius: 10px; background: var(--panel2); color: var(--muted); font-size: .85rem; }
   .vissza-ej:hover { background: var(--accent-soft); color: var(--ink); }
   .lap { max-width: 860px; display: flex; flex-direction: column; gap: 28px; }
   .vissza { display: none; border: 0; background: none; color: var(--muted); font-weight: 600; padding: 0; cursor: pointer; justify-self: start; }
@@ -433,6 +436,7 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbz-b4P9aSq3he5q8enKIR3jfd
   function betolt() {
     if (S.betolt) return Promise.resolve(); S.betolt = true;
     return api("adatok").then(function (d) {
+      document.body.classList.toggle("olvaso", !!(d.en && d.en.szerep === "megfigyelo"));
       S.en = d.en; S.sajat = d.sajat || null; S.mt = d.munkatarsak; S.jegy = d.jegyzetek; S.fel = d.feladatok; S.prezik = d.prezik || []; S.interjuk = d.interjuk || []; S.nevek = d.nevek || {}; S.ertesitesek = d.ertesitesek || [];
       if (S.en.szerep === "munkatars" && !S.sel && S.mt[0]) S.sel = S.mt[0].id;
       rajzolMinden();
@@ -1524,14 +1528,14 @@ var SZB_API = "https://script.google.com/macros/s/AKfycbz-b4P9aSq3he5q8enKIR3jfd
       '<section><h3>Új felhasználó</h3><form class="szerkeszto" id="fhForm"><div class="racs">' +
         '<input class="mezo" type="email" id="fhEmail" placeholder="E-mail-cím" aria-label="E-mail-cím" required>' +
         '<input class="mezo" id="fhNev" placeholder="Név" aria-label="Név">' +
-        '<select id="fhSzerep" aria-label="Szerep"><option value="munkatars">Munkatárs – csak a saját lapját látja</option><option value="vezeto">Csapatvezető – a csapatát látja</option><option value="admin">Admin – mindent lát</option></select>' +
+        '<select id="fhSzerep" aria-label="Szerep"><option value="munkatars">Munkatárs – csak a saját lapját látja</option><option value="vezeto">Csapatvezető – a csapatát látja</option><option value="admin">Admin – mindent lát</option><option value="megfigyelo">Megtekintő – mindent lát, de nem szerkeszthet</option></select>' +
         '<select id="fhMt" aria-label="Melyik munkatárs lapja"><option value="">– Melyik munkatárs lapja? –</option>' + S.mt.map(function (m) { return '<option value="' + esc(m.id) + '">' + esc(m.nev) + "</option>"; }).join("") + "</select>" +
         '<select id="fhCsapat" aria-label="Csapat" hidden><option value="">– Melyik csapat? –</option>' + csapatok.map(function (c) { return "<option>" + esc(c) + "</option>"; }).join("") + "</select>" +
       '</div><div class="sor"><span class="hiba" id="fhHiba"></span><button class="gomb jobbra" type="submit">Felhasználó létrehozása</button></div></form></section>' +
       '<section><h3>Belépési jogok (' + S.fh.length + ')</h3><div class="tabla"><table class="fh"><thead><tr><th>E-mail</th><th>Név</th><th>Szerep</th><th>Lát</th><th></th></tr></thead><tbody>' +
         S.fh.map(function (f) {
           return '<tr data-email="' + esc(f.email) + '"><td>' + esc(f.email) + (f.aktiv ? "" : " <span class=\"chip\">letiltva</span>") + "</td><td>" + esc(f.nev) + "</td><td>" + esc(szerepNev(f.szerep)) + "</td><td>" +
-            esc(f.szerep === "admin" ? "mindenkit" : f.szerep === "vezeto" ? f.csapat : mtNev(f.munkatars_id)) + '</td><td style="white-space:nowrap">' +
+            esc(f.szerep === "admin" || f.szerep === "megfigyelo" ? "mindenkit" : f.szerep === "vezeto" ? f.csapat : mtNev(f.munkatars_id)) + '</td><td style="white-space:nowrap">' +
             (f.email === S.en.email ? "<span class=\"chip\">te</span>" : '<button class="link" data-fa="uj">Új jelszó</button> <button class="link" data-fa="tilt">' + (f.aktiv ? "Letiltás" : "Engedélyezés") + '</button> <button class="link" data-fa="torol">Törlés</button>') + "</td></tr>";
         }).join("") + "</tbody></table></div></section>" +
       '<section><h3>Munkatársak tömeges felvétele</h3><form class="szerkeszto" id="tomegForm"><p style="margin:0;color:var(--muted);font-size:.9rem">Soronként egy munkatárs: <b>Név; Csapat; Pozíció</b></p>' +
