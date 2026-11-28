@@ -294,6 +294,9 @@ var API = "";
   .pl-cel { margin-bottom: 16px; border: 2px solid var(--accent); }
   .pl-cel h3 { margin: 16px 0 6px; font-size: 1rem; }
   .pl-cel-sorok { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 0 24px; }
+  .pl-korr-sor { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .pl-korr-nyers { color: var(--muted); font-size: .85rem; white-space: nowrap; }
+  .chip.pl-korr { background: var(--accent-text); color: var(--accent-ink); }
   .pl-cel-sor { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); }
   .pl-cel-sor span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pl-cel-sor label { display: inline-flex; align-items: center; gap: 6px; font-size: .8rem; color: var(--muted); }
@@ -759,10 +762,16 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
     }
     function bent(v) { var dt = pDatum(v); return !!dt && (!ido || (dt >= ido.tol && dt < ido.ig)); }
     var szemely = {}, csapat = {}, ossz = 0;
+    var KM = plKorrekciok();
     PL.adat.munkatarsak.forEach(function (m) {
-      var es = 0;
-      m.sorok.forEach(function (r) { if (bent(r[0])) es += r[6] || 0; });
-      (m.leadasok || []).forEach(function (x) { if (bent(x[0])) es += x[1] || 0; });
+      var es = 0, perTk = {};
+      m.sorok.forEach(function (r) { if (bent(r[0])) { es += r[6] || 0; var t = termHo(pDatum(r[0])); perTk[t] = (perTk[t] || 0) + (r[6] || 0); } });
+      (m.leadasok || []).forEach(function (x) { if (bent(x[0])) { es += x[1] || 0; var t = termHo(pDatum(x[0])); perTk[t] = (perTk[t] || 0) + (x[1] || 0); } });
+      // havi korrekció: a rekord-időszakba teljesen beleeső termelési hónapoknál a beírt valós ES számít
+      Object.keys(KM[m.id] || {}).forEach(function (tk) {
+        tk = +tk; var kezd = hoKezd(Math.floor(tk / 12), tk % 12), veg = elsoKedd(Math.floor((tk + 1) / 12), (tk + 1) % 12); veg.setDate(veg.getDate() + 1);
+        if (!ido || (kezd >= ido.tol && veg <= ido.ig)) es += KM[m.id][tk] - (perTk[tk] || 0);
+      });
       var k = faNev(m.nev).toLowerCase(), cs = String(csapatNev(m)).trim();
       szemely[k] = (szemely[k] || 0) + es; csapat[cs] = (csapat[cs] || 0) + es; ossz += es;
     });
@@ -1446,7 +1455,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
   function plLetolt(ujra, friss) {
     if (PL.betolt) return; PL.betolt = true;
     var gomb = document.getElementById("frissit"); if (gomb) gomb.disabled = true;
-    function kesz() { PL.betolt = false; if ((S.nezet === "pipeline" || S.nezet === "rekord") && S.data && !PL.celSzerk) rajzol(); }
+    function kesz() { PL.betolt = false; if ((S.nezet === "pipeline" || S.nezet === "rekord") && S.data && !PL.celSzerk && !PL.korrSzerk) rajzol(); }
     fetch(SZB_API, { method: "POST", body: JSON.stringify({ muvelet: "pipelineOsszesito", token: szbToken(), friss: !!friss }) }).then(function (r) { return r.json(); }).then(function (d) {
       if (d && d.kod === "auth" && !ujra) return FBR.szbBelep().then(function (ok) { PL.betolt = false; if (ok) return plLetolt(true, friss); PL.hiba = "Az elemzés összegző megtekintéséhez lépj ki, majd lépj be újra."; kesz(); });
       if (!d || d.hiba) { if (!PL.adat) PL.hiba = (d && d.hiba) || "Hibás válasz."; }
@@ -1502,19 +1511,28 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
     for (var hi = 0; hi < hetSzam; hi++) hetek.push(0);
     function ures() { return { n: 0, taIdo: 0, ajanlas: 0, mtAjanlas: 0, kilatas: 0, taMeg: 0, megkotott: 0, spec: 0 }; }
     var KULCSOK = ["n", "taIdo", "ajanlas", "mtAjanlas", "kilatas", "taMeg", "megkotott", "spec"];
-    var ossz = ures(), csapatok = {}, csSor = [], emberek = [];
+    var ossz = ures(), csapatok = {}, csSor = [], emberek = [], KM = plKorrekciok();
     mt.forEach(function (m) {
-      var o = ures(); if (NQ) o.ho = [0, 0, 0];
+      var o = ures(), perTk = {}; if (NQ) o.ho = [0, 0, 0];
       m.sorok.forEach(function (r) {
         if (!bent(r)) return;
         o.n++; o.taIdo += r[1]; o.ajanlas += r[2]; o.mtAjanlas += r[3]; o.kilatas += r[4]; o.taMeg += r[5]; o.megkotott += r[6]; o.spec += r[7];
+        var tk0 = termHo(pDatum(r[0])); perTk[tk0] = (perTk[tk0] || 0) + r[6];
         var dt = pDatum(r[0]); if (dt && kezd && hetSzam) { var h = hetI(dt); if (h >= 0 && h < hetSzam) { hetek[h] += r[6]; if (o.ho) o.ho[h] += r[6]; } }
       });
       // a tanácsadással leadott ES a tanácsadás dátumának termelési hónapjához/hetéhez számít
       (m.leadasok || []).forEach(function (x) {
         if (!bent([x[0]])) return;
         o.megkotott += x[1];
+        var tk1 = termHo(pDatum(x[0])); perTk[tk1] = (perTk[tk1] || 0) + x[1];
         var dt = pDatum(x[0]); if (dt && kezd && hetSzam) { var h = hetI(dt); if (h >= 0 && h < hetSzam) { hetek[h] += x[1]; if (o.ho) o.ho[h] += x[1]; } }
+      });
+      // havi korrekció (admin): a teljes termelési hónapokra beírt valós ES felülírja a számoltat
+      if (!egyedi) (NQ ? qh : [valTk]).forEach(function (tk, i) {
+        var kv = KM[m.id] && KM[m.id][tk];
+        if (!NQ) o.nyers = perTk[tk] || 0;
+        if (kv == null) return;
+        var d = kv - (perTk[tk] || 0); o.megkotott += d; if (o.ho) o.ho[i] += d; o.korr = true;
       });
       var cs = csapatNev(m), c = csapatok[cs];
       if (!c) { c = csapatok[cs] = { nev: cs, o: ures(), tagok: [] }; csSor.push(c); }
@@ -1549,7 +1567,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
 
     var html = '<div class="status"><span id="allapot">Adatok (Elemzés összegző): ' + new Date(PL.adat.ido).toLocaleString("hu-HU", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) + (PL.betolt ? " · frissítés…" : "") + "</span>" +
       '<button id="frissit" type="button">↻ Frissítés</button>' +
-      (PL.adat.admin && !egyedi && !NQ ? '<button id="plCelGomb" type="button">🎯 Cél és vállalás megadása</button>' : "") +
+      (PL.adat.admin && !egyedi && !NQ ? '<button id="plCelGomb" type="button">🎯 Cél és vállalás megadása</button><button id="plKorrGomb" type="button">✏️ Havi korrekció</button>' : "") +
       (ido != null && ido > 0 && ido < 1 ? '<span class="legend"><i></i> időarányos (' + szazalek(ido) + ")</span>" : "") +
       (ossz.vallalas ? '<span class="legend"><i class="v"></i> vállalás</span>' : "") + "</div>" +
       '<h2 class="elso">' + (NQ ? "Negyedéves teljesítmény – " : "Havi teljesítmények – ") + esc(cimke) + "</h2>" +
@@ -1557,6 +1575,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
       '<button role="tab" type="button" data-plal="prezi" aria-selected="' + (PL.al === "prezi") + '">🤝 Prezik</button>' +
       '<button role="tab" type="button" data-plal="negyedev" aria-selected="' + NQ + '">📅 Negyedév</button></div>';
     if (PL.al === "prezi") return { vezerlo: vezerlo, html: html + preziNezet(mt, bent, kezd, veg, cimke) };
+    if (PL.korrSzerk && PL.adat.admin && !egyedi && !NQ) html += korrSzerkeszto(csSor, termHoAdat(valTk).nev);
     if (PL.celSzerk && PL.adat.admin && !egyedi && !NQ) html += celSzerkeszto(csSor, termHoAdat(valTk).nev);
 
     // fő kártyák: mint a havi nézetben (nagy egység-kártya heti bontással + két kisebb)
@@ -1591,7 +1610,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
           : '<div class="team-mini"><div><b>' + szam(c.o.n) + "</b>elemzés</div><div><b>" + szam(c.o.taIdo) + " · " + szazalek(arany(c.o.taIdo, c.o.n)) + "</b>TA időpont</div>" +
             "<div><b>" + szam(c.o.taMeg) + "</b>TA megvalósult</div></div>") +
         '<ul class="members">' + tagok.map(function (t) {
-          return "<li" + (t.o.n ? "" : ' class="pl-nulla"') + '><div class="m-name"><b title="' + esc(t.nev) + '">' + esc(t.nev) + "</b>" + (t.poz ? '<span class="chip">' + esc(t.poz) + "</span>" : "") + "</div>" +
+          return "<li" + (t.o.n || t.o.korr ? "" : ' class="pl-nulla"') + '><div class="m-name"><b title="' + esc(t.nev) + '">' + esc(t.nev) + "</b>" + (t.poz ? '<span class="chip">' + esc(t.poz) + "</span>" : "") + (t.o.korr ? '<span class="chip pl-korr" title="Havi korrekcióval (számolt: ' + szam(t.o.nyers || 0) + ' ES)">korrigált</span>' : "") + "</div>" +
             (t.cel || t.vallalas
               ? '<div class="m-units">' + bar(t.o.megkotott, t.cel || t.vallalas, { vallalas: t.vallalas, ido: ido }) + '<div class="bar-row pl-kis"><span>' +
                   (t.cel ? "cél: " + szazalek(arany(t.o.megkotott, t.cel)) : "") + (t.cel && t.vallalas ? " · " : "") + (t.vallalas ? "vállalás: " + szazalek(arany(t.o.megkotott, t.vallalas)) : "") + "</span></div></div>" +
@@ -1748,7 +1767,30 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
     }).join("") + "</ol>" : '<p class="k-sub">Ebben az időszakban még nincs rögzített prezi.</p>') + "</section></div>";
     return html;
   }
+  /** Havi korrekciók a Célok közül: { munkatars_id: { termelési hónap kulcs (év*12+hó): ES } } */
+  function plKorrekciok() {
+    var o = {};
+    ((PL.adat && PL.adat.celok) || []).forEach(function (x) {
+      if (x.korrekcio === "" || x.korrekcio == null) return;
+      var m = /^(\d{4})-(\d{2})$/.exec(x.honap || ""); if (!m) return;
+      (o[x.munkatars_id] = o[x.munkatars_id] || {})[+m[1] * 12 + (+m[2] - 1)] = Number(x.korrekcio) || 0;
+    });
+    return o;
+  }
   function hoKulcs(k) { return Math.floor(k / 12) + "-" + String(k % 12 + 1).padStart(2, "0"); }
+  function korrSzerkeszto(csSor, honapNev) {
+    return '<section class="card reveal pl-cel" id="plKorrKartya"><h2 style="margin-top:0">✏️ Havi korrekció – ' + esc(honapNev) + "</h2>" +
+      '<p class="k-sub">Írd be, hány ES lett valójában ebben a termelési hónapban. Ez felülírja az Ügyfeleim-ből számolt értéket (Havi teljesítmények, Év végi rekord, Fiókvezetői mérés); az ügyfeleknél nem változik semmi. Üresen hagyva marad a számolt érték.</p>' +
+      csSor.map(function (c) {
+        return "<h3>" + esc(c.nev) + '</h3><div class="pl-cel-sorok">' + c.tagok.slice().sort(function (a, b) { return a.nev.localeCompare(b.nev, "hu"); }).map(function (e) {
+          var kv = e.o.korr ? e.o.megkotott : "";
+          return '<div class="pl-cel-sor pl-korr-sor" data-mt="' + esc(e.id) + '"><span>' + esc(e.nev) + "</span>" +
+            '<span class="pl-korr-nyers">számolt: <b>' + szam(e.o.nyers || 0) + " ES</b></span>" +
+            '<label>valós <input inputmode="decimal" data-mezo="korrekcio" value="' + esc(kv === "" ? "" : Math.round(kv * 100) / 100) + '" placeholder="' + esc(szam(e.o.nyers || 0)) + '"></label></div>';
+        }).join("") + "</div>";
+      }).join("") +
+      '<div class="pl-cel-gombok"><span class="pl-hiba" id="plKorrHiba"></span><button type="button" class="kilep" id="plKorrMegse">Mégse</button><button type="button" class="btn" id="plKorrMent">Mentés</button></div></section>';
+  }
   function celSzerkeszto(csSor, honapNev) {
     return '<section class="card reveal pl-cel" id="plCelKartya"><h2 style="margin-top:0">🎯 Cél és vállalás – ' + esc(honapNev) + "</h2>" +
       '<p class="k-sub">ES-ben, ehhez a termelési hónaphoz. Üresen hagyva nincs megadva. Csak te látod ezt a szerkesztőt.</p>' +
@@ -1773,6 +1815,24 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
     app.querySelectorAll("[data-plal]").forEach(function (b) { b.onclick = function () { PL.al = b.dataset.plal; try { localStorage.setItem("fbr_plal", PL.al); } catch (e) {} rajzol(); }; });
     var cg = document.getElementById("plCelGomb"); if (cg) cg.onclick = function () { PL.celSzerk = !PL.celSzerk; rajzol(); if (PL.celSzerk) { var k = document.getElementById("plCelKartya"); if (k) k.scrollIntoView({ behavior: "smooth", block: "start" }); } };
     var cm = document.getElementById("plCelMegse"); if (cm) cm.onclick = function () { PL.celSzerk = false; rajzol(); };
+    var kg = document.getElementById("plKorrGomb"); if (kg) kg.onclick = function () { PL.korrSzerk = !PL.korrSzerk; PL.celSzerk = false; rajzol(); if (PL.korrSzerk) { var k = document.getElementById("plKorrKartya"); if (k) k.scrollIntoView({ behavior: "smooth", block: "start" }); } };
+    var km = document.getElementById("plKorrMegse"); if (km) km.onclick = function () { PL.korrSzerk = false; rajzol(); };
+    var ks = document.getElementById("plKorrMent"); if (ks) ks.onclick = function () {
+      var honap = hoKulcs(+PL.idoszak.slice(1)), lista = [];
+      app.querySelectorAll(".pl-korr-sor").forEach(function (sor) { lista.push({ munkatars_id: sor.dataset.mt, korrekcio: sor.querySelector('[data-mezo="korrekcio"]').value.trim() }); });
+      ks.disabled = true; ks.textContent = "Mentés…";
+      plApi("korrekcioMent", { honap: honap, lista: lista }).then(function () {
+        var n = function (v) { v = String(v).replace(/\s/g, "").replace(",", "."); return v === "" ? "" : String(Math.round(Number(v) * 100) / 100); };
+        var celok = PL.adat.celok || [];
+        lista.forEach(function (x) {
+          var c = celok.filter(function (y) { return y.honap === honap && y.munkatars_id === x.munkatars_id; })[0];
+          if (c) c.korrekcio = n(x.korrekcio); else if (n(x.korrekcio) !== "") celok.push({ munkatars_id: x.munkatars_id, honap: honap, cel: "", vallalas: "", korrekcio: n(x.korrekcio) });
+        });
+        PL.adat.celok = celok; PL.korrSzerk = false;
+        try { localStorage.setItem("fbr_pl_v1", JSON.stringify(PL.adat)); } catch (e) {}
+        rajzol();
+      }).catch(function (e) { ks.disabled = false; ks.textContent = "Mentés"; document.getElementById("plKorrHiba").textContent = e.message; });
+    };
     var cs = document.getElementById("plCelMent"); if (cs) cs.onclick = function () {
       var honap = hoKulcs(+PL.idoszak.slice(1)), lista = [];
       app.querySelectorAll(".pl-cel-sor").forEach(function (sor) {
@@ -1781,7 +1841,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
       cs.disabled = true; cs.textContent = "Mentés…";
       plApi("celokMent", { honap: honap, lista: lista }).then(function () {
         var tobbi = (PL.adat.celok || []).filter(function (x) { return x.honap !== honap; });
-        lista.forEach(function (x) { var n = function (v) { v = String(v).replace(/\s/g, "").replace(",", "."); return v === "" ? "" : String(Math.round(Number(v) * 100) / 100); }; tobbi.push({ munkatars_id: x.munkatars_id, honap: honap, cel: n(x.cel), vallalas: n(x.vallalas) }); });
+        lista.forEach(function (x) { var n = function (v) { v = String(v).replace(/\s/g, "").replace(",", "."); return v === "" ? "" : String(Math.round(Number(v) * 100) / 100); }; var regi = (PL.adat.celok || []).filter(function (y) { return y.honap === honap && y.munkatars_id === x.munkatars_id; })[0]; tobbi.push({ munkatars_id: x.munkatars_id, honap: honap, cel: n(x.cel), vallalas: n(x.vallalas), korrekcio: regi ? regi.korrekcio || "" : "" }); });
         PL.adat.celok = tobbi; PL.celSzerk = false; rajzol();
       }).catch(function (e) { cs.disabled = false; cs.textContent = "Mentés"; document.getElementById("plCelHiba").textContent = e.message; });
     };
@@ -1895,7 +1955,7 @@ var GOOGLE_CLIENT_ID = "999225694231-2mss6tomkc726fute26bc5krj9l94qb4.apps.googl
   plLetolt();   // az elemzés összegző adatai már most, az eredményjelzővel párhuzamosan töltődnek
   // 5 percenként frissít, ha az oldal látható
   // amíg valaki ír (pl. cél-szerkesztő), nem frissítünk, hogy ne vesszen el, amit beírt
-  function irasFolyik() { var a = document.activeElement; return !!PL.celSzerk || !!MR.szerk || (S.nezet === "bedolgozas" && !!BD.piszkos) || !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.id !== "plIdo" && a.id !== "plNq"); }
+  function irasFolyik() { var a = document.activeElement; return !!PL.celSzerk || !!PL.korrSzerk || !!MR.szerk || (S.nezet === "bedolgozas" && !!BD.piszkos) || !!(a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.id !== "plIdo" && a.id !== "plNq"); }
   setInterval(function () { if (!document.hidden && !irasFolyik()) { betolt(S.lap); if (S.nezet === "pipeline") plLetolt(); meresLetolt(); } }, 5 * 60 * 1000);
   var utolso = Date.now();
   document.addEventListener("visibilitychange", function () { if (!document.hidden && !irasFolyik() && Date.now() - utolso > 2 * 60 * 1000) { utolso = Date.now(); betolt(S.lap); } });
