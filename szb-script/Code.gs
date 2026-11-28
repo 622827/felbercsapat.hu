@@ -40,7 +40,7 @@ const LAPOK = {
   'Interjúk': ['id', 'prezi_id', 'munkatars_id', 'datum', 'ido', 'allapot', 'jegyzet', 'rogzitve', 'szerzo'],
   'Áthúzások': ['munkatars_id', 'kulcs', 'ugyfel', 'ido', 'szerzo'],
   'Prezik': ['id', 'munkatars_id', 'datum', 'jelolt', 'telefon', 'forras', 'eredmeny', 'jegyzet', 'letrehozva', 'szerzo', 'modositva', 'jelolesek'],
-  'Célok': ['munkatars_id', 'honap', 'cel', 'vallalas', 'modositva', 'szerzo'],
+  'Célok': ['munkatars_id', 'honap', 'cel', 'vallalas', 'modositva', 'szerzo', 'korrekcio'],
   'Mérések': ['id', 'csapat', 'adat', 'modositva', 'szerzo'],
   'Bedolgozások': ['id', 'nev', 'mentor', 'mentor_email', 'csapat', 'adat', 'letrehozva', 'modositva', 'szerzo', 'aktiv'],
   'Értesítések': ['id', 'tipus', 'munkatars_id', 'munkatars_nev', 'ugyfel', 'kulcs', 'cimzettek', 'letrehozva', 'szerzo', 'kesz', 'kesz_ido', 'kesz_szerzo']
@@ -77,6 +77,7 @@ function kezel_(k) {
     case 'pipeline': return pipeline_(en, k.munkatars_id, !!k.friss);
     case 'pipelineOsszesito': return pipelineOsszesito_(en, !!k.friss);
     case 'celokMent': return zarral_(function () { return celokMent_(en, k); });
+    case 'korrekcioMent': return zarral_(function () { return korrekcioMent_(en, k); });
     case 'pipelineMent': return zarral_(function () { return pipelineMent_(en, k); });
     case 'pipelineUj': return zarral_(function () { return pipelineUj_(en, k); });
     case 'urlap': return urlap_();
@@ -493,6 +494,8 @@ function meresLeadott_(adat, osz) {
     const h = {};
     m.sorok.forEach(function (x) { if (x[6]) { const k = termHoKulcs_(x[0]); if (k) h[k] = (h[k] || 0) + x[6]; } });
     m.leadasok.forEach(function (x) { const k = termHoKulcs_(x[0]); if (k) h[k] = (h[k] || 0) + x[1]; });
+    // havi korrekció (admin): a hónap valós leadott ES-e felülírja a számoltat
+    sorok_('Célok').forEach(function (c) { if (c.munkatars_id === m.id && c.korrekcio !== '' && c.korrekcio != null) h[c.honap] = Number(c.korrekcio) || 0; });
     return h;
   });
 }
@@ -662,7 +665,7 @@ function virtSorOlvas_(L, sor) {
  */
 function pipelineOsszesito_(en, friss) {
   const munkatarsak = gyorsTar_('osz_v1', osszesitoAdat_, friss);
-  const celok = sorok_('Célok').map(function (c) { return { munkatars_id: c.munkatars_id, honap: c.honap, cel: c.cel, vallalas: c.vallalas }; });
+  const celok = sorok_('Célok').map(function (c) { return { munkatars_id: c.munkatars_id, honap: c.honap, cel: c.cel, vallalas: c.vallalas, korrekcio: c.korrekcio || '' }; });
   // Rögzített prezik (csapatépítés) – csak dátum és jelölések, az interjú időpontok nem
   const prezik = sorok_('Prezik').map(function (x) { return [x.munkatars_id, x.datum, x.jelolesek || '']; });
   return { munkatarsak: munkatarsak.lista, celok: celok, prezik: prezik, admin: en.szerep === 'admin', ido: munkatarsak.ido };
@@ -745,6 +748,37 @@ function celokMent_(en, k) {
     else { if (adat.cel === '' && adat.vallalas === '') return; adat.munkatars_id = x.munkatars_id; adat.honap = honap; hozzaad_('Célok', adat); }
     db++;
   });
+  return { ok: true, mentve: db };
+}
+
+/**
+ * Havi korrekció (csak admin): munkatársanként a termelési hónap valós leadott ES-e, ami felülírja az Ügyfeleim-ből
+ * számoltat (Havi teljesítmények, Év végi rekord, Fiókvezetői mérés). k: { honap: 'ÉÉÉÉ-HH', lista: [{ munkatars_id, korrekcio }] } – üres = nincs korrekció.
+ */
+function korrekcioMent_(en, k) {
+  admin_(en);
+  const honap = String(k.honap || '');
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(honap)) hiba_('Hibás hónap.');
+  const ervenyes = {};
+  sorok_('Munkatársak').forEach(function (m) { ervenyes[m.id] = true; });
+  function szam(v) {
+    const t = String(v == null ? '' : v).replace(/\s/g, '').replace(',', '.');
+    if (t === '') return '';
+    const n = Number(t);
+    if (!isFinite(n) || n < 0 || n > 100000) hiba_('Hibás szám: ' + v);
+    return String(Math.round(n * 100) / 100);
+  }
+  const meglevo = {};
+  sorok_('Célok').forEach(function (c) { if (c.honap === honap) meglevo[c.munkatars_id] = c; });
+  let db = 0;
+  (k.lista || []).forEach(function (x) {
+    if (!ervenyes[x.munkatars_id]) return;
+    const kv = szam(x.korrekcio), m = meglevo[x.munkatars_id];
+    if (m) { if ((m.korrekcio || '') === kv) return; frissit_('Célok', m._sor, { korrekcio: kv, modositva: most_(), szerzo: en.email }); }
+    else { if (kv === '') return; hozzaad_('Célok', { munkatars_id: x.munkatars_id, honap: honap, cel: '', vallalas: '', korrekcio: kv, modositva: most_(), szerzo: en.email }); }
+    db++;
+  });
+  gyorsTarTorol_();
   return { ok: true, mentve: db };
 }
 
