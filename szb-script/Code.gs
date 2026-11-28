@@ -42,6 +42,10 @@ const LAPOK = {
   'Prezik': ['id', 'munkatars_id', 'datum', 'jelolt', 'telefon', 'forras', 'eredmeny', 'jegyzet', 'letrehozva', 'szerzo', 'modositva', 'jelolesek'],
   'Célok': ['munkatars_id', 'honap', 'cel', 'vallalas', 'modositva', 'szerzo', 'korrekcio'],
   'Mérések': ['id', 'csapat', 'adat', 'modositva', 'szerzo'],
+  'Vezetői tagok': ['email', 'nev', 'letrehozva'],
+  'Vezetői listák': ['id', 'cim', 'sorrend', 'archiv', 'letrehozva'],
+  'Vezetői kártyák': ['id', 'lista_id', 'cim', 'leiras', 'cimkek', 'hatarido', 'teendok', 'sorrend', 'archiv', 'letrehozva', 'modositva', 'szerzo'],
+  'Vezetői megjegyzések': ['id', 'kartya_id', 'szoveg', 'ido', 'szerzo', 'nev'],
   'Bedolgozások': ['id', 'nev', 'mentor', 'mentor_email', 'csapat', 'adat', 'letrehozva', 'modositva', 'szerzo', 'aktiv'],
   'Értesítések': ['id', 'tipus', 'munkatars_id', 'munkatars_nev', 'ugyfel', 'kulcs', 'cimzettek', 'letrehozva', 'szerzo', 'kesz', 'kesz_ido', 'kesz_szerzo']
 };
@@ -96,6 +100,8 @@ function kezel_(k) {
     case 'feladatAllit': return zarral_(function () { return feladatAllit_(en, k.id, !!k.kesz); });
     case 'feladatTorol': return zarral_(function () { return feladatTorol_(en, k.id); });
     case 'meresek': return meresek_(en);
+    case 'vezetoi': return vezetoiAdat_(en);
+    case 'vezetoiMent': return zarral_(function () { return vezetoiMent_(en, k); });
     case 'bedolgozasok': if (bedolgozoE_(en)) bedolgozasAutoImport_(); return bedolgozasok_(en);
     case 'bedolgozasMent': return zarral_(function () { return bedolgozasMent_(en, k); });
     case 'bedolgozasTorol': return zarral_(function () { return bedolgozasTorol_(en, k.id); });
@@ -249,7 +255,7 @@ function enAdat_(f) { return { email: f.email, nev: f.nev, szerep: f.szerep, mun
 function admin_(en) { if (en.szerep !== 'admin') hiba_('Ehhez nincs jogosultságod.'); }
 /** Mindent láthat: az admin és a megtekintő („megfigyelo” szerep – csak olvasás). */
 function latMindent_(en) { return en.szerep === 'admin' || en.szerep === 'megfigyelo'; }
-const MEGTEKINTO_MUVELETEK = ['kilepes', 'adatok', 'pipeline', 'pipelineOsszesito', 'urlap', 'eredmeny', 'telefonparty', 'meresek', 'bedolgozasok', 'szinkronAllapot'];
+const MEGTEKINTO_MUVELETEK = ['vezetoi', 'kilepes', 'adatok', 'pipeline', 'pipelineOsszesito', 'urlap', 'eredmeny', 'telefonparty', 'meresek', 'bedolgozasok', 'szinkronAllapot'];
 
 function lathatoMunkatarsak_(en) {
   const mt = sorok_('Munkatársak').filter(function (m) { return m.aktiv !== 'nem'; });
@@ -276,6 +282,78 @@ function sajatId_(en, mt) {
   return m ? m.id : '';
 }
 function kell_(en, mtId) { if (!lathatoIdk_(en)[mtId]) hiba_('Ehhez a munkatárshoz nincs hozzáférésed.'); }
+
+/* ================= Vezetői tábla (Trello-szerű; csak a „Vezetői tagok” lapon felsoroltak) ================= */
+
+function vezetoiJog_(en) {
+  const e = String(en.email || '').toLowerCase();
+  return sorok_('Vezetői tagok').some(function (t) { return emailNorm_(t.email) === emailNorm_(e); });
+}
+const VEZETOI_ALAP_LISTAK = ['Ötletek', 'Teendő', 'Folyamatban', 'Kész', 'Heti megbeszélések'];
+function vezetoiAdat_(en) {
+  if (!vezetoiJog_(en)) return { jog: false };
+  let listak = sorok_('Vezetői listák').filter(function (l) { return l.archiv !== 'igen'; });
+  if (!sorok_('Vezetői listák').length) {
+    zarral_(function () {
+      if (sorok_('Vezetői listák').length) return;
+      VEZETOI_ALAP_LISTAK.forEach(function (c, i) { hozzaad_('Vezetői listák', { id: ujId_(), cim: c, sorrend: String(i + 1), archiv: 'nem', letrehozva: most_() }); });
+    });
+    listak = sorok_('Vezetői listák').filter(function (l) { return l.archiv !== 'igen'; });
+  }
+  const kartyak = sorok_('Vezetői kártyák').filter(function (c) { return c.archiv !== 'igen'; }).map(function (c) {
+    let teendok = []; try { teendok = JSON.parse(c.teendok || '[]'); } catch (e) {}
+    return { id: c.id, lista_id: c.lista_id, cim: c.cim, leiras: c.leiras, cimkek: c.cimkek ? String(c.cimkek).split(',').filter(String) : [], hatarido: c.hatarido, teendok: teendok, sorrend: Number(c.sorrend) || 0, letrehozva: c.letrehozva, modositva: c.modositva };
+  });
+  const ids = {}; kartyak.forEach(function (c) { ids[c.id] = 1; });
+  const megjegyzesek = sorok_('Vezetői megjegyzések').filter(function (m) { return ids[m.kartya_id]; }).map(function (m) { return { id: m.id, kartya_id: m.kartya_id, szoveg: m.szoveg, ido: m.ido, nev: m.nev || m.szerzo }; });
+  return { jog: true, listak: listak.map(function (l) { return { id: l.id, cim: l.cim, sorrend: Number(l.sorrend) || 0 }; }).sort(function (a, b) { return a.sorrend - b.sorrend; }), kartyak: kartyak, megjegyzesek: megjegyzesek };
+}
+function vezetoiMent_(en, k) {
+  if (!vezetoiJog_(en)) hiba_('Ehhez nincs jogosultságod.');
+  function sz(v, max) { return String(v == null ? '' : v).slice(0, max || 200); }
+  function kartya(id) { const c = sorok_('Vezetői kártyák').filter(function (x) { return x.id === id && x.archiv !== 'igen'; })[0]; if (!c) hiba_('A kártya nem található – frissítsd az oldalt.'); return c; }
+  function lista(id) { const l = sorok_('Vezetői listák').filter(function (x) { return x.id === id && x.archiv !== 'igen'; })[0]; if (!l) hiba_('A lista nem található – frissítsd az oldalt.'); return l; }
+  const t = k.tipus;
+  if (t === 'listaUj') {
+    const max = sorok_('Vezetői listák').reduce(function (m, l) { return Math.max(m, Number(l.sorrend) || 0); }, 0);
+    hozzaad_('Vezetői listák', { id: ujId_(), cim: sz(k.cim, 80) || 'Új lista', sorrend: String(max + 1), archiv: 'nem', letrehozva: most_() });
+  } else if (t === 'listaMod') {
+    frissit_('Vezetői listák', lista(k.id)._sor, { cim: sz(k.cim, 80) || 'Lista' });
+  } else if (t === 'listaTorol') {
+    const l = lista(k.id);
+    frissit_('Vezetői listák', l._sor, { archiv: 'igen' });
+    sorok_('Vezetői kártyák').filter(function (c) { return c.lista_id === l.id && c.archiv !== 'igen'; }).forEach(function (c) { frissit_('Vezetői kártyák', c._sor, { archiv: 'igen', modositva: most_() }); });
+  } else if (t === 'listakSorrend') {
+    (k.sorrend || []).forEach(function (id, i) { const l = sorok_('Vezetői listák').filter(function (x) { return x.id === id; })[0]; if (l) frissit_('Vezetői listák', l._sor, { sorrend: String(i + 1) }); });
+  } else if (t === 'kartyaUj') {
+    lista(k.lista_id);
+    const max = sorok_('Vezetői kártyák').filter(function (c) { return c.lista_id === k.lista_id; }).reduce(function (m, c) { return Math.max(m, Number(c.sorrend) || 0); }, 0);
+    hozzaad_('Vezetői kártyák', { id: ujId_(), lista_id: k.lista_id, cim: sz(k.cim, 200) || 'Új kártya', leiras: '', cimkek: '', hatarido: '', teendok: '[]', sorrend: String(max + 1), archiv: 'nem', letrehozva: most_(), modositva: most_(), szerzo: en.email });
+  } else if (t === 'kartyaMod') {
+    const c = kartya(k.id), v = { modositva: most_(), szerzo: en.email };
+    if ('cim' in k) v.cim = sz(k.cim, 200) || 'Kártya';
+    if ('leiras' in k) v.leiras = sz(k.leiras, 20000);
+    if ('cimkek' in k) v.cimkek = (Array.isArray(k.cimkek) ? k.cimkek : []).map(function (x) { return sz(x, 20).replace(/,/g, ''); }).join(',');
+    if ('hatarido' in k) v.hatarido = /^\d{4}-\d{2}-\d{2}$/.test(String(k.hatarido)) ? k.hatarido : '';
+    if ('teendok' in k) v.teendok = JSON.stringify((Array.isArray(k.teendok) ? k.teendok : []).slice(0, 100).map(function (x) { return { t: sz(x.t, 300), k: !!x.k }; }));
+    frissit_('Vezetői kártyák', c._sor, v);
+  } else if (t === 'kartyaMozgat') {
+    lista(k.lista_id);
+    const c = kartya(k.id);
+    frissit_('Vezetői kártyák', c._sor, { lista_id: k.lista_id, modositva: most_() });
+    (k.sorrend || []).forEach(function (id, i) { const x = sorok_('Vezetői kártyák').filter(function (y) { return y.id === id; })[0]; if (x) frissit_('Vezetői kártyák', x._sor, { sorrend: String(i + 1) }); });
+  } else if (t === 'kartyaTorol') {
+    frissit_('Vezetői kártyák', kartya(k.id)._sor, { archiv: 'igen', modositva: most_() });
+  } else if (t === 'megjegyzesUj') {
+    kartya(k.kartya_id);
+    const szoveg = sz(k.szoveg, 5000).trim(); if (!szoveg) hiba_('Üres megjegyzés.');
+    hozzaad_('Vezetői megjegyzések', { id: ujId_(), kartya_id: k.kartya_id, szoveg: szoveg, ido: most_(), szerzo: en.email, nev: en.nev });
+  } else if (t === 'megjegyzesTorol') {
+    const m = sorok_('Vezetői megjegyzések').filter(function (x) { return x.id === k.id; })[0];
+    if (m) torol_('Vezetői megjegyzések', m._sor);
+  } else hiba_('Ismeretlen művelet.');
+  return vezetoiAdat_(en);
+}
 
 /* ================= Bedolgozás (a „Bedolgozás - Felber BL” táblázat mintájára) ================= */
 
